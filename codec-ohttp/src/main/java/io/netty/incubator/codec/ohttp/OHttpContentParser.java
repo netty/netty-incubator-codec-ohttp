@@ -31,7 +31,7 @@ import static io.netty.handler.codec.ByteToMessageDecoder.MERGE_CUMULATOR;
  * Parser that parses {@link ByteBuf}s coming from the content of a OHTTP-encoded message
  * into {@link HttpObject}s.
  */
-public abstract class OHttpContentParser {
+abstract class OHttpContentParser {
 
     private final OHttpChunkFramer<HttpObject> framer;
 
@@ -135,6 +135,5 @@ public abstract class OHttpContentParser {
             binaryHttpCumulation.release();
             binaryHttpCumulation = Unpooled.EMPTY_BUFFER;
         }
-
     }
 }
