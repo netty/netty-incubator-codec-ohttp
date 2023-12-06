@@ -1,0 +1,99 @@
+/*
+ * Copyright 2023 The Netty Project
+ *
+ * The Netty Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
+package io.netty.incubator.codec.ohttp;
+
+import io.netty.incubator.codec.hpke.CryptoException;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.AEAD;
+import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.KDF;
+import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.KEM;
+
+/**
+ * Set of server public keys and cipher suites for a OHTTP client.
+ */
+public final class OHttpServerPublicKeys implements Iterable<Map.Entry<Byte, OHttpKey.PublicKey>> {
+    private final Map<Byte, OHttpKey.PublicKey> keys = new HashMap<>();
+
+    /**
+     * Return all {@link OHttpKey.PublicKey}s.
+     *
+     * @return keys.
+     */
+    public Collection<OHttpKey.PublicKey> keys() {
+        return keys.values();
+    }
+
+    /**
+     * Return the {@link OHttpKey.PublicKey} for the given id or {@code null} if there is no key for the id.
+     *
+     * @param keyId the id of the key.
+     * @return  key the key.
+     */
+    public OHttpKey.PublicKey key(byte keyId) {
+        return keys.get(keyId);
+    }
+
+    @Override
+    public Iterator<Map.Entry<Byte, OHttpKey.PublicKey>> iterator() {
+        return keys.entrySet().iterator();
+    }
+
+    @Override
+    public String toString() {
+        return keys.values()
+                .stream()
+                .map(k -> "{ciphers=" +
+                        k.ciphersuites().stream()
+                                .map(OHttpCiphersuite::toString)
+                                .collect(Collectors.joining(", ", "[", "]")) +
+                        ", publicKey=" + ByteBufUtil.hexDump(k.pkEncoded()) + "}")
+                .collect(Collectors.joining(", ", "[", "]"));
+    }
+
+    /*
+     * Decode a serialized {@link ServerPublicKeys} on the client.
+     */
+    public static OHttpServerPublicKeys decode(ByteBuf input) throws CryptoException {
+        OHttpServerPublicKeys keys = new OHttpServerPublicKeys();
+        while (input.isReadable()) {
+            byte keyId = input.readByte();
+            KEM kem = KEM.forId(input.readShort());
+            byte[] publicKeyBytes = new byte[kem.npk()];
+            input.readBytes(publicKeyBytes);
+            int len = input.readShort();
+            ByteBuf ecInput = input.readSlice(len);
+            List<OHttpKey.Cipher> ciphers = new ArrayList<>();
+            while (ecInput.isReadable()) {
+                KDF kdf = KDF.forId(ecInput.readShort());
+                AEAD aead = AEAD.forId(ecInput.readShort());
+                ciphers.add(OHttpKey.newCipher(kdf, aead));
+            }
+            OHttpKey.PublicKey publicKey = OHttpKey.newPublicKey(keyId, kem, ciphers, publicKeyBytes);
+            keys.keys.put(keyId, publicKey);
+        }
+        return keys;
+    }
+}
