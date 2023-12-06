@@ -24,7 +24,7 @@ import io.netty.handler.codec.http.LastHttpContent;
 /**
  * Serializer that serializes {@link HttpObject}s to {@link ByteBuf} that can be used as OHTTP message content.
  */
-public abstract class OHttpContentSerializer {
+abstract class OHttpContentSerializer {
 
     private final OHttpChunkFramer<HttpObject> framer;
 
