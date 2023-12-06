@@ -1,0 +1,31 @@
+FROM centos:7
+
+ENV SOURCE_DIR /root/source
+
+# install dependencies
+RUN yum install -y \
+ bzip2 \
+ git \
+ gnupg \
+ tar \
+ unzip \
+ wget \
+ zip
+
+RUN mkdir $SOURCE_DIR
+WORKDIR $SOURCE_DIR
+
+# Downloading and installing SDKMAN!
+RUN curl -s "https://get.sdkman.io" | bash
+
+ARG java_version="8.0.322-zulu"
+ENV JAVA_VERSION $java_version
+
+# Installing Java removing some unnecessary SDKMAN files
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
+    yes | sdk install java $JAVA_VERSION && \
+    rm -rf $HOME/.sdkman/archives/* && \
+    rm -rf $HOME/.sdkman/tmp/*"
+
+RUN echo 'export JAVA_HOME="/root/.sdkman/candidates/java/current"' >> ~/.bashrc
+RUN echo 'PATH=$JAVA_HOME/bin:$PATH' >> ~/.bashrc
