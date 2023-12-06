@@ -35,7 +35,6 @@ import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpUtil;
@@ -109,8 +108,6 @@ public class OHttpCodecsTest {
                                 OHttpKey.newCipher(HybridPublicKeyEncryption.KDF.HKDF_SHA256, HybridPublicKeyEncryption.AEAD.CHACHA20_POLY1305)),
                         kpR));
 
-        OHttpServerContext serverContext = new OHttpServerContext(serverKeys, version, BouncyCastleHybridPublicKeyEncryption.INSTANCE);
-
         OHttpCiphersuite ciphersuite = new OHttpCiphersuite(keyId,
                 HybridPublicKeyEncryption.KEM.X25519_SHA256,
                 HybridPublicKeyEncryption.KDF.HKDF_SHA256,
@@ -118,62 +115,36 @@ public class OHttpCodecsTest {
 
         byte[] publicKeyBytes = kpR.publicParameters().encoded();
 
-        OHttpClientContext clientContext = new OHttpClientContext(
-                version, ciphersuite, publicKeyBytes, BouncyCastleHybridPublicKeyEncryption.INSTANCE);
-
         return new ChannelPair() {
             @Override
             public EmbeddedChannel client() {
-                return createClientChannel(clientContext);
+                return createClientChannel(version, ciphersuite, publicKeyBytes);
             }
 
             @Override
             public EmbeddedChannel server() {
-                return createServerChannel(serverContext);
+                return createServerChannel(version, serverKeys);
             }
         };
     }
 
-    private static EmbeddedChannel createClientChannel(OHttpClientContext context) {
+    private static EmbeddedChannel createClientChannel(OHttpVersion version, OHttpCiphersuite ciphersuite, byte[] publicKeyBytes) {
         return new EmbeddedChannel(
                 new LoggingHandler("CLIENT-RAW"),
                 new HttpClientCodec(),
                 new LoggingHandler("CLIENT-OUTER"),
-                new OHttpClientCodec() {
-                    @Override
-                    protected EncapsulationParameters encapsulationParameters(HttpRequest request) {
-                        return new EncapsulationParameters() {
-                            @Override
-                            public String outerRequestUri() {
-                                return "/ohttp";
-                            }
-
-                            @Override
-                            public String outerRequestAuthority() {
-                                return "authority";
-                            }
-
-                            @Override
-                            public OHttpClientContext context() {
-                                return context;
-                            }
-                        };
-                    }
-                },
+                new OHttpClientCodec(BouncyCastleHybridPublicKeyEncryption.INSTANCE,
+                        __ -> OHttpClientCodec.EncapsulationParameters.newInstance(version, ciphersuite, publicKeyBytes,
+                        "/ohttp", "autority")),
                 new LoggingHandler("CLIENT-INNER"));
     }
 
-    private static EmbeddedChannel createServerChannel(OHttpServerContext context) {
+    private static EmbeddedChannel createServerChannel(OHttpVersion version, OHttpServerKeys keys) {
         return new EmbeddedChannel(
                 new LoggingHandler("SERVER-RAW"),
                 new HttpServerCodec(),
                 new LoggingHandler("SERVER-OUTER"),
-                new OHttpServerCodec() {
-                    @Override
-                    protected OHttpServerContext newServerContext(HttpRequest request, OHttpVersion version) {
-                        return context;
-                    }
-                },
+                new OHttpServerCodec(BouncyCastleHybridPublicKeyEncryption.INSTANCE, keys),
                 new LoggingHandler("SERVER-INNER"));
     }
 

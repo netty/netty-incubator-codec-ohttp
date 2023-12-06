@@ -35,7 +35,8 @@ public final class OHttpCiphersuite {
 
     private static final int ENCODED_LENGTH = 7;
 
-    public OHttpCiphersuite(byte keyId, HybridPublicKeyEncryption.KEM kem, HybridPublicKeyEncryption.KDF kdf, HybridPublicKeyEncryption.AEAD aead) {
+    public OHttpCiphersuite(byte keyId, HybridPublicKeyEncryption.KEM kem, HybridPublicKeyEncryption.KDF kdf,
+                            HybridPublicKeyEncryption.AEAD aead) {
         this.keyId = keyId;
         this.kem = requireNonNull(kem, "kem");
         this.kdf = requireNonNull(kdf, "kdf");
