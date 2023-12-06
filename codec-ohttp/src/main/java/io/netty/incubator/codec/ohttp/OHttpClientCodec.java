@@ -96,12 +96,12 @@ public abstract class OHttpClientCodec extends MessageToMessageCodec<HttpObject,
     protected abstract EncapsulationParameters encapsulationParameters(HttpRequest request);
 
     @Override
-    public boolean isSharable() {
+    public final boolean isSharable() {
         return false;
     }
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
+    protected final void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
         if (destroyed) {
             throw new IllegalStateException("Already destroyed");
         }
@@ -136,7 +136,7 @@ public abstract class OHttpClientCodec extends MessageToMessageCodec<HttpObject,
     }
 
     @Override
-    protected void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
+    protected final void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
         try {
             if (msg instanceof HttpRequest) {
                 HttpRequest innerRequest = (HttpRequest) msg;
@@ -184,7 +184,7 @@ public abstract class OHttpClientCodec extends MessageToMessageCodec<HttpObject,
     }
 
     @Override
-    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+    public final void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
         if (!destroyed) {
             destroyed = true;
             cumulationBuffer.release();

@@ -79,12 +79,29 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
     }
 
     @Override
-    public boolean isSharable() {
+    public final boolean isSharable() {
         return false;
     }
 
+    /**
+     * Select the correct {@link OHttpVersion} based on the content-type value or {@code null} if none
+     * could be selected.
+     *
+     * @param contentTypeValue  the value of the content-type header.
+     * @return                  the version or {@code null} if none could be selected.
+     */
+    protected OHttpVersion selectOHttpVersion(String contentTypeValue) {
+        if (OHttpConstants.REQUEST_CONTENT_TYPE.contentEqualsIgnoreCase(contentTypeValue)) {
+            return OHttpVersionDraft.INSTANCE;
+        }
+        if (OHttpConstants.CHUNKED_REQUEST_CONTENT_TYPE.contentEqualsIgnoreCase(contentTypeValue)) {
+            return OHttpVersionChunkDraft.INSTANCE;
+        }
+        return null;
+    }
+
     @Override
-    protected void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
+    protected final void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
         if (destroyed) {
             throw new IllegalStateException("Already destroyed");
         }
@@ -95,11 +112,9 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
                 parser = null;
                 sentResponse = false;
                 if (req.method() == HttpMethod.POST) {
-                    String contentTypeValue = req.headers().get(HttpHeaderNames.CONTENT_TYPE);
-                    if (OHttpConstants.REQUEST_CONTENT_TYPE.contentEqualsIgnoreCase(contentTypeValue)) {
-                        context = newServerContext(req, OHttpVersionDraft.INSTANCE);
-                    } else if (OHttpConstants.CHUNKED_REQUEST_CONTENT_TYPE.contentEqualsIgnoreCase(contentTypeValue)) {
-                        context = newServerContext(req, OHttpVersionChunkDraft.INSTANCE);
+                    OHttpVersion version = selectOHttpVersion(req.headers().get(HttpHeaderNames.CONTENT_TYPE));
+                    if (version != null) {
+                        context = newServerContext(req, version);
                     }
                 }
                 if (context != null) {
@@ -131,7 +146,7 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public final void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         context = null;
         if (!sentResponse && request != null) {
             sentResponse = true;
@@ -147,7 +162,7 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
     }
 
     @Override
-    protected void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
+    protected final void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
         try {
             if (msg instanceof HttpResponse) {
                 serializer = null;
@@ -181,7 +196,7 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
     }
 
     @Override
-    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+    public final void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
         if (!destroyed) {
             destroyed = true;
             cumulationBuffer.release();
