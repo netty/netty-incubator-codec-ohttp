@@ -240,7 +240,6 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 HttpRequest innerRequest = (HttpRequest) msg;
                 EncapsulationParameters encapsulation = encapsulationFunc.apply(innerRequest);
                 if (encapsulation != null) {
-
                     OHttpClientRequestResponseContext oHttpContext =
                             new OHttpClientRequestResponseContext(encapsulation, encryption);
                     HttpHeaders outerHeaders = encapsulation.outerRequestHeaders();
