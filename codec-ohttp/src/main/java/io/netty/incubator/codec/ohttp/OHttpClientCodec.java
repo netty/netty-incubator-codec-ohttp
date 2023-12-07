@@ -189,12 +189,12 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
     }
 
     @Override
-    public final boolean isSharable() {
+    public boolean isSharable() {
         return false;
     }
 
     @Override
-    protected final void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
+    protected void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
         if (destroyed) {
             throw new IllegalStateException("Already destroyed");
         }
@@ -234,7 +234,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
     }
 
     @Override
-    protected final void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
+    protected void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
         try {
             if (msg instanceof HttpRequest) {
                 HttpRequest innerRequest = (HttpRequest) msg;
@@ -288,7 +288,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
     }
 
     @Override
-    public final void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
         if (!destroyed) {
             destroyed = true;
             cumulationBuffer.release();
@@ -321,13 +321,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
 
         @Override
         public boolean decodePrefix(ByteBuf in) {
-            if (in.readableBytes() < sender.ciphersuite().responseNonceLength()) {
-                return false;
-            }
-            byte[] responseNonce = new byte[sender.ciphersuite().responseNonceLength()];
-            in.readBytes(responseNonce);
-            sender.setResponseNonce(responseNonce);
-            return true;
+            return sender.readResponseNonce(in);
         }
 
         @Override
@@ -338,7 +332,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
 
         @Override
         public void encodePrefixNow(ByteBuf out) {
-            out.writeBytes(sender.header());
+            sender.writeHeader(out);
         }
 
         @Override

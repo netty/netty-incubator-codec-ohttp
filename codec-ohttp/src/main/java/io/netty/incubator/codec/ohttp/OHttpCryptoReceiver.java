@@ -111,8 +111,8 @@ public final class OHttpCryptoReceiver {
         this.aead = builder.ciphersuite.createResponseAead(builder.encryption, this.context, enc, this.responseNonce, configuration);
     }
 
-    public byte[] responseNonce() {
-        return this.responseNonce.clone();
+    public void writeResponseNonce(ByteBuf out) {
+        out.writeBytes(responseNonce);
     }
 
     public void decrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {

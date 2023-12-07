@@ -37,7 +37,7 @@ public abstract class OHttpKey {
     OHttpKey(byte id, KEM kem, List<Cipher> ciphers) {
         this.id = id;
         this.kem = kem;
-        this.ciphers = Collections.unmodifiableList(checkNotNull(ciphers, "encryptionCiphers"));
+        this.ciphers = Collections.unmodifiableList(checkNotNull(ciphers, "ciphers"));
     }
 
     public byte id() {
