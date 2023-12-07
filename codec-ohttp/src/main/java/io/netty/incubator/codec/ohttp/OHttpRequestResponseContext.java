@@ -30,7 +30,7 @@ import java.util.List;
 import static io.netty.handler.codec.ByteToMessageDecoder.MERGE_CUMULATOR;
 
 /**
- * Handler that parsed and serialize {@link HttpObject}s to {@link ByteBuf} that can be used as OHTTP message content
+ * Handler that parses and serializes {@link HttpObject}s to {@link ByteBuf} that can be used as OHTTP message content
  * during a request-response cycle.
  */
 abstract class OHttpRequestResponseContext {
@@ -80,7 +80,7 @@ abstract class OHttpRequestResponseContext {
         private boolean encodedPrefix;
 
         @Override
-        public final boolean isPrefixNeeded() {
+        public boolean isPrefixNeeded() {
             return !encodedPrefix;
         }
 

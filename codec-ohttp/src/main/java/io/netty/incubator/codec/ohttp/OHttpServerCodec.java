@@ -100,23 +100,6 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         return false;
     }
 
-    /**
-     * Select the correct {@link OHttpVersion} based on the content-type value or {@code null} if none
-     * could be selected.
-     *
-     * @param contentTypeValue  the value of the content-type header.
-     * @return                  the version or {@code null} if none could be selected.
-     */
-    protected OHttpVersion selectOHttpVersion(String contentTypeValue) {
-        if (OHttpConstants.REQUEST_CONTENT_TYPE.contentEqualsIgnoreCase(contentTypeValue)) {
-            return OHttpVersionDraft.INSTANCE;
-        }
-        if (OHttpConstants.CHUNKED_REQUEST_CONTENT_TYPE.contentEqualsIgnoreCase(contentTypeValue)) {
-            return OHttpVersionChunkDraft.INSTANCE;
-        }
-        return null;
-    }
-
     @Override
     protected final void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
         if (destroyed) {
