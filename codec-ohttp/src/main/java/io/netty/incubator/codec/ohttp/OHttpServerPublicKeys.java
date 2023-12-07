@@ -21,6 +21,7 @@ import io.netty.buffer.ByteBufUtil;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -30,12 +31,17 @@ import java.util.stream.Collectors;
 import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.AEAD;
 import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.KDF;
 import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.KEM;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Set of server public keys and cipher suites for a OHTTP client.
  */
 public final class OHttpServerPublicKeys implements Iterable<Map.Entry<Byte, OHttpKey.PublicKey>> {
-    private final Map<Byte, OHttpKey.PublicKey> keys = new HashMap<>();
+    private final Map<Byte, OHttpKey.PublicKey> keys;
+
+    public OHttpServerPublicKeys(Map<Byte, OHttpKey.PublicKey> keys) {
+        this.keys = Collections.unmodifiableMap(requireNonNull(keys, "keys"));
+    }
 
     /**
      * Return all {@link OHttpKey.PublicKey}s.
@@ -77,7 +83,7 @@ public final class OHttpServerPublicKeys implements Iterable<Map.Entry<Byte, OHt
      * Decode a serialized {@link ServerPublicKeys} on the client.
      */
     public static OHttpServerPublicKeys decode(ByteBuf input) throws CryptoException {
-        OHttpServerPublicKeys keys = new OHttpServerPublicKeys();
+        Map<Byte, OHttpKey.PublicKey> keys = new HashMap<>();
         while (input.isReadable()) {
             byte keyId = input.readByte();
             KEM kem = KEM.forId(input.readShort());
@@ -92,8 +98,8 @@ public final class OHttpServerPublicKeys implements Iterable<Map.Entry<Byte, OHt
                 ciphers.add(OHttpKey.newCipher(kdf, aead));
             }
             OHttpKey.PublicKey publicKey = OHttpKey.newPublicKey(keyId, kem, ciphers, publicKeyBytes);
-            keys.keys.put(keyId, publicKey);
+            keys.put(keyId, publicKey);
         }
-        return keys;
+        return new OHttpServerPublicKeys(keys);
     }
 }

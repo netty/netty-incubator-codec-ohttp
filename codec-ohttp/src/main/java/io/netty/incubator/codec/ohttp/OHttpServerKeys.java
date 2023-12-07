@@ -62,6 +62,31 @@ public final class OHttpServerKeys {
         return null;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        OHttpServerKeys that = (OHttpServerKeys) o;
+        return keyMap.equals(that.keyMap);
+    }
+
+    @Override
+    public String toString() {
+        return "OHttpServerKeys{" +
+                "keyMap=" + keyMap +
+                '}';
+    }
+
+    @Override
+    public int hashCode() {
+        return keyMap.hashCode();
+    }
+
     /*
      * Encode {@link ServerKeys} into bytes that represent {@link ServerPublicKeys}, using the format
      * described at https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#section-3.1
@@ -81,6 +106,7 @@ public final class OHttpServerKeys {
 
             output.writeBytes(hpke.serializePublicKey(kp.publicParameters()));
 
+            // Multiple by 4 as for each cipher we will write 2 short values.
             output.writeShort(key.getValue().ciphers().size() * 4);
             for (OHttpKey.Cipher cipher : key.getValue().ciphers()) {
                 output.writeShort(cipher.kdf().id());
