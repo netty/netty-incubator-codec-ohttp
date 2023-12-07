@@ -228,7 +228,6 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
         private final HybridPublicKeyEncryption encryption;
         private final OHttpServerKeys keys;
-
         private OHttpCryptoReceiver receiver;
 
         public OHttpServerRequestResponseContext(

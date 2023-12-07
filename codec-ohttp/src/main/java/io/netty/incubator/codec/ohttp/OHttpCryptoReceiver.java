@@ -16,7 +16,6 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
-import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.CryptoOperations;
 import io.netty.incubator.codec.hpke.HPKE;
 import io.netty.incubator.codec.hpke.HPKEContext;
@@ -24,16 +23,12 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.DecoderException;
 import io.netty.incubator.codec.hpke.HybridPublicKeyEncryption;
 
-import java.nio.ByteBuffer;
-
-import static io.netty.incubator.codec.ohttp.OHttpCryptoUtils.aad;
-import static io.netty.incubator.codec.ohttp.OHttpCryptoUtils.readableTemporaryBuffer;
 import static java.util.Objects.requireNonNull;
 
 /**
  * {@link OHttpCryptoReceiver} handles all the server-side crypto for an OHTTP request/response.
  */
-public final class OHttpCryptoReceiver {
+public final class OHttpCryptoReceiver extends OHttpCrypto {
     private final OHttpCryptoConfiguration configuration;
     private final HPKEContext context;
     private final byte[] responseNonce;
@@ -85,6 +80,12 @@ public final class OHttpCryptoReceiver {
         }
     }
 
+
+    /**
+     * Return a new {@link Builder} that can be used to build a {@link OHttpCryptoReceiver} instance.
+     *
+     * @return a builder.
+     */
     public static Builder newBuilder() {
         return new Builder();
     }
@@ -111,23 +112,27 @@ public final class OHttpCryptoReceiver {
         this.aead = builder.ciphersuite.createResponseAead(builder.encryption, this.context, enc, this.responseNonce, configuration);
     }
 
+    /**
+     * Write the response nonce to the given {@link ByteBuf}.
+     *
+     * @param out the buffer into which the nonce will be written.
+     */
     public void writeResponseNonce(ByteBuf out) {
         out.writeBytes(responseNonce);
     }
 
-    public void decrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
-        final ByteBuffer decrypted = this.context.open(
-                aad(isFinal && configuration.useFinalAad()),
-                readableTemporaryBuffer(message, messageLength));
-        message.skipBytes(messageLength);
-        out.writeBytes(decrypted);
+    @Override
+    protected CryptoOperations encryptCrypto() {
+        return this.aead;
     }
 
-    public void encrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
-        final ByteBuffer encrypted = this.aead.seal(
-                aad(isFinal && configuration.useFinalAad()),
-                readableTemporaryBuffer(message, messageLength));
-        message.skipBytes(messageLength);
-        out.writeBytes(encrypted);
+    @Override
+    protected CryptoOperations decryptCrypto() {
+        return this.context;
+    }
+
+    @Override
+    protected OHttpCryptoConfiguration configuration() {
+        return configuration;
     }
 }

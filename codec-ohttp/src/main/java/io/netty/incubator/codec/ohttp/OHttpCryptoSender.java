@@ -17,24 +17,19 @@ package io.netty.incubator.codec.ohttp;
 
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
-import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.CryptoOperations;
 import io.netty.incubator.codec.hpke.HPKE;
 import io.netty.incubator.codec.hpke.HPKEContextWithEncapsulation;
 import io.netty.buffer.ByteBuf;
 import io.netty.incubator.codec.hpke.HybridPublicKeyEncryption;
 
-import java.nio.ByteBuffer;
-
-import static io.netty.incubator.codec.ohttp.OHttpCryptoUtils.aad;
-import static io.netty.incubator.codec.ohttp.OHttpCryptoUtils.readableTemporaryBuffer;
 import static java.util.Objects.requireNonNull;
 
 /**
  * {@link OHttpCryptoSender} handles all the client-side crypto for an OHTTP request/response.
  */
 
-public final class OHttpCryptoSender {
+public final class OHttpCryptoSender extends OHttpCrypto {
     private final OHttpCryptoConfiguration configuration;
     private final OHttpCiphersuite ciphersuite;
     private final HybridPublicKeyEncryption encryption;
@@ -81,6 +76,11 @@ public final class OHttpCryptoSender {
         }
     }
 
+    /**
+     * Return a new {@link Builder} that can be used to build a {@link OHttpCryptoSender} instance.
+     *
+     * @return a builder.
+     */
     public static Builder newBuilder() {
         return new Builder();
     }
@@ -101,15 +101,32 @@ public final class OHttpCryptoSender {
         }
     }
 
+    /**
+     * Returns the used {@link OHttpCiphersuite}.
+     *
+     * @return used ciphersuite.
+     */
     public OHttpCiphersuite ciphersuite() {
         return this.ciphersuite;
     }
 
+    /**
+     * Write the header into the given {@link ByteBuf}.
+     *
+     * @param out   the buffer into which the writes are done.
+     */
     public void writeHeader(ByteBuf out) {
         this.ciphersuite.encode(out);
         out.writeBytes(this.context.encapsulation());
     }
 
+    /**
+     * Read the response nonce if possible and return {@code true}. If not enough bytes
+     * are readable it will return {@code false}.
+     *
+     * @param in    the buffer from which we read.
+     * @return      {@code true} if there were enough bytes to read the nounce, {@code false} otherwise.
+     */
     public boolean readResponseNonce(ByteBuf in) {
         if (in.readableBytes() < ciphersuite().responseNonceLength()) {
             return false;
@@ -121,19 +138,18 @@ public final class OHttpCryptoSender {
         return true;
     }
 
-    public void encrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
-        final ByteBuffer encrypted = this.context.seal(
-                aad(isFinal && configuration.useFinalAad()),
-                readableTemporaryBuffer(message, messageLength));
-        message.skipBytes(messageLength);
-        out.writeBytes(encrypted);
+    @Override
+    protected CryptoOperations encryptCrypto() {
+        return context;
     }
 
-    public void decrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
-        final ByteBuffer decrypted = this.aead.open(
-                aad(isFinal && configuration.useFinalAad()),
-                readableTemporaryBuffer(message, messageLength));
-        message.skipBytes(messageLength);
-        out.writeBytes(decrypted);
+    @Override
+    protected CryptoOperations decryptCrypto() {
+        return aead;
+    }
+
+    @Override
+    protected OHttpCryptoConfiguration configuration() {
+        return configuration;
     }
 }
