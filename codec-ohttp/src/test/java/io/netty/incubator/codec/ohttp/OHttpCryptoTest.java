@@ -105,7 +105,8 @@ public class OHttpCryptoTest {
         ByteBuf decodedResponse = Unpooled.buffer();
         try {
             sender.encrypt(Unpooled.wrappedBuffer(request), request.length, true, encrypted);
-            encodedRequest.writeBytes(sender.header()).writeBytes(encrypted);
+            sender.writeHeader(encodedRequest);
+            encodedRequest.writeBytes(encrypted);
 
             assertEquals(
                     "010020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c208b4726374e469135906992"
@@ -133,15 +134,14 @@ public class OHttpCryptoTest {
             // Receiver encodes response
 
             receiver.encrypt(responseBuffer, response.length, true, enc);
-            encodedResponse.writeBytes(receiver.responseNonce()).writeBytes(enc);
+            receiver.writeResponseNonce(encodedResponse);
+            encodedResponse.writeBytes(enc);
             assertEquals("c789e7151fcba46158ca84b04464910d86f9013e404feea014e7be4a441f234f857fbd", ByteBufUtil.hexDump(encodedResponse));
 
             // Sender decodes response
 
             encodedResponse.readerIndex(0);
-            byte[] responseNonce = new byte[receiverCiphersuite.responseNonceLength()];
-            encodedResponse.readBytes(responseNonce);
-            sender.setResponseNonce(responseNonce);
+            sender.readResponseNonce(encodedResponse);
 
             sender.decrypt(encodedResponse, encodedResponse.readableBytes(), true, decodedResponse);
             assertEquals(responseBuffer.readerIndex(0), decodedResponse);

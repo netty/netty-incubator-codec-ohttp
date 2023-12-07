@@ -73,23 +73,11 @@ public final class OHttpCiphersuite {
         return aead;
     }
 
-    private void encode(ByteBuf out) {
+    void encode(ByteBuf out) {
         out.writeByte(keyId);
         out.writeShort(kem.id());
         out.writeShort(kdf.id());
         out.writeShort(aead.id());
-    }
-
-    byte[] createHeader() {
-        byte[] ret = new byte[7];
-        ByteBuf buf = Unpooled.wrappedBuffer(ret);
-        try {
-            buf.writerIndex(0);
-            encode(buf);
-            return ret;
-        } finally {
-            buf.release();
-        }
     }
 
     /*

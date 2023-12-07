@@ -37,7 +37,6 @@ import static java.util.Objects.requireNonNull;
 public final class OHttpCryptoSender {
     private final OHttpCryptoConfiguration configuration;
     private final OHttpCiphersuite ciphersuite;
-
     private final HybridPublicKeyEncryption encryption;
     private final HPKEContextWithEncapsulation context;
     private CryptoOperations aead;
@@ -106,19 +105,20 @@ public final class OHttpCryptoSender {
         return this.ciphersuite;
     }
 
-    public byte[] header() {
-        byte[] headers = this.ciphersuite.createHeader();
-        byte[] encapsulation = this.context.encapsulation();
-
-        byte[] combined = new byte[headers.length + encapsulation.length];
-        System.arraycopy(headers, 0, combined, 0, headers.length);
-        System.arraycopy(encapsulation, 0, combined, headers.length, encapsulation.length);
-        return combined;
+    public void writeHeader(ByteBuf out) {
+        this.ciphersuite.encode(out);
+        out.writeBytes(this.context.encapsulation());
     }
 
-    public void setResponseNonce(byte[] responseNonce) {
+    public boolean readResponseNonce(ByteBuf in) {
+        if (in.readableBytes() < ciphersuite().responseNonceLength()) {
+            return false;
+        }
+        byte[] responseNonce = new byte[ciphersuite().responseNonceLength()];
+        in.readBytes(responseNonce);
         this.aead = ciphersuite.createResponseAead(
                 encryption, context, context.encapsulation(), responseNonce, configuration);
+        return true;
     }
 
     public void encrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
