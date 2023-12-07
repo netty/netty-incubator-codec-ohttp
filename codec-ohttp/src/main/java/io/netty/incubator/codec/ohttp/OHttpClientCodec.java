@@ -331,7 +331,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
         }
 
         @Override
-        public void encodePrefixNow(ByteBuf out) {
+        public void encodePrefix(ByteBuf out) {
             sender.writeHeader(out);
         }
 

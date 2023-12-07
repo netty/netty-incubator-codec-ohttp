@@ -71,7 +71,7 @@ abstract class OHttpRequestResponseContext {
      * @param out buffer to write the bytes.
      * @throws CryptoException if the prefix cannot be encoded.
      */
-    protected abstract void encodePrefixNow(ByteBuf out) throws CryptoException;
+    protected abstract void encodePrefix(ByteBuf out) throws CryptoException;
 
     private final class ContentEncoder implements OHttpChunkFramer.Encoder<HttpObject> {
 
@@ -101,7 +101,7 @@ abstract class OHttpRequestResponseContext {
             if (encodedPrefix) {
                 throw new IllegalStateException("Prefix already encoded");
             }
-            encodePrefixNow(out);
+            OHttpRequestResponseContext.this.encodePrefix(out);
             encodedPrefix = true;
         }
     }
