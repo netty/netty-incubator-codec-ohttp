@@ -277,7 +277,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
 
         @Override
-        public void encodePrefixNow(ByteBuf out) throws CryptoException {
+        public void encodePrefix(ByteBuf out) throws CryptoException {
             checkPrefixDecoded();
             receiver.writeResponseNonce(out);
         }
