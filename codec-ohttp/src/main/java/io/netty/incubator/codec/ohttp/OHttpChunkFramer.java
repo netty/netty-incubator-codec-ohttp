@@ -24,8 +24,7 @@ import java.util.List;
  * Interface that defines how an Oblivious HTTP implementation handles the framing of chunks.
  * <br>
  * Instances of {@link OHttpChunkFramer} are stateless. The state management and encryption is delegated to
- * the {@link Decoder} and {@link Encoder} interfaces, which are typically implemented by
- * {@link OHttpContentParser} and {@link OHttpContentSerializer}, respectively.
+ * the {@link Decoder} and {@link Encoder} interfaces.
  */
 public interface OHttpChunkFramer<T> {
 

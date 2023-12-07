@@ -38,11 +38,13 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.incubator.codec.hpke.HybridPublicKeyEncryption;
 import io.netty.util.ReferenceCountUtil;
 
 import java.util.List;
 
 import static io.netty.handler.codec.ByteToMessageDecoder.MERGE_CUMULATOR;
+import static java.util.Objects.requireNonNull;
 
 /**
  * {@link MessageToMessageCodec} that HTTP servers can use to decrypt incoming
@@ -51,36 +53,20 @@ import static io.netty.handler.codec.ByteToMessageDecoder.MERGE_CUMULATOR;
  * <br><br>
  * Both incoming and outgoing messages are {@link HttpObject}s.
  */
-public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObject> {
+public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObject> {
 
-    private OHttpServerContext context;
+    private final HybridPublicKeyEncryption encryption;
+    private final OHttpServerKeys serverKeys;
+
     private HttpRequest request;
     private boolean sentResponse;
-    private OHttpContentSerializer serializer;
-    private OHttpContentParser parser;
+    private OHttpRequestResponseContext oHttpContext;
     private ByteBuf cumulationBuffer = Unpooled.EMPTY_BUFFER;
     private boolean destroyed;
 
-    /**
-     * Create a {@link OHttpServerContext} to handle an inbound OHTTP request.
-     * <br>
-     * @param request inbound {@link HttpRequest}.
-     * @param version {@link OHttpVersion} inferred from the Content-Type header.
-     * @return {@link OHttpServerContext} instance, or null to reject the request with a 403 error.
-     */
-    protected abstract OHttpServerContext newServerContext(HttpRequest request, OHttpVersion version);
-
-    /**
-     * Optional callback to report the outer HTTP request and response.
-     * @param request Incoming {@link HttpRequest}.
-     * @param response Outgoing {@link HttpResponse}.
-     */
-    protected void onResponse(HttpRequest request, HttpResponse response) {
-    }
-
-    @Override
-    public final boolean isSharable() {
-        return false;
+    public OHttpServerCodec(HybridPublicKeyEncryption encryption, OHttpServerKeys serverKeys) {
+        this.encryption = requireNonNull(encryption, "encryption");
+        this.serverKeys = requireNonNull(serverKeys, "serverKeys");
     }
 
     /**
@@ -90,7 +76,7 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
      * @param contentTypeValue  the value of the content-type header.
      * @return                  the version or {@code null} if none could be selected.
      */
-    protected OHttpVersion selectOHttpVersion(String contentTypeValue) {
+    protected OHttpVersion selectVersion(String contentTypeValue) {
         if (OHttpConstants.REQUEST_CONTENT_TYPE.contentEqualsIgnoreCase(contentTypeValue)) {
             return OHttpVersionDraft.INSTANCE;
         }
@@ -98,6 +84,20 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
             return OHttpVersionChunkDraft.INSTANCE;
         }
         return null;
+    }
+
+    /**
+     * Optional callback to report the outer HTTP request and response.
+     * @param request Incoming {@link HttpRequest}.
+     * @param response Outgoing {@link HttpResponse}.
+     */
+    protected void onResponse(HttpRequest request, HttpResponse response) {
+        // TODO: Do we need this ?
+    }
+
+    @Override
+    public final boolean isSharable() {
+        return false;
     }
 
     @Override
@@ -108,19 +108,28 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
         try {
             if (msg instanceof HttpRequest) {
                 HttpRequest req = (HttpRequest) msg;
-                context = null;
-                parser = null;
+                if (oHttpContext != null) {
+                    // Pipelining is not supported.
+                    sentResponse = true;
+                    FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
+                            HttpResponseStatus.BAD_REQUEST);
+                    HttpUtil.setKeepAlive(response, false);
+                    onResponse(req, response);
+                    ctx.writeAndFlush(response)
+                            .addListener(ChannelFutureListener.CLOSE);
+                    return;
+                }
+
+                OHttpVersion version = null;
                 sentResponse = false;
                 if (req.method() == HttpMethod.POST) {
-                    OHttpVersion version = selectOHttpVersion(req.headers().get(HttpHeaderNames.CONTENT_TYPE));
-                    if (version != null) {
-                        context = newServerContext(req, version);
-                    }
+                    String contentTypeValue = req.headers().get(HttpHeaderNames.CONTENT_TYPE);
+                    version = selectVersion(contentTypeValue);
                 }
-                if (context != null) {
+                if (version != null) {
                     // Keep a copy of the request, which will be used to generate the response.
                     request = new DefaultHttpRequest(req.protocolVersion(), req.method(), req.uri(), req.headers());
-                    parser = context.newContentParser();
+                    oHttpContext = new OHttpServerRequestResponseContext(version, encryption, serverKeys);
                 } else {
                     sentResponse = true;
                     FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.FORBIDDEN);
@@ -131,11 +140,11 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
                     return;
                 }
             }
-            if (parser != null) {
+            if (oHttpContext != null) {
                 if (msg instanceof HttpContent) {
                     ByteBuf content = ((HttpContent) msg).content();
                     cumulationBuffer = MERGE_CUMULATOR.cumulate(content.alloc(), cumulationBuffer, content.retain());
-                    parser.parse(cumulationBuffer, msg instanceof LastHttpContent, out);
+                    oHttpContext.parse(cumulationBuffer, msg instanceof LastHttpContent, out);
                 }
             } else {
                 out.add(ReferenceCountUtil.retain(msg));
@@ -147,7 +156,7 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
 
     @Override
     public final void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        context = null;
+        destroyContext();
         if (!sentResponse && request != null) {
             sentResponse = true;
             FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -165,27 +174,28 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
     protected final void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
         try {
             if (msg instanceof HttpResponse) {
-                serializer = null;
-                if (context != null) {
+                if (oHttpContext != null) {
                     assert request != null;
-                    serializer = context.newContentSerializer();
                     sentResponse = true;
                     HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-                    response.headers().set(HttpHeaderNames.CONTENT_TYPE, context.version().responseContentType());
+                    response.headers().set(HttpHeaderNames.CONTENT_TYPE, oHttpContext.version().responseContentType());
                     HttpUtil.setTransferEncodingChunked(response, true);
                     HttpUtil.setKeepAlive(response, true);
                     onResponse(request, response);
                     out.add(response);
                 }
             }
-            if (serializer != null) {
+            if (oHttpContext != null) {
                 boolean isLast = msg instanceof LastHttpContent;
                 ByteBuf contentBytes = ctx.alloc().buffer();
-                serializer.serialize(msg, contentBytes);
+                oHttpContext.serialize(msg, contentBytes);
                 // Use the correct version of HttpContent depending on if it was the last or not.
                 HttpContent content = isLast ? new DefaultLastHttpContent(contentBytes) :
                         new DefaultHttpContent(contentBytes);
                 out.add(content);
+                if (isLast) {
+                    destroyContext();
+                }
             } else {
                 // Retain the msg as MessageToMessageEncoder will release on it.
                 out.add(ReferenceCountUtil.retain(msg));
@@ -202,10 +212,81 @@ public abstract class OHttpServerCodec extends MessageToMessageCodec<HttpObject,
             cumulationBuffer.release();
             cumulationBuffer = Unpooled.EMPTY_BUFFER;
 
-            if (parser != null) {
-                parser.destroy();
-            }
+            destroyContext();
         }
         super.handlerRemoved(ctx);
+    }
+
+    private void destroyContext() {
+        if (oHttpContext != null) {
+            oHttpContext.destroy();
+            oHttpContext = null;
+        }
+    }
+
+    private static final class OHttpServerRequestResponseContext extends OHttpRequestResponseContext {
+
+        private final HybridPublicKeyEncryption encryption;
+        private final OHttpServerKeys keys;
+
+        private OHttpCryptoReceiver receiver;
+
+        public OHttpServerRequestResponseContext(
+                OHttpVersion version, HybridPublicKeyEncryption encryption, OHttpServerKeys keys) {
+            super(version);
+            this.encryption = encryption;
+            this.keys = keys;
+        }
+
+        private void checkPrefixDecoded()throws CryptoException {
+            if (receiver == null) {
+                throw new CryptoException("Prefix was not decoded yet");
+            }
+        }
+
+        @Override
+        public boolean decodePrefix(ByteBuf in) {
+            final int initialReaderIndex = in.readerIndex();
+            final OHttpCiphersuite ciphersuite = OHttpCiphersuite.decode(in);
+            if (ciphersuite == null) {
+                return false;
+            }
+            final int encapsulatedKeyLength = ciphersuite.encapsulatedKeyLength();
+            if (in.readableBytes() < encapsulatedKeyLength) {
+                in.readerIndex(initialReaderIndex);
+                return false;
+            }
+            final byte[] encapsulatedKey = new byte[encapsulatedKeyLength];
+            in.readBytes(encapsulatedKey);
+            receiver = OHttpCryptoReceiver.newBuilder()
+                    .setHybridPublicKeyEncryption(encryption)
+                    .setConfiguration(version())
+                    .setServerKeys(keys)
+                    .setCiphersuite(ciphersuite)
+                    .setEncapsulatedKey(encapsulatedKey)
+                    .build();
+            return true;
+        }
+
+        @Override
+        protected void decryptChunk(ByteBuf chunk, int chunkSize, boolean isFinal, ByteBuf out)
+                throws CryptoException {
+            checkPrefixDecoded();
+            receiver.decrypt(chunk, chunkSize, isFinal, out);
+        }
+
+
+        @Override
+        public void encodePrefixNow(ByteBuf out) throws CryptoException {
+            checkPrefixDecoded();
+            out.writeBytes(receiver.responseNonce());
+        }
+
+        @Override
+        protected void encryptChunk(ByteBuf chunk, int chunkLength, boolean isFinal, ByteBuf out)
+                throws CryptoException {
+            checkPrefixDecoded();
+            receiver.encrypt(chunk, chunkLength, isFinal, out);
+        }
     }
 }

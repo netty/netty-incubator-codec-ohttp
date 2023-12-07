@@ -32,7 +32,6 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * {@link OHttpCryptoReceiver} handles all the server-side crypto for an OHTTP request/response.
- * It is used internally by {@link OHttpServerContext}.
  */
 public final class OHttpCryptoReceiver {
     private final OHttpCryptoConfiguration configuration;

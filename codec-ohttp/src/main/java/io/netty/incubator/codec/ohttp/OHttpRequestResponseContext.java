@@ -15,31 +15,97 @@
  */
 package io.netty.incubator.codec.ohttp;
 
-import io.netty.incubator.codec.bhttp.BinaryHttpParser;
-import io.netty.incubator.codec.hpke.CryptoException;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.CorruptedFrameException;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.incubator.codec.bhttp.BinaryHttpParser;
+import io.netty.incubator.codec.bhttp.BinaryHttpSerializer;
+import io.netty.incubator.codec.hpke.CryptoException;
+import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.LastHttpContent;
 
 import java.util.List;
 
 import static io.netty.handler.codec.ByteToMessageDecoder.MERGE_CUMULATOR;
 
 /**
- * Parser that parses {@link ByteBuf}s coming from the content of a OHTTP-encoded message
- * into {@link HttpObject}s.
+ * Handler that parses and serializes {@link HttpObject}s to {@link ByteBuf} that can be used as OHTTP message content
+ * during a request-response cycle.
  */
-abstract class OHttpContentParser {
-
-    private final OHttpChunkFramer<HttpObject> framer;
-
+abstract class OHttpRequestResponseContext {
+    private final OHttpVersion version;
+    private final ContentEncoder contentEncoder = new ContentEncoder();
     private ContentDecoder decoder = new ContentDecoder();
 
-    OHttpContentParser(OHttpChunkFramer<HttpObject> framer) {
-        this.framer = framer;
+    OHttpRequestResponseContext(OHttpVersion version) {
+        this.version = version;
     }
+
+    final OHttpVersion version() {
+        return version;
+    }
+
+    /**
+     * Serialize a {@link HttpObject} into a {@link ByteBuf}.
+     * @param msg {@link HttpObject} to serialize.
+     * @param out {@link ByteBuf} that serialized bytes are appended to.
+     */
+    final void serialize(HttpObject msg, ByteBuf out) throws CryptoException {
+        version.serialize(msg, contentEncoder, out);
+    }
+
+    /**
+     * Encrypt a chunk.
+     * @param chunk {@link ByteBuf} to encrypt. The function increases the reader index by chunkLength.
+     * @param chunkLength length of chunk.
+     * @param isFinal true if this is the last chunk.
+     * @param out {@link ByteBuf} into which the encrypted bytes are written.
+     * @throws CryptoException if the encryption fails.
+     */
+    protected abstract void encryptChunk(ByteBuf chunk, int chunkLength, boolean isFinal, ByteBuf out)
+            throws CryptoException;
+
+    /**
+     * Encode the beginning of the HTTP content body.
+     * @param out buffer to write the bytes.
+     * @throws CryptoException if the prefix cannot be encoded.
+     */
+    protected abstract void encodePrefixNow(ByteBuf out) throws CryptoException;
+
+    private final class ContentEncoder implements OHttpChunkFramer.Encoder<HttpObject> {
+
+        private final BinaryHttpSerializer binaryHttpSerializer = new BinaryHttpSerializer();
+
+        private boolean encodedPrefix;
+
+        @Override
+        public boolean isPrefixNeeded() {
+            return !encodedPrefix;
+        }
+
+        @Override
+        public void encodeChunk(HttpObject msg, ByteBuf out) throws CryptoException {
+            ByteBuf binaryHttpBytes = out.alloc().buffer();
+            try {
+                boolean isFinal = msg instanceof LastHttpContent;
+                binaryHttpSerializer.serialize(msg, binaryHttpBytes);
+                encryptChunk(binaryHttpBytes, binaryHttpBytes.readableBytes(), isFinal, out);
+            } finally {
+                binaryHttpBytes.release();
+            }
+        }
+
+        @Override
+        public void encodePrefix(ByteBuf out) throws CryptoException {
+            if (encodedPrefix) {
+                throw new IllegalStateException("Prefix already encoded");
+            }
+            encodePrefixNow(out);
+            encodedPrefix = true;
+        }
+    }
+
 
     /**
      * Parse OHTTP-encoded HTTP content bytes.
@@ -51,12 +117,12 @@ abstract class OHttpContentParser {
      * @param completeBodyReceived true if there are no more bytes following in.
      * @param out List that produced {@link HttpObject} are appended to.
      */
-    public final void parse(ByteBuf in, boolean completeBodyReceived, List<Object> out) throws CryptoException {
+    final void parse(ByteBuf in, boolean completeBodyReceived, List<Object> out) throws CryptoException {
         if (decoder == null) {
             throw new IllegalStateException("Already destroyed");
         }
 
-        framer.parse(in, completeBodyReceived, decoder, out);
+        version.parse(in, completeBodyReceived, decoder, out);
 
         if (completeBodyReceived && in.isReadable()) {
             throw new CorruptedFrameException("OHTTP stream has extra bytes");
@@ -80,9 +146,9 @@ abstract class OHttpContentParser {
     protected abstract void decryptChunk(ByteBuf chunk, int chunkLength, boolean isFinal, ByteBuf out) throws CryptoException;
 
     /**
-     * Must be called once the {@link OHttpContentParser} will not be used anymore.
+     * Must be called once the {@link OHttpRequestResponseContext} will not be used anymore.
      */
-    public void destroy() {
+    final void destroy() {
         if (decoder != null) {
             decoder.destroy();
             decoder = null;
@@ -109,7 +175,7 @@ abstract class OHttpContentParser {
             if (decodedPrefix) {
                 throw new IllegalStateException("Prefix already decoded");
             }
-            if (OHttpContentParser.this.decodePrefix(in)) {
+            if (OHttpRequestResponseContext.this.decodePrefix(in)) {
                 decodedPrefix = true;
                 return true;
             }
