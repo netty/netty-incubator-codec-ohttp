@@ -226,7 +226,9 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 out.add(ReferenceCountUtil.retain(msg));
             }
             if (isLast) {
-                contextHolders.poll().destroy();
+                OHttpRequestResponseContextHolder h = contextHolders.pollFirst();
+                assert h != null;
+                h.destroy();
             }
         } catch (CryptoException e) {
             throw new DecoderException("failed to decrypt bytes", e);
