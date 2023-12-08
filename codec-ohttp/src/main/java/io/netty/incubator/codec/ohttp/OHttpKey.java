@@ -22,11 +22,10 @@ import io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.KDF;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.KEM;
-import static io.netty.util.internal.ObjectUtil.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public abstract class OHttpKey {
 
@@ -36,8 +35,8 @@ public abstract class OHttpKey {
 
     OHttpKey(byte id, KEM kem, List<Cipher> ciphers) {
         this.id = id;
-        this.kem = kem;
-        this.ciphers = Collections.unmodifiableList(checkNotNull(ciphers, "ciphers"));
+        this.kem = requireNonNull(kem);
+        this.ciphers = Collections.unmodifiableList(requireNonNull(ciphers, "ciphers"));
     }
 
     public byte id() {
@@ -73,8 +72,8 @@ public abstract class OHttpKey {
         private Cipher(
                 KDF kdf,
                 AEAD aead) {
-            this.kdf = kdf;
-            this.aead = aead;
+            this.kdf = requireNonNull(kdf, "kdf");
+            this.aead = requireNonNull(aead, "aead");
         }
     }
 
@@ -87,7 +86,7 @@ public abstract class OHttpKey {
 
         private PublicKey(byte id, KEM kem, List<Cipher> ciphers, byte[] pkEncoded) throws CryptoException {
             super(id, kem, ciphers);
-            this.pkEncoded = checkNotNull(pkEncoded, "pkEncoded").clone();
+            this.pkEncoded = requireNonNull(pkEncoded, "pkEncoded").clone();
 
             if (pkEncoded.length != kem.npk()) {
                 throw new CryptoException("Invalid public key, pkEncoded.length does not match Npk from KEM");
@@ -109,7 +108,7 @@ public abstract class OHttpKey {
                 AsymmetricCipherKeyPair keyPair) throws CryptoException {
             super(id, kem, ciphers);
 
-            Objects.requireNonNull(keyPair, "keyPair");
+            requireNonNull(keyPair, "keyPair");
 
             byte[] encoded = keyPair.privateParameters().encoded();
             if (encoded != null && encoded.length!= kem.npk()) {

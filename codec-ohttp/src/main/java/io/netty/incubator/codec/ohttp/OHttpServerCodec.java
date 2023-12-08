@@ -91,8 +91,9 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
      * @param request Incoming {@link HttpRequest}.
      * @param response Outgoing {@link HttpResponse}.
      */
-    protected void onResponse(HttpRequest request, HttpResponse response) {
-        // TODO: Do we need this ?
+    protected void onResponse(
+            @SuppressWarnings("unused") HttpRequest request, @SuppressWarnings("unused") HttpResponse response) {
+        // NOOP.
     }
 
     @Override
@@ -187,14 +188,17 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             }
             if (oHttpContext != null) {
                 boolean isLast = msg instanceof LastHttpContent;
-                ByteBuf contentBytes = ctx.alloc().buffer();
-                oHttpContext.serialize(msg, contentBytes);
-                // Use the correct version of HttpContent depending on if it was the last or not.
-                HttpContent content = isLast ? new DefaultLastHttpContent(contentBytes) :
-                        new DefaultHttpContent(contentBytes);
-                out.add(content);
-                if (isLast) {
-                    destroyContext();
+                try {
+                    ByteBuf contentBytes = ctx.alloc().buffer();
+                    oHttpContext.serialize(msg, contentBytes);
+                    // Use the correct version of HttpContent depending on if it was the last or not.
+                    HttpContent content = isLast ? new DefaultLastHttpContent(contentBytes) :
+                            new DefaultHttpContent(contentBytes);
+                    out.add(content);
+                } finally {
+                    if (isLast) {
+                        destroyContext();
+                    }
                 }
             } else {
                 // Retain the msg as MessageToMessageEncoder will release on it.
