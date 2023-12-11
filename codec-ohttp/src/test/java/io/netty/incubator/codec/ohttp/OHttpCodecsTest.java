@@ -123,7 +123,7 @@ public class OHttpCodecsTest {
 
             @Override
             public EmbeddedChannel server() {
-                return createServerChannel(version, serverKeys);
+                return createServerChannel(serverKeys);
             }
         };
     }
@@ -139,7 +139,7 @@ public class OHttpCodecsTest {
                 new LoggingHandler("CLIENT-INNER"));
     }
 
-    private static EmbeddedChannel createServerChannel(OHttpVersion version, OHttpServerKeys keys) {
+    private static EmbeddedChannel createServerChannel(OHttpServerKeys keys) {
         return new EmbeddedChannel(
                 new LoggingHandler("SERVER-RAW"),
                 new HttpServerCodec(),
