@@ -16,8 +16,8 @@
 package io.netty.incubator.codec.hpke;
 
 /**
- * Provides methods to handle <a href="">https://www.rfc-editor.org/rfc/rfc9180.html</a> for oHTTP. Because
- * of that the functionality is limited to what is needed for oHTTP.
+ * Provides methods to handle <a href="https://www.rfc-editor.org/rfc/rfc9180.html">Hybrid Public Key Encryption</a>
+ * for oHTTP. Because of that the functionality is limited to what is needed for oHTTP.
  */
 public interface HybridPublicKeyEncryption {
     /**
