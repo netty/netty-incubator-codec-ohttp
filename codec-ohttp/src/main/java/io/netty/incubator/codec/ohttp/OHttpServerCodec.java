@@ -60,7 +60,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
     private HttpRequest request;
     private boolean sentResponse;
-    private OHttpRequestResponseContext oHttpContext;
+    private OHttpServerRequestResponseContext oHttpContext;
     private ByteBuf cumulationBuffer = Unpooled.EMPTY_BUFFER;
     private boolean destroyed;
 
@@ -143,9 +143,16 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             }
             if (oHttpContext != null) {
                 if (msg instanceof HttpContent) {
-                    ByteBuf content = ((HttpContent) msg).content();
-                    cumulationBuffer = MERGE_CUMULATOR.cumulate(content.alloc(), cumulationBuffer, content.retain());
-                    oHttpContext.parse(cumulationBuffer, msg instanceof LastHttpContent, out);
+                    boolean isLast = msg instanceof LastHttpContent;
+                    try {
+                        ByteBuf content = ((HttpContent) msg).content();
+                        cumulationBuffer = MERGE_CUMULATOR.cumulate(content.alloc(), cumulationBuffer, content.retain());
+                        oHttpContext.parse(cumulationBuffer, isLast, out);
+                    } finally {
+                        if (isLast && oHttpContext.receivedLastHttpContent()) {
+                            destroyContext();
+                        }
+                    }
                 }
             } else {
                 out.add(ReferenceCountUtil.retain(msg));
@@ -157,7 +164,6 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
     @Override
     public final void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        destroyContext();
         if (!sentResponse && request != null) {
             sentResponse = true;
             FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -196,7 +202,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                             new DefaultHttpContent(contentBytes);
                     out.add(content);
                 } finally {
-                    if (isLast) {
+                    if (isLast && oHttpContext.sendLastHttpContent()) {
                         destroyContext();
                     }
                 }
@@ -233,6 +239,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         private final HybridPublicKeyEncryption encryption;
         private final OHttpServerKeys keys;
         private OHttpCryptoReceiver receiver;
+        private boolean receivedLastHttpContent;
+        private boolean sendLastHttpContent;
 
         public OHttpServerRequestResponseContext(
                 OHttpVersion version, HybridPublicKeyEncryption encryption, OHttpServerKeys keys) {
@@ -290,6 +298,28 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 throws CryptoException {
             checkPrefixDecoded();
             receiver.encrypt(chunk, chunkLength, isFinal, out);
+        }
+
+        /**
+         * Called when a {@link LastHttpContent} was received.
+         *
+         * @return {@code true} if a {@link LastHttpContent} was received and also sent.
+         *         In this case {@link #destroyContext()} must be called.
+         */
+        boolean receivedLastHttpContent() {
+            receivedLastHttpContent = true;
+            return sendLastHttpContent;
+        }
+
+        /**
+         * Called when a {@link LastHttpContent} was sent.
+         *
+         * @return {@code true} if a {@link LastHttpContent} was received and also sent.
+         *         In this case {@link #destroyContext()} must be called.
+         */
+        boolean sendLastHttpContent() {
+            sendLastHttpContent = true;
+            return receivedLastHttpContent;
         }
     }
 }
