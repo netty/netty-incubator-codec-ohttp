@@ -151,7 +151,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 out.add(ReferenceCountUtil.retain(msg));
             }
         } catch (Exception e) {
-            throw new OHttpServerDecodingException("failed to decode bytes", e);
+            throw new OHttpServerDecoderException("failed to decode bytes", e);
         }
     }
 
@@ -163,7 +163,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
             // Respond with 4xx status code in case of unable to decode message:
             // See https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-10.html#section-5.2
-            HttpResponseStatus status = cause instanceof OHttpServerDecodingException ?
+            HttpResponseStatus status = cause instanceof OHttpServerDecoderException ?
                     HttpResponseStatus.BAD_REQUEST : HttpResponseStatus.INTERNAL_SERVER_ERROR;
             FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
             HttpUtil.setKeepAlive(response, false);
@@ -233,8 +233,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         }
     }
 
-    private static final class OHttpServerDecodingException extends DecoderException {
-        OHttpServerDecodingException(String msg, Throwable cause) {
+    private static final class OHttpServerDecoderException extends DecoderException {
+        OHttpServerDecoderException(String msg, Throwable cause) {
             super(msg, cause);
         }
     }
