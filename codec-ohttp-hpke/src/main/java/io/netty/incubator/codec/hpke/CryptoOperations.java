@@ -15,6 +15,8 @@
  */
 package io.netty.incubator.codec.hpke;
 
+import io.netty.buffer.ByteBuf;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -28,10 +30,10 @@ public interface CryptoOperations {
      *
      * @param aad   the AAD buffer
      * @param pt    the data to encrypt.
-     * @return      the encrypted data.
+     * @param out   the buffer for writing into
      * @throws      CryptoException in case of an error.
      */
-    ByteBuffer seal(ByteBuffer aad, ByteBuffer pt) throws CryptoException;
+    void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException;
 
     /**
      * Authenticate and decrypt data. The {@link ByteBuffer#position()} will be increased by the amount of
@@ -39,8 +41,8 @@ public interface CryptoOperations {
      *
      * @param aad   the AAD buffer
      * @param ct    the data to decrypt
-     * @return      the decrypted data.
+     * @param out   the buffer for writing into.
      * @throws      CryptoException in case of an error.
      */
-    ByteBuffer open(ByteBuffer aad, ByteBuffer ct) throws CryptoException;
+    void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException;
 }
