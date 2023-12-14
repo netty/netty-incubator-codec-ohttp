@@ -15,6 +15,8 @@
  */
 package io.netty.incubator.codec.hpke.bouncycastle;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.incubator.codec.hpke.CryptoException;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 
@@ -22,39 +24,27 @@ import java.nio.ByteBuffer;
 
 abstract class BouncyCastleCryptoOperation {
 
-    final ByteBuffer execute(ByteBuffer arg1, ByteBuffer arg2) throws CryptoException {
-        final byte[] array1;
-        if (arg1.hasArray() && arg1.position() == 0 && arg1.arrayOffset() == 0) {
-            // No need to copy we can just unwrap the array
-            array1 = arg1.array();
-        } else {
-            array1 = new byte[arg1.remaining()];
-            int savePosition = arg1.position();
-            arg1.get(array1);
-            arg1.position(savePosition);
-        }
-
+    final void execute(ByteBuf arg1, ByteBuf arg2, ByteBuf out) throws CryptoException {
+        final int length1 = arg1.readableBytes();
+        final byte[] array1 = ByteBufUtil.getBytes(arg1, arg1.readerIndex(), arg1.readableBytes(), false);
         final byte[] array2;
+        final int length2 = arg2.readableBytes();
         final int offset2;
-        final int length2;
+
         if (arg2.hasArray()) {
             // This is backed by a bytearray, just use it as input to reduce memory copies.
             array2 = arg2.array();
-            offset2 = arg2.arrayOffset() + arg2.position();
-            length2 = arg2.remaining();
+            offset2 = arg2.arrayOffset() + arg2.readerIndex();
         } else {
-            array2 = new byte[arg2.remaining()];
-            int savePosition = arg2.position();
-            arg2.get(array2);
-            arg2.position(savePosition);
+            array2 = new byte[length2];
+            arg2.getBytes(arg2.readerIndex(), array2);
             offset2 = 0;
-            length2 = array2.length;
         }
         try {
             byte[] result = execute(array1, array2, offset2, length2);
-            arg1.position(arg1.limit());
-            arg2.position(arg2.limit());
-            return ByteBuffer.wrap(result);
+            arg1.skipBytes(length1);
+            arg2.skipBytes(length2);
+            out.writeBytes(result);
         } catch (InvalidCipherTextException e) {
             throw new CryptoException(e);
         }

@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.hpke.bouncycastle;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.CryptoOperations;
 import org.bouncycastle.crypto.InvalidCipherTextException;
@@ -45,12 +46,12 @@ final class BouncyCastleAEADCryptoOperations implements CryptoOperations {
     }
 
     @Override
-    public ByteBuffer seal(ByteBuffer aad, ByteBuffer pt) throws CryptoException {
-        return seal.execute(aad, pt);
+    public void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
+        seal.execute(aad, pt, out);
     }
 
     @Override
-    public ByteBuffer open(ByteBuffer aad, ByteBuffer ct) throws CryptoException {
-        return open.execute(aad, ct);
+    public void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException {
+        open.execute(aad, ct, out);
     }
 }
