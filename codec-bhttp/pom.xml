@@ -19,11 +19,11 @@
     <parent>
         <groupId>io.netty.incubator</groupId>
         <artifactId>netty-incubator-codec-parent-ohttp</artifactId>
-        <version>0.0.2.Final</version>
+        <version>0.0.3.Final-SNAPSHOT</version>
     </parent>
 
     <artifactId>netty-incubator-codec-bhttp</artifactId>
-    <version>0.0.2.Final</version>
+    <version>0.0.3.Final-SNAPSHOT</version>
     <name>Netty/Incubator/Codec/BHTTP</name>
     <packaging>jar</packaging>
 
