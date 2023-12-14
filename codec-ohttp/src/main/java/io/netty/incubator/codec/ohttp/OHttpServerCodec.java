@@ -151,7 +151,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 out.add(ReferenceCountUtil.retain(msg));
             }
         } catch (Exception e) {
-            throw new OHttpServerDecodingException("failed to decrypt bytes", e);
+            throw new OHttpServerDecodingException("failed to decode bytes", e);
         }
     }
 
