@@ -25,8 +25,8 @@ import java.nio.ByteBuffer;
 public interface CryptoOperations {
 
     /**
-     * Authenticate and encrypt data. The {@link ByteBuffer#position()} will be increased by the amount of
-     * data read.
+     * Authenticate and encrypt data. The {@link ByteBuf#readerIndex()} will be increased by the amount of
+     * data read and {@link ByteBuf#writerIndex()} by the bytes written.
      *
      * @param aad   the AAD buffer
      * @param pt    the data to encrypt.
@@ -36,8 +36,8 @@ public interface CryptoOperations {
     void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException;
 
     /**
-     * Authenticate and decrypt data. The {@link ByteBuffer#position()} will be increased by the amount of
-     * data read.
+     * Authenticate and decrypt data. The {@link ByteBuf#readerIndex()} will be increased by the amount of
+     * data read and {@link ByteBuf#writerIndex()} by the bytes written.
      *
      * @param aad   the AAD buffer
      * @param ct    the data to decrypt
