@@ -27,4 +27,11 @@ public interface AsymmetricKeyParameter {
      * @return encoded.
      */
     byte[] encoded();
+
+    /**
+     * Returns {@code true} if this is the private key, {@code false} otherwise.
+     *
+     * @return {@code true} if this is the private key.
+     */
+    boolean isPrivate();
 }

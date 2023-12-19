@@ -19,7 +19,7 @@ package io.netty.incubator.codec.hpke;
 /**
  * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#section-5.1">The context for HPKE</a>.
  */
-public interface HPKEContext extends CryptoOperations {
+public interface HPKEContext extends CryptoContext {
 
     /**
      * Export a secret using the given parameters.

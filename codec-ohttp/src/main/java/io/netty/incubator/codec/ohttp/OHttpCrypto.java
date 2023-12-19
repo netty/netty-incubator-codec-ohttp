@@ -18,7 +18,7 @@ package io.netty.incubator.codec.ohttp;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.incubator.codec.hpke.CryptoException;
-import io.netty.incubator.codec.hpke.CryptoOperations;
+import io.netty.incubator.codec.hpke.CryptoContext;
 
 import java.nio.charset.StandardCharsets;
 
@@ -37,9 +37,9 @@ public abstract class OHttpCrypto {
         return isFinal ? Unpooled.wrappedBuffer(AAD_FINAL) : Unpooled.EMPTY_BUFFER;
     }
 
-    protected abstract CryptoOperations encryptCrypto();
+    protected abstract CryptoContext encryptCrypto();
 
-    protected abstract CryptoOperations decryptCrypto();
+    protected abstract CryptoContext decryptCrypto();
 
     protected abstract OHttpCryptoConfiguration configuration();
 

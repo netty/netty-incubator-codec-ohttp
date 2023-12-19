@@ -19,28 +19,66 @@ package io.netty.incubator.codec.hpke;
  * Provides methods to handle <a href="https://www.rfc-editor.org/rfc/rfc9180.html">Hybrid Public Key Encryption</a>
  * for oHTTP. Because of that the functionality is limited to what is needed for oHTTP.
  */
-public interface HybridPublicKeyEncryption {
+public interface OHttpCryptoProvider {
     /**
-     * Creates a new {@link CryptoOperations} instance implementation of
+     * Creates a new {@link AEADContext} instance implementation of
      * <a href="https://datatracker.ietf.org/doc/html/rfc5116">An AEAD encryption algorithm [RFC5116]</a>.
      *
      * @param aead          the {@link AEAD} to use.
      * @param key           the key to use.
      * @param baseNonce     the nounce to use.
-     * @return              the created {@link CryptoOperations} based on the given arguments.
+     * @return              the created {@link AEADContext} based on the given arguments.
      */
-    CryptoOperations newAEADCryptoOperations(AEAD aead, byte[] key, byte[] baseNonce);
+    AEADContext setupAEAD(AEAD aead, byte[] key, byte[] baseNonce);
 
     /**
-     * Creates a new {@link HPKE} instance.
+     * Establish a {@link HPKEContextWithEncapsulation} that can be used for encryption.
      *
      * @param mode  the {@link Mode} to use.
      * @param kem   the {@link KEM} to use.
      * @param kdf   the {@link KDF} to use.
      * @param aead  the {@link AEAD} to use.
-     * @return      the created {@link HPKE} based on the given arguments.
+     * @param pkR   the public key.
+     * @param info  info parameter.
+     * @param kpE   the ephemeral keypair or {@code null} if none should be used.
+     * @return      the context.
      */
-    HPKE newHPKE(Mode mode, KEM kem, KDF kdf, AEAD aead);
+    HPKEContextWithEncapsulation setupHPKEBaseS(Mode mode, KEM kem, KDF kdf, AEAD aead,
+                                                AsymmetricKeyParameter pkR, byte[] info, AsymmetricCipherKeyPair kpE);
+
+    /**
+     * Establish a {@link HPKEContext} that can be used for decryption.
+     *
+     * @param mode  the {@link Mode} to use.
+     * @param kem   the {@link KEM} to use.
+     * @param kdf   the {@link KDF} to use.
+     * @param aead  the {@link AEAD} to use.
+     * @param enc   an encapsulated KEM shared secret.
+     * @param skR   the private key.
+     * @param info  info parameter.
+     * @return      the context.
+     */
+    HPKEContext setupHPKEBaseR(Mode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
+                               AsymmetricCipherKeyPair skR, byte[] info);
+
+    /**
+     * Deserialize the input and return the private key.
+     *
+     * @param kem               the {@link KEM} that is used.
+     * @param privateKeyBytes   the private key
+     * @param publicKeyBytes    the public key.
+     * @return                  the deserialized {@link AsymmetricCipherKeyPair}.
+     */
+    AsymmetricCipherKeyPair deserializePrivateKey(KEM kem, byte[] privateKeyBytes, byte[] publicKeyBytes);
+
+    /**
+     * Deserialize the input and return the public key.
+     *
+     * @param kem               the {@link KEM} that is used.
+     * @param publicKeyBytes    the public key.
+     * @return                  the deserialized {@link AsymmetricKeyParameter}.
+     */
+    AsymmetricKeyParameter deserializePublicKey(KEM kem, byte[] publicKeyBytes);
 
     /**
      * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#name-hybrid-public-key-encryptio">Hybrid Public Key Encryption</a>

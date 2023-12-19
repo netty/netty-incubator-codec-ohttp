@@ -16,21 +16,9 @@
 package io.netty.incubator.codec.hpke;
 
 /**
- * A keypair of public and private key.
+ * {@link CryptoContext} implementation of
+ * <a href="https://datatracker.ietf.org/doc/html/rfc5116">AEAD encryption algorithm [RFC5116]</a>.
  */
-public interface AsymmetricCipherKeyPair {
-
-    /**
-     * Returns the public key parameters.
-     *
-     * @return the public key parameters.
-     */
-    AsymmetricKeyParameter publicParameters();
-
-    /**
-     * Returns the private key parameters.
-     *
-     * @return the private key parameters.
-     */
-    AsymmetricKeyParameter privateParameters();
+public interface AEADContext extends CryptoContext {
+    // TODO: Move some methods in here.
 }

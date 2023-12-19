@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.handler.codec.MessageToMessageCodec;
+import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -36,7 +37,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.incubator.codec.hpke.HybridPublicKeyEncryption;
+import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.util.AsciiString;
 import io.netty.util.ReferenceCountUtil;
 
@@ -76,7 +77,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
         }
     }
 
-    private final HybridPublicKeyEncryption encryption;
+    private final OHttpCryptoProvider provider;
     private final Function<HttpRequest, EncapsulationParameters> encapsulationFunc;
 
     private ByteBuf cumulationBuffer = Unpooled.EMPTY_BUFFER;
@@ -85,15 +86,15 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
     /**
      * Creates a new instance
      *
-     * @param encryption        the {@link HybridPublicKeyEncryption} to use for all the crypto.
+     * @param provider        the {@link OHttpCryptoProvider} to use for all the crypto.
      * @param encapsulationFunc the {@link Function} that will be used to return the correct
      *                          {@link EncapsulationParameters} for a given {@link HttpRequest}.
      *                          If {@link Function} returns {@code null} no encapsulation will
      *                          take place.
      */
-    public OHttpClientCodec(HybridPublicKeyEncryption encryption, Function<HttpRequest,
+    public OHttpClientCodec(OHttpCryptoProvider provider, Function<HttpRequest,
             EncapsulationParameters> encapsulationFunc) {
-        this.encryption = requireNonNull(encryption, "encryption");
+        this.provider = requireNonNull(provider, "provider");
         this.encapsulationFunc = requireNonNull(encapsulationFunc, "encapsulationFunc");
     }
 
@@ -132,7 +133,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
          *
          * @return bytes.
          */
-        byte[] serverPublicKeyBytes();
+        AsymmetricKeyParameter serverPublicKey();
 
         /**
          * The {@link OHttpVersion} to use.
@@ -146,17 +147,17 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
          *
          * @param version               the version to use.
          * @param ciphersuite           the suite to use.
-         * @param serverPublicKeyBytes  the public key to use.
+         * @param serverPublicKey  the public key to use.
          * @param outerRequestUri       the outer requst uri.
          * @param outerRequestAuthority the authority.
          * @return                      created params.
          */
         static EncapsulationParameters newInstance(OHttpVersion version, OHttpCiphersuite ciphersuite,
-                                                 byte[] serverPublicKeyBytes, String outerRequestUri,
+                                                 AsymmetricKeyParameter serverPublicKey, String outerRequestUri,
                                                    String outerRequestAuthority) {
             requireNonNull(version, "version");
             requireNonNull(ciphersuite, "ciphersuite");
-            requireNonNull(serverPublicKeyBytes, "serverPublicKeysBytes");
+            requireNonNull(serverPublicKey, "serverPublicKey");
             requireNonNull(outerRequestUri, "outerRequestUri");
             requireNonNull(outerRequestAuthority, "outerRequestAuthority");
             return new EncapsulationParameters() {
@@ -176,8 +177,8 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 }
 
                 @Override
-                public byte[] serverPublicKeyBytes() {
-                    return serverPublicKeyBytes;
+                public AsymmetricKeyParameter serverPublicKey() {
+                    return serverPublicKey;
                 }
 
                 @Override
@@ -243,7 +244,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 EncapsulationParameters encapsulation = encapsulationFunc.apply(innerRequest);
                 if (encapsulation != null) {
                     OHttpClientRequestResponseContext oHttpContext =
-                            new OHttpClientRequestResponseContext(encapsulation, encryption);
+                            new OHttpClientRequestResponseContext(encapsulation, provider);
                     HttpHeaders outerHeaders = encapsulation.outerRequestHeaders();
                     DefaultHttpRequest outerRequest = new DefaultHttpRequest(
                             innerRequest.protocolVersion(),
@@ -310,13 +311,13 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
 
         private final OHttpCryptoSender sender;
 
-        OHttpClientRequestResponseContext(EncapsulationParameters parameters, HybridPublicKeyEncryption encryption) {
+        OHttpClientRequestResponseContext(EncapsulationParameters parameters, OHttpCryptoProvider provider) {
             super(parameters.version());
             this.sender = OHttpCryptoSender.newBuilder()
-                    .setHybridPublicKeyEncryption(encryption)
+                    .setOHttpCryptoProvider(provider)
                     .setConfiguration(parameters.version())
                     .setCiphersuite(requireNonNull(parameters.ciphersuite(), "ciphersuite"))
-                    .setReceiverPublicKeyBytes(requireNonNull(parameters.serverPublicKeyBytes(), "serverPublicKeyBytes"))
+                    .setReceiverPublicKeyBytes(requireNonNull(parameters.serverPublicKey(), "serverPublicKey"))
                     .build();
         }
 

@@ -22,7 +22,8 @@ import io.netty.incubator.codec.bhttp.DefaultFullBinaryHttpRequest;
 import io.netty.incubator.codec.bhttp.DefaultFullBinaryHttpResponse;
 import io.netty.incubator.codec.bhttp.FullBinaryHttpRequest;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
-import io.netty.incubator.codec.hpke.HybridPublicKeyEncryption;
+import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
+import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -40,7 +41,7 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LoggingHandler;
-import io.netty.incubator.codec.hpke.bouncycastle.BouncyCastleHybridPublicKeyEncryption;
+import io.netty.incubator.codec.hpke.bouncycastle.BouncyCastleOHttpCryptoProvider;
 import io.netty.util.ReferenceCountUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.BeforeAll;
@@ -102,23 +103,22 @@ public class OHttpCodecsTest {
         OHttpServerKeys serverKeys = new OHttpServerKeys(
                 OHttpKey.newPrivateKey(
                         keyId,
-                        HybridPublicKeyEncryption.KEM.X25519_SHA256,
+                        OHttpCryptoProvider.KEM.X25519_SHA256,
                         Arrays.asList(
-                                OHttpKey.newCipher(HybridPublicKeyEncryption.KDF.HKDF_SHA256, HybridPublicKeyEncryption.AEAD.AES_GCM128),
-                                OHttpKey.newCipher(HybridPublicKeyEncryption.KDF.HKDF_SHA256, HybridPublicKeyEncryption.AEAD.CHACHA20_POLY1305)),
+                                OHttpKey.newCipher(OHttpCryptoProvider.KDF.HKDF_SHA256, OHttpCryptoProvider.AEAD.AES_GCM128),
+                                OHttpKey.newCipher(OHttpCryptoProvider.KDF.HKDF_SHA256, OHttpCryptoProvider.AEAD.CHACHA20_POLY1305)),
                         kpR));
 
         OHttpCiphersuite ciphersuite = new OHttpCiphersuite(keyId,
-                HybridPublicKeyEncryption.KEM.X25519_SHA256,
-                HybridPublicKeyEncryption.KDF.HKDF_SHA256,
-                HybridPublicKeyEncryption.AEAD.AES_GCM128);
+                OHttpCryptoProvider.KEM.X25519_SHA256,
+                OHttpCryptoProvider.KDF.HKDF_SHA256,
+                OHttpCryptoProvider.AEAD.AES_GCM128);
 
-        byte[] publicKeyBytes = kpR.publicParameters().encoded();
-
+        AsymmetricKeyParameter publicKey = kpR.publicParameters();
         return new ChannelPair() {
             @Override
             public EmbeddedChannel client() {
-                return createClientChannel(version, ciphersuite, publicKeyBytes);
+                return createClientChannel(version, ciphersuite, publicKey);
             }
 
             @Override
@@ -128,13 +128,13 @@ public class OHttpCodecsTest {
         };
     }
 
-    private static EmbeddedChannel createClientChannel(OHttpVersion version, OHttpCiphersuite ciphersuite, byte[] publicKeyBytes) {
+    private static EmbeddedChannel createClientChannel(OHttpVersion version, OHttpCiphersuite ciphersuite, AsymmetricKeyParameter publicKey) {
         return new EmbeddedChannel(
                 new LoggingHandler("CLIENT-RAW"),
                 new HttpClientCodec(),
                 new LoggingHandler("CLIENT-OUTER"),
-                new OHttpClientCodec(BouncyCastleHybridPublicKeyEncryption.INSTANCE,
-                        __ -> OHttpClientCodec.EncapsulationParameters.newInstance(version, ciphersuite, publicKeyBytes,
+                new OHttpClientCodec(BouncyCastleOHttpCryptoProvider.INSTANCE,
+                        __ -> OHttpClientCodec.EncapsulationParameters.newInstance(version, ciphersuite, publicKey,
                         "/ohttp", "autority")),
                 new LoggingHandler("CLIENT-INNER"));
     }
@@ -144,7 +144,7 @@ public class OHttpCodecsTest {
                 new LoggingHandler("SERVER-RAW"),
                 new HttpServerCodec(),
                 new LoggingHandler("SERVER-OUTER"),
-                new OHttpServerCodec(BouncyCastleHybridPublicKeyEncryption.INSTANCE, keys),
+                new OHttpServerCodec(BouncyCastleOHttpCryptoProvider.INSTANCE, keys),
                 new LoggingHandler("SERVER-INNER"));
     }
 

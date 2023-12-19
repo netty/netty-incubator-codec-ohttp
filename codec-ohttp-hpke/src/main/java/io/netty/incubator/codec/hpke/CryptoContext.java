@@ -17,12 +17,10 @@ package io.netty.incubator.codec.hpke;
 
 import io.netty.buffer.ByteBuf;
 
-import java.nio.ByteBuffer;
-
 /**
  * Cryptographic operations to encrypt and decrypt data.
  */
-public interface CryptoOperations {
+public interface CryptoContext {
 
     /**
      * Authenticate and encrypt data. The {@link ByteBuf#readerIndex()} will be increased by the amount of

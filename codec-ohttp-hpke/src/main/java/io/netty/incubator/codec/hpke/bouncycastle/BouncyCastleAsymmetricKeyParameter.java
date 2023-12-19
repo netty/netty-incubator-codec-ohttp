@@ -30,6 +30,11 @@ final class BouncyCastleAsymmetricKeyParameter implements AsymmetricKeyParameter
     }
 
     @Override
+    public boolean isPrivate() {
+        return param.isPrivate();
+    }
+
+    @Override
     public byte[] encoded() throws UnsupportedOperationException {
         if (param instanceof X25519PublicKeyParameters) {
             return ((X25519PublicKeyParameters) param).getEncoded();

@@ -28,9 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.AEAD;
-import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.KDF;
-import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.KEM;
+import static io.netty.incubator.codec.hpke.OHttpCryptoProvider.AEAD;
+import static io.netty.incubator.codec.hpke.OHttpCryptoProvider.KDF;
+import static io.netty.incubator.codec.hpke.OHttpCryptoProvider.KEM;
 import static java.util.Objects.requireNonNull;
 
 /**
