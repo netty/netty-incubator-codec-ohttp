@@ -16,19 +16,18 @@
 package io.netty.incubator.codec.hpke.bouncycastle;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.CryptoException;
-import io.netty.incubator.codec.hpke.CryptoOperations;
+import io.netty.incubator.codec.hpke.CryptoContext;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.hpke.AEAD;
 
-import java.nio.ByteBuffer;
-
-final class BouncyCastleAEADCryptoOperations implements CryptoOperations {
+final class BouncyCastleAEADCryptoContext implements AEADContext {
 
     private final BouncyCastleCryptoOperation open;
     private final BouncyCastleCryptoOperation seal;
 
-    BouncyCastleAEADCryptoOperations(AEAD aead) {
+    BouncyCastleAEADCryptoContext(AEAD aead) {
         this.open = new BouncyCastleCryptoOperation() {
             @Override
             protected byte[] execute(byte[] arg1, byte[] arg2, int offset2, int length2)

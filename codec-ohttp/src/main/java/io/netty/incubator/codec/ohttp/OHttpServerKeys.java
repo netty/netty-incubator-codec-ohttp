@@ -15,9 +15,8 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.handler.codec.EncoderException;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
-import io.netty.incubator.codec.hpke.HPKE;
-import io.netty.incubator.codec.hpke.HybridPublicKeyEncryption;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.ObjectUtil;
 
@@ -26,9 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.AEAD;
-import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.KDF;
-import static io.netty.incubator.codec.hpke.HybridPublicKeyEncryption.KEM;
+import static io.netty.incubator.codec.hpke.OHttpCryptoProvider.KEM;
 
 /**
  * Set of key pairs and cipher suites for a OHTTP server.
@@ -91,20 +88,18 @@ public final class OHttpServerKeys {
      * Encode {@link ServerKeys} into bytes that represent {@link ServerPublicKeys}, using the format
      * described at https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#section-3.1
      */
-    public void encodePublicKeys(HybridPublicKeyEncryption encryption, ByteBuf output) {
+    public void encodePublicKeys(ByteBuf output) {
         for (Map.Entry<Byte, OHttpKey.PrivateKey> key : keyMap.entrySet()) {
             KEM kem = key.getValue().kem();
             AsymmetricCipherKeyPair kp = key.getValue().keyPair();
             output.writeByte(key.getKey());
             output.writeShort(kem.id());
 
-            HPKE hpke = encryption.newHPKE(
-                    HybridPublicKeyEncryption.Mode.Base,
-                    key.getValue().kem(),
-                    KDF.HKDF_SHA256,
-                    AEAD.AES_GCM256);
-
-            output.writeBytes(hpke.serializePublicKey(kp.publicParameters()));
+            byte[] encoded = kp.publicParameters().encoded();
+            if (encoded == null) {
+                throw new EncoderException("Unable to encode public keys.");
+            }
+            output.writeBytes(encoded);
 
             // Multiple by 4 as for each cipher we will write 2 short values.
             output.writeShort(key.getValue().ciphers().size() * 4);

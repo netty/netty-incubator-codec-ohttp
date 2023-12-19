@@ -15,10 +15,9 @@
  */
 package io.netty.incubator.codec.ohttp;
 
-import io.netty.incubator.codec.hpke.CryptoOperations;
-import io.netty.incubator.codec.hpke.HPKE;
+import io.netty.incubator.codec.hpke.CryptoContext;
 import io.netty.incubator.codec.hpke.HPKEContext;
-import io.netty.incubator.codec.hpke.HybridPublicKeyEncryption;
+import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
@@ -35,8 +34,8 @@ public final class OHttpCiphersuite {
 
     private static final int ENCODED_LENGTH = 7;
 
-    public OHttpCiphersuite(byte keyId, HybridPublicKeyEncryption.KEM kem, HybridPublicKeyEncryption.KDF kdf,
-                            HybridPublicKeyEncryption.AEAD aead) {
+    public OHttpCiphersuite(byte keyId, OHttpCryptoProvider.KEM kem, OHttpCryptoProvider.KDF kdf,
+                            OHttpCryptoProvider.AEAD aead) {
         this.keyId = keyId;
         this.kem = requireNonNull(kem, "kem");
         this.kdf = requireNonNull(kdf, "kdf");
@@ -44,9 +43,9 @@ public final class OHttpCiphersuite {
     }
 
     private final byte keyId;
-    private final HybridPublicKeyEncryption.KEM kem;
-    private final HybridPublicKeyEncryption.KDF kdf;
-    private final HybridPublicKeyEncryption.AEAD aead;
+    private final OHttpCryptoProvider.KEM kem;
+    private final OHttpCryptoProvider.KDF kdf;
+    private final OHttpCryptoProvider.AEAD aead;
 
     public int responseNonceLength() {
         return Math.max(aead.nk(), aead.nn());
@@ -61,15 +60,15 @@ public final class OHttpCiphersuite {
         return keyId;
     }
 
-    public HybridPublicKeyEncryption.KEM kem() {
+    public OHttpCryptoProvider.KEM kem() {
         return kem;
     }
 
-    public HybridPublicKeyEncryption.KDF kdf() {
+    public OHttpCryptoProvider.KDF kdf() {
         return kdf;
     }
 
-    public HybridPublicKeyEncryption.AEAD aead() {
+    public OHttpCryptoProvider.AEAD aead() {
         return aead;
     }
 
@@ -109,9 +108,9 @@ public final class OHttpCiphersuite {
             short aeadId = in.readShort();
             return new OHttpCiphersuite(
                     keyId,
-                    HybridPublicKeyEncryption.KEM.forId(kemId),
-                    HybridPublicKeyEncryption.KDF.forId(kdfId),
-                    HybridPublicKeyEncryption.AEAD.forId(aeadId));
+                    OHttpCryptoProvider.KEM.forId(kemId),
+                    OHttpCryptoProvider.KDF.forId(kdfId),
+                    OHttpCryptoProvider.AEAD.forId(aeadId));
         } catch (Exception e) {
             throw new DecoderException("invalid ciphersuite", e);
         }
@@ -126,21 +125,16 @@ public final class OHttpCiphersuite {
     /*
      * See https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#name-encapsulation-of-responses
      */
-    CryptoOperations createResponseAead(HybridPublicKeyEncryption encryption, HPKEContext context, byte[] enc,
-                                        byte[] responseNonce, OHttpCryptoConfiguration configuration) {
+    CryptoContext createResponseAead(OHttpCryptoProvider provider, HPKEContext context, byte[] enc,
+                                     byte[] responseNonce, OHttpCryptoConfiguration configuration) {
         int secretLength = Math.max(aead.nk(), aead.nn());
         byte[] secret = context.export(configuration.responseExportContext(), secretLength);
         byte[] salt = Arrays.concatenate(enc, responseNonce);
         byte[] prk = context.extract(salt, secret);
         byte[] aeadKey = context.expand(prk, "key".getBytes(StandardCharsets.US_ASCII), aead.nk());
         byte[] aeadNonce = context.expand(prk, "nonce".getBytes(StandardCharsets.US_ASCII), aead.nn());
-        return encryption.newAEADCryptoOperations(aead, aeadKey, aeadNonce);
+        return provider.setupAEAD(aead, aeadKey, aeadNonce);
     }
-
-    HPKE newHPKE(HybridPublicKeyEncryption encryption) {
-        return encryption.newHPKE(HybridPublicKeyEncryption.Mode.Base, kem, kdf, aead);
-    }
-
     @Override
     public String toString() {
         return "OHttpCiphersuite{id=" + Byte.toUnsignedInt(keyId) + ", kem=" + this.kem + ", kdf=" + this.kdf + ", aead=" + this.aead + "}";

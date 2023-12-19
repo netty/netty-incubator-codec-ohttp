@@ -17,11 +17,10 @@ package io.netty.incubator.codec.ohttp;
 
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
-import io.netty.incubator.codec.hpke.CryptoOperations;
-import io.netty.incubator.codec.hpke.HPKE;
+import io.netty.incubator.codec.hpke.CryptoContext;
 import io.netty.incubator.codec.hpke.HPKEContextWithEncapsulation;
 import io.netty.buffer.ByteBuf;
-import io.netty.incubator.codec.hpke.HybridPublicKeyEncryption;
+import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
 import static java.util.Objects.requireNonNull;
 
@@ -32,19 +31,19 @@ import static java.util.Objects.requireNonNull;
 public final class OHttpCryptoSender extends OHttpCrypto {
     private final OHttpCryptoConfiguration configuration;
     private final OHttpCiphersuite ciphersuite;
-    private final HybridPublicKeyEncryption encryption;
+    private final OHttpCryptoProvider provider;
     private final HPKEContextWithEncapsulation context;
-    private CryptoOperations aead;
+    private CryptoContext aead;
 
     public static final class Builder {
-        private HybridPublicKeyEncryption encryption;
+        private OHttpCryptoProvider provider;
         private OHttpCryptoConfiguration configuration;
         private OHttpCiphersuite ciphersuite;
-        private byte[] receiverPublicKeyBytes;
+        private AsymmetricKeyParameter receiverPublicKeyBytes;
         private AsymmetricCipherKeyPair forcedEphemeralKeyPair; // for testing only!
 
-        public Builder setHybridPublicKeyEncryption(HybridPublicKeyEncryption encryption) {
-            this.encryption = encryption;
+        public Builder setOHttpCryptoProvider(OHttpCryptoProvider provider) {
+            this.provider = provider;
             return this;
         }
 
@@ -58,7 +57,7 @@ public final class OHttpCryptoSender extends OHttpCrypto {
             return this;
         }
 
-        public Builder setReceiverPublicKeyBytes(byte[] value) {
+        public Builder setReceiverPublicKeyBytes(AsymmetricKeyParameter value) {
             this.receiverPublicKeyBytes = value;
             return this;
         }
@@ -88,17 +87,13 @@ public final class OHttpCryptoSender extends OHttpCrypto {
     private OHttpCryptoSender(Builder builder) {
         this.configuration = requireNonNull(builder.configuration, "configuration");
         this.ciphersuite = requireNonNull(builder.ciphersuite, "ciphersuite");
-        requireNonNull(builder.receiverPublicKeyBytes, "receiverPublicKeyBytes");
-        this.encryption = requireNonNull(builder.encryption, "encryption");
+        this.provider = requireNonNull(builder.provider, "provider");
 
-        HPKE hpke = this.ciphersuite.newHPKE(builder.encryption);
-        AsymmetricKeyParameter pkR = hpke.deserializePublicKey(builder.receiverPublicKeyBytes);
-
-        if (builder.forcedEphemeralKeyPair == null) {
-            this.context = hpke.setupBaseS(pkR, ciphersuite.createInfo(configuration), null);
-        } else {
-            this.context = hpke.setupBaseS(pkR, ciphersuite.createInfo(configuration), builder.forcedEphemeralKeyPair);
-        }
+        AsymmetricKeyParameter pkR = requireNonNull(builder.receiverPublicKeyBytes, "receiverPublicKeyBytes");
+        AsymmetricCipherKeyPair forcedEphemeralKeyPair = builder.forcedEphemeralKeyPair;
+        this.context = this.provider.setupHPKEBaseS(OHttpCryptoProvider.Mode.Base, ciphersuite.kem(),
+                ciphersuite.kdf(), ciphersuite.aead(), pkR, ciphersuite.createInfo(configuration),
+                forcedEphemeralKeyPair);
     }
 
     /**
@@ -134,17 +129,17 @@ public final class OHttpCryptoSender extends OHttpCrypto {
         byte[] responseNonce = new byte[ciphersuite().responseNonceLength()];
         in.readBytes(responseNonce);
         this.aead = ciphersuite.createResponseAead(
-                encryption, context, context.encapsulation(), responseNonce, configuration);
+                provider, context, context.encapsulation(), responseNonce, configuration);
         return true;
     }
 
     @Override
-    protected CryptoOperations encryptCrypto() {
+    protected CryptoContext encryptCrypto() {
         return context;
     }
 
     @Override
-    protected CryptoOperations decryptCrypto() {
+    protected CryptoContext decryptCrypto() {
         return aead;
     }
 

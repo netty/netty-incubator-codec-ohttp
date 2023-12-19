@@ -38,7 +38,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.incubator.codec.hpke.HybridPublicKeyEncryption;
+import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.util.ReferenceCountUtil;
 
 import java.util.List;
@@ -55,7 +55,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObject> {
 
-    private final HybridPublicKeyEncryption encryption;
+    private final OHttpCryptoProvider provider;
     private final OHttpServerKeys serverKeys;
 
     private HttpRequest request;
@@ -64,8 +64,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
     private ByteBuf cumulationBuffer = Unpooled.EMPTY_BUFFER;
     private boolean destroyed;
 
-    public OHttpServerCodec(HybridPublicKeyEncryption encryption, OHttpServerKeys serverKeys) {
-        this.encryption = requireNonNull(encryption, "encryption");
+    public OHttpServerCodec(OHttpCryptoProvider provider, OHttpServerKeys serverKeys) {
+        this.provider = requireNonNull(provider, "provider");
         this.serverKeys = requireNonNull(serverKeys, "serverKeys");
     }
 
@@ -130,7 +130,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 if (version != null) {
                     // Keep a copy of the request, which will be used to generate the response.
                     request = new DefaultHttpRequest(req.protocolVersion(), req.method(), req.uri(), req.headers());
-                    oHttpContext = new OHttpServerRequestResponseContext(version, encryption, serverKeys);
+                    oHttpContext = new OHttpServerRequestResponseContext(version, provider, serverKeys);
                 } else {
                     sentResponse = true;
                     FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.FORBIDDEN);
@@ -247,16 +247,16 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
     private static final class OHttpServerRequestResponseContext extends OHttpRequestResponseContext {
 
-        private final HybridPublicKeyEncryption encryption;
+        private final OHttpCryptoProvider provider;
         private final OHttpServerKeys keys;
         private OHttpCryptoReceiver receiver;
         private boolean receivedLastHttpContent;
         private boolean sendLastHttpContent;
 
         public OHttpServerRequestResponseContext(
-                OHttpVersion version, HybridPublicKeyEncryption encryption, OHttpServerKeys keys) {
+                OHttpVersion version, OHttpCryptoProvider provider, OHttpServerKeys keys) {
             super(version);
-            this.encryption = encryption;
+            this.provider = provider;
             this.keys = keys;
         }
 
@@ -281,7 +281,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             final byte[] encapsulatedKey = new byte[encapsulatedKeyLength];
             in.readBytes(encapsulatedKey);
             receiver = OHttpCryptoReceiver.newBuilder()
-                    .setHybridPublicKeyEncryption(encryption)
+                    .setOHttpCryptoProvider(provider)
                     .setConfiguration(version())
                     .setServerKeys(keys)
                     .setCiphersuite(ciphersuite)
