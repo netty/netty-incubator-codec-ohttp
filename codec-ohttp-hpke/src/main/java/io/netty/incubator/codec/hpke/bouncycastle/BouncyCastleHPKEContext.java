@@ -27,6 +27,8 @@ class BouncyCastleHPKEContext implements HPKEContext {
     private final BouncyCastleCryptoOperation seal;
     private final BouncyCastleCryptoOperation open;
 
+    private boolean closed;
+
     BouncyCastleHPKEContext(org.bouncycastle.crypto.hpke.HPKEContext context) {
         this.context = context;
         this.seal = new BouncyCastleCryptoOperation() {
@@ -45,26 +47,42 @@ class BouncyCastleHPKEContext implements HPKEContext {
 
     @Override
     public byte[] export(byte[] exportContext, int length) {
+        checkClosed();
         return context.export(exportContext, length);
     }
 
     @Override
     public byte[] extract(byte[] salt, byte[] ikm) {
+        checkClosed();
         return context.extract(salt, ikm);
     }
 
     @Override
     public byte[] expand(byte[] prk, byte[] info, int length) {
+        checkClosed();
         return context.expand(prk, info, length);
     }
 
     @Override
     public void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
+        checkClosed();
         seal.execute(aad, pt, out);
     }
 
     @Override
     public void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException {
+        checkClosed();
         open.execute(aad, ct, out);
+    }
+
+    private void checkClosed() {
+        if (closed) {
+            throw new IllegalStateException("AEADContext closed");
+        }
+    }
+
+    @Override
+    public void close() {
+        closed = true;
     }
 }

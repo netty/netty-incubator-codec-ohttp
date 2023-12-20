@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * Abstract base class for doing OHTTP related crypto operations.
  */
-public abstract class OHttpCrypto {
+public abstract class OHttpCrypto implements AutoCloseable {
 
     private static final byte[] AAD_FINAL = "final".getBytes(StandardCharsets.US_ASCII);
 
@@ -72,5 +72,11 @@ public abstract class OHttpCrypto {
                 aad(isFinal && configuration().useFinalAad()),
                 message.slice(message.readerIndex(), messageLength), out);
         message.skipBytes(messageLength);
+    }
+
+    @Override
+    public void close()  {
+        encryptCrypto().close();
+        decryptCrypto().close();
     }
 }

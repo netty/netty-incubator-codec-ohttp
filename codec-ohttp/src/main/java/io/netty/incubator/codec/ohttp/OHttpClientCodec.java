@@ -342,5 +342,10 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 throws CryptoException {
             sender.encrypt(chunk, chunkLength, isFinal, out);
         }
+
+        @Override
+        void destroyCrypto() {
+            sender.close();
+        }
     };
 }

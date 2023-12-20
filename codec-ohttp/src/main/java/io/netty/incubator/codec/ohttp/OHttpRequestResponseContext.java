@@ -153,7 +153,10 @@ abstract class OHttpRequestResponseContext {
             decoder.destroy();
             decoder = null;
         }
+        destroyCrypto();
     }
+
+    abstract void destroyCrypto();
 
     private final class ContentDecoder implements OHttpChunkFramer.Decoder {
 

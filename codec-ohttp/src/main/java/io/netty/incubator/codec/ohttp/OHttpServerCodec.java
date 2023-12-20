@@ -332,5 +332,10 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             sendLastHttpContent = true;
             return receivedLastHttpContent;
         }
+
+        @Override
+        void destroyCrypto() {
+            receiver.close();
+        }
     }
 }
