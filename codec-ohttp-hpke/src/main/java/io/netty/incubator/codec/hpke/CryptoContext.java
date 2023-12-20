@@ -20,7 +20,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * Cryptographic operations to encrypt and decrypt data.
  */
-public interface CryptoContext {
+public interface CryptoContext extends AutoCloseable {
 
     /**
      * Authenticate and encrypt data. The {@link ByteBuf#readerIndex()} will be increased by the amount of
@@ -43,4 +43,11 @@ public interface CryptoContext {
      * @throws      CryptoException in case of an error.
      */
     void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException;
+
+    /**
+     * Closes the {@link CryptoContext} and so release all resources. Calling any method after calling this method
+     * might result in an {@link IllegalStateException}.
+     */
+    @Override
+    void close();
 }

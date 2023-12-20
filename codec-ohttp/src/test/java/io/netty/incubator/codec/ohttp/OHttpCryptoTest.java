@@ -91,73 +91,75 @@ public class OHttpCryptoTest {
         assertEquals("6d6573736167652f626874747020726571756573740001002000010001",
                 ByteBufUtil.hexDump(ciphersuite.createInfo(OHttpVersionDraft.INSTANCE)));
 
-        OHttpCryptoSender sender = OHttpCryptoSender.newBuilder()
+        try (OHttpCryptoSender sender = OHttpCryptoSender.newBuilder()
                 .setOHttpCryptoProvider(BouncyCastleOHttpCryptoProvider.INSTANCE)
                 .setConfiguration(OHttpVersionDraft.INSTANCE)
                 .setCiphersuite(ciphersuite)
                 .setReceiverPublicKeyBytes(kpR.publicParameters())
                 .setForcedEphemeralKeyPair(kpE)
-                .build();
+                .build()) {
 
-        ByteBuf encrypted = Unpooled.buffer();
-        ByteBuf encodedRequest = Unpooled.buffer();
-        ByteBuf decodedRequest = Unpooled.buffer();
-        ByteBuf requestBuffer = Unpooled.wrappedBuffer(request);
-        ByteBuf enc = Unpooled.buffer();
-        ByteBuf responseBuffer = Unpooled.wrappedBuffer(response);
-        ByteBuf encodedResponse = Unpooled.buffer();
-        ByteBuf decodedResponse = Unpooled.buffer();
-        try {
-            sender.encrypt(Unpooled.wrappedBuffer(request), request.length, true, encrypted);
-            sender.writeHeader(encodedRequest);
-            encodedRequest.writeBytes(encrypted);
+            ByteBuf encrypted = Unpooled.buffer();
+            ByteBuf encodedRequest = Unpooled.buffer();
+            ByteBuf decodedRequest = Unpooled.buffer();
+            ByteBuf requestBuffer = Unpooled.wrappedBuffer(request);
+            ByteBuf enc = Unpooled.buffer();
+            ByteBuf responseBuffer = Unpooled.wrappedBuffer(response);
+            ByteBuf encodedResponse = Unpooled.buffer();
+            ByteBuf decodedResponse = Unpooled.buffer();
+            try {
+                sender.encrypt(Unpooled.wrappedBuffer(request), request.length, true, encrypted);
+                sender.writeHeader(encodedRequest);
+                encodedRequest.writeBytes(encrypted);
 
-            assertEquals(
-                    "010020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c208b4726374e469135906992"
-                            + "e1268c594d2a10c695d858c40a026e7965e7d86b83dd440b2c0185204b4d63525",
-                    ByteBufUtil.hexDump(encodedRequest));
-            // Receiver decodes request
+                assertEquals(
+                        "010020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c208b4726374e469135906992"
+                                + "e1268c594d2a10c695d858c40a026e7965e7d86b83dd440b2c0185204b4d63525",
+                        ByteBufUtil.hexDump(encodedRequest));
+                // Receiver decodes request
 
-            encodedRequest.readerIndex(0);
-            OHttpCiphersuite receiverCiphersuite = OHttpCiphersuite.decode(encodedRequest);
-            byte[] receiverEncapsulatedKey = new byte[receiverCiphersuite.encapsulatedKeyLength()];
-            encodedRequest.readBytes(receiverEncapsulatedKey);
+                encodedRequest.readerIndex(0);
+                OHttpCiphersuite receiverCiphersuite = OHttpCiphersuite.decode(encodedRequest);
+                byte[] receiverEncapsulatedKey = new byte[receiverCiphersuite.encapsulatedKeyLength()];
+                encodedRequest.readBytes(receiverEncapsulatedKey);
 
-            OHttpCryptoReceiver receiver = OHttpCryptoReceiver.newBuilder()
-                    .setOHttpCryptoProvider(BouncyCastleOHttpCryptoProvider.INSTANCE)
-                    .setConfiguration(OHttpVersionDraft.INSTANCE)
-                    .setServerKeys(serverKeys)
-                    .setCiphersuite(receiverCiphersuite)
-                    .setEncapsulatedKey(receiverEncapsulatedKey)
-                    .setForcedResponseNonce(ByteBufUtil.decodeHexDump("c789e7151fcba46158ca84b04464910d"))
-                    .build();
+                try (OHttpCryptoReceiver receiver = OHttpCryptoReceiver.newBuilder()
+                        .setOHttpCryptoProvider(BouncyCastleOHttpCryptoProvider.INSTANCE)
+                        .setConfiguration(OHttpVersionDraft.INSTANCE)
+                        .setServerKeys(serverKeys)
+                        .setCiphersuite(receiverCiphersuite)
+                        .setEncapsulatedKey(receiverEncapsulatedKey)
+                        .setForcedResponseNonce(ByteBufUtil.decodeHexDump("c789e7151fcba46158ca84b04464910d"))
+                        .build()) {
 
-            receiver.decrypt(encodedRequest, encodedRequest.readableBytes(), true, decodedRequest);
-            assertEquals(requestBuffer, decodedRequest);
+                    receiver.decrypt(encodedRequest, encodedRequest.readableBytes(), true, decodedRequest);
+                    assertEquals(requestBuffer, decodedRequest);
 
-            // Receiver encodes response
+                    // Receiver encodes response
 
-            receiver.encrypt(responseBuffer, response.length, true, enc);
-            receiver.writeResponseNonce(encodedResponse);
-            encodedResponse.writeBytes(enc);
-            assertEquals("c789e7151fcba46158ca84b04464910d86f9013e404feea014e7be4a441f234f857fbd", ByteBufUtil.hexDump(encodedResponse));
+                    receiver.encrypt(responseBuffer, response.length, true, enc);
+                    receiver.writeResponseNonce(encodedResponse);
+                    encodedResponse.writeBytes(enc);
+                    assertEquals("c789e7151fcba46158ca84b04464910d86f9013e404feea014e7be4a441f234f857fbd", ByteBufUtil.hexDump(encodedResponse));
 
-            // Sender decodes response
+                    // Sender decodes response
 
-            encodedResponse.readerIndex(0);
-            sender.readResponseNonce(encodedResponse);
+                    encodedResponse.readerIndex(0);
+                    sender.readResponseNonce(encodedResponse);
 
-            sender.decrypt(encodedResponse, encodedResponse.readableBytes(), true, decodedResponse);
-            assertEquals(responseBuffer.readerIndex(0), decodedResponse);
-        } finally {
-            encrypted.release();
-            encodedRequest.release();
-            decodedRequest.release();
-            requestBuffer.release();
-            enc.release();
-            responseBuffer.release();
-            encodedResponse.release();
-            decodedResponse.release();
+                    sender.decrypt(encodedResponse, encodedResponse.readableBytes(), true, decodedResponse);
+                    assertEquals(responseBuffer.readerIndex(0), decodedResponse);
+                }
+            } finally {
+                encrypted.release();
+                encodedRequest.release();
+                decodedRequest.release();
+                requestBuffer.release();
+                enc.release();
+                responseBuffer.release();
+                encodedResponse.release();
+                decodedResponse.release();
+            }
         }
     }
 }

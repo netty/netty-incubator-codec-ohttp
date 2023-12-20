@@ -27,6 +27,8 @@ final class BouncyCastleAEADCryptoContext implements AEADContext {
     private final BouncyCastleCryptoOperation open;
     private final BouncyCastleCryptoOperation seal;
 
+    private boolean closed;
+
     BouncyCastleAEADCryptoContext(AEAD aead) {
         this.open = new BouncyCastleCryptoOperation() {
             @Override
@@ -46,11 +48,24 @@ final class BouncyCastleAEADCryptoContext implements AEADContext {
 
     @Override
     public void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
+        checkClosed();
         seal.execute(aad, pt, out);
     }
 
     @Override
     public void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException {
+        checkClosed();
         open.execute(aad, ct, out);
+    }
+
+    private void checkClosed() {
+        if (closed) {
+            throw new IllegalStateException("AEADContext closed");
+        }
+    }
+
+    @Override
+    public void close() {
+        closed = true;
     }
 }
