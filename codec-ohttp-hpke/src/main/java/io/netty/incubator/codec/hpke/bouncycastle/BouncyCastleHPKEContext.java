@@ -22,27 +22,12 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 
 import java.nio.ByteBuffer;
 
-class BouncyCastleHPKEContext implements HPKEContext {
+abstract class BouncyCastleHPKEContext implements HPKEContext {
     protected final org.bouncycastle.crypto.hpke.HPKEContext context;
-    private final BouncyCastleCryptoOperation seal;
-    private final BouncyCastleCryptoOperation open;
-
     private boolean closed;
 
     BouncyCastleHPKEContext(org.bouncycastle.crypto.hpke.HPKEContext context) {
         this.context = context;
-        this.seal = new BouncyCastleCryptoOperation() {
-            @Override
-            protected byte[] execute(byte[] arg1, byte[] arg2, int offset2, int length2) throws InvalidCipherTextException {
-                return context.seal(arg1, arg2, offset2, length2);
-            }
-        };
-        this.open = new BouncyCastleCryptoOperation() {
-            @Override
-            protected byte[] execute(byte[] arg1, byte[] arg2, int offset2, int length2) throws InvalidCipherTextException {
-                return context.open(arg1, arg2, offset2, length2);
-            }
-        };
     }
 
     @Override
@@ -63,19 +48,7 @@ class BouncyCastleHPKEContext implements HPKEContext {
         return context.expand(prk, info, length);
     }
 
-    @Override
-    public void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
-        checkClosed();
-        seal.execute(aad, pt, out);
-    }
-
-    @Override
-    public void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException {
-        checkClosed();
-        open.execute(aad, ct, out);
-    }
-
-    private void checkClosed() {
+    protected void checkClosed() {
         if (closed) {
             throw new IllegalStateException("AEADContext closed");
         }

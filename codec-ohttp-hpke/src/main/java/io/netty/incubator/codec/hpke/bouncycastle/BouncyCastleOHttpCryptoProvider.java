@@ -18,8 +18,8 @@ package io.netty.incubator.codec.hpke.bouncycastle;
 import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
-import io.netty.incubator.codec.hpke.HPKEContext;
-import io.netty.incubator.codec.hpke.HPKEContextWithEncapsulation;
+import io.netty.incubator.codec.hpke.HPKERecipientContext;
+import io.netty.incubator.codec.hpke.HPKESenderContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
@@ -62,7 +62,7 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
     }
 
     @Override
-    public HPKEContextWithEncapsulation setupHPKEBaseS(Mode mode, KEM kem, KDF kdf, AEAD aead,
+    public HPKESenderContext setupHPKEBaseS(Mode mode, KEM kem, KDF kdf, AEAD aead,
                                                        AsymmetricKeyParameter pkR, byte[] info,
                                                        AsymmetricCipherKeyPair kpE) {
         org.bouncycastle.crypto.hpke.HPKE hpke =
@@ -73,15 +73,15 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
         } else {
             ctx = hpke.setupBaseS(castOrThrow(pkR).param, info, castOrThrow(kpE).pair);
         }
-        return new BouncyCastleHPKEContextWithEncapsulation(ctx);
+        return new BouncyCastleHPKESenderContext(ctx);
     }
 
     @Override
-    public HPKEContext setupHPKEBaseR(Mode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
-                                      AsymmetricCipherKeyPair skR, byte[] info) {
+    public HPKERecipientContext setupHPKEBaseR(Mode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
+                                               AsymmetricCipherKeyPair skR, byte[] info) {
         org.bouncycastle.crypto.hpke.HPKE hpke =
                 new org.bouncycastle.crypto.hpke.HPKE(mode.value(), kem.id(), kdf.id(), aead.id());
-        return new BouncyCastleHPKEContext(hpke.setupBaseR(enc, castOrThrow(skR).pair, info));
+        return new BouncyCastleHPKERecipientContext(hpke.setupBaseR(enc, castOrThrow(skR).pair, info));
     }
 
     @Override

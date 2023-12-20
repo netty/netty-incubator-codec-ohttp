@@ -15,34 +15,10 @@
  */
 package io.netty.incubator.codec.hpke;
 
-import io.netty.buffer.ByteBuf;
-
 /**
- * Cryptographic operations to encrypt and decrypt data.
+ * Context for Cryptographic operations.
  */
 public interface CryptoContext extends AutoCloseable {
-
-    /**
-     * Authenticate and encrypt data. The {@link ByteBuf#readerIndex()} will be increased by the amount of
-     * data read and {@link ByteBuf#writerIndex()} by the bytes written.
-     *
-     * @param aad   the AAD buffer
-     * @param pt    the data to encrypt.
-     * @param out   the buffer for writing into
-     * @throws      CryptoException in case of an error.
-     */
-    void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException;
-
-    /**
-     * Authenticate and decrypt data. The {@link ByteBuf#readerIndex()} will be increased by the amount of
-     * data read and {@link ByteBuf#writerIndex()} by the bytes written.
-     *
-     * @param aad   the AAD buffer
-     * @param ct    the data to decrypt
-     * @param out   the buffer for writing into.
-     * @throws      CryptoException in case of an error.
-     */
-    void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException;
 
     /**
      * Closes the {@link CryptoContext} and so release all resources. Calling any method after calling this method

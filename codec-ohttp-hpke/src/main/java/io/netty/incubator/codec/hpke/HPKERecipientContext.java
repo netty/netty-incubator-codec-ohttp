@@ -16,14 +16,7 @@
 package io.netty.incubator.codec.hpke;
 
 /**
- * A {@link HPKEContext} which uses encapsulation.
+ * {@link HPKEContext} that can be used for decryption.
  */
-public interface HPKEContextWithEncapsulation extends HPKEContext {
-
-    /**
-     * Return the bytes that are used for encapsulation.
-     *
-     * @return encapsulation
-     */
-    byte[] encapsulation();
+public interface HPKERecipientContext extends HPKEContext, CryptoDecryptContext {
 }

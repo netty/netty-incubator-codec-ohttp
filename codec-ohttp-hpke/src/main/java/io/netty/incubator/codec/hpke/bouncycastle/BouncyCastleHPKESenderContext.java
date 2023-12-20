@@ -15,18 +15,34 @@
  */
 package io.netty.incubator.codec.hpke.bouncycastle;
 
-
+import io.netty.buffer.ByteBuf;
+import io.netty.incubator.codec.hpke.CryptoException;
+import io.netty.incubator.codec.hpke.HPKESenderContext;
+import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.hpke.HPKEContextWithEncapsulation;
 
-final class BouncyCastleHPKEContextWithEncapsulation extends BouncyCastleHPKEContext
-        implements io.netty.incubator.codec.hpke.HPKEContextWithEncapsulation {
+final class BouncyCastleHPKESenderContext extends BouncyCastleHPKEContext implements HPKESenderContext {
 
-    BouncyCastleHPKEContextWithEncapsulation(HPKEContextWithEncapsulation context) {
+    private final BouncyCastleCryptoOperation seal;
+    public BouncyCastleHPKESenderContext(HPKEContextWithEncapsulation context) {
         super(context);
+        this.seal = new BouncyCastleCryptoOperation() {
+            @Override
+            protected byte[] execute(byte[] arg1, byte[] arg2, int offset2, int length2)
+                    throws InvalidCipherTextException {
+                return context.seal(arg1, arg2, offset2, length2);
+            }
+        };
     }
 
     @Override
     public byte[] encapsulation() {
         return ((HPKEContextWithEncapsulation) context).getEncapsulation();
+    }
+
+    @Override
+    public void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
+        checkClosed();
+        seal.execute(aad, pt, out);
     }
 }

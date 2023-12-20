@@ -17,6 +17,8 @@ package io.netty.incubator.codec.ohttp;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.incubator.codec.hpke.CryptoDecryptContext;
+import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.CryptoContext;
 
@@ -37,9 +39,9 @@ public abstract class OHttpCrypto implements AutoCloseable {
         return isFinal ? Unpooled.wrappedBuffer(AAD_FINAL) : Unpooled.EMPTY_BUFFER;
     }
 
-    protected abstract CryptoContext encryptCrypto();
+    protected abstract CryptoEncryptContext encryptCrypto();
 
-    protected abstract CryptoContext decryptCrypto();
+    protected abstract CryptoDecryptContext decryptCrypto();
 
     protected abstract OHttpCryptoConfiguration configuration();
 

@@ -17,9 +17,10 @@ package io.netty.incubator.codec.ohttp;
 
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
-import io.netty.incubator.codec.hpke.CryptoContext;
-import io.netty.incubator.codec.hpke.HPKEContextWithEncapsulation;
+import io.netty.incubator.codec.hpke.CryptoDecryptContext;
+import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.buffer.ByteBuf;
+import io.netty.incubator.codec.hpke.HPKESenderContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
 import static java.util.Objects.requireNonNull;
@@ -32,8 +33,8 @@ public final class OHttpCryptoSender extends OHttpCrypto {
     private final OHttpCryptoConfiguration configuration;
     private final OHttpCiphersuite ciphersuite;
     private final OHttpCryptoProvider provider;
-    private final HPKEContextWithEncapsulation context;
-    private CryptoContext aead;
+    private final HPKESenderContext context;
+    private CryptoDecryptContext aead;
 
     public static final class Builder {
         private OHttpCryptoProvider provider;
@@ -134,12 +135,12 @@ public final class OHttpCryptoSender extends OHttpCrypto {
     }
 
     @Override
-    protected CryptoContext encryptCrypto() {
+    protected CryptoEncryptContext encryptCrypto() {
         return context;
     }
 
     @Override
-    protected CryptoContext decryptCrypto() {
+    protected CryptoDecryptContext decryptCrypto() {
         return aead;
     }
 
