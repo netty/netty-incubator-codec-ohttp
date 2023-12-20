@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.CryptoContext;
 import io.netty.incubator.codec.hpke.HPKEContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
@@ -125,8 +126,8 @@ public final class OHttpCiphersuite {
     /*
      * See https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#name-encapsulation-of-responses
      */
-    CryptoContext createResponseAead(OHttpCryptoProvider provider, HPKEContext context, byte[] enc,
-                                     byte[] responseNonce, OHttpCryptoConfiguration configuration) {
+    AEADContext createResponseAead(OHttpCryptoProvider provider, HPKEContext context, byte[] enc,
+                                                 byte[] responseNonce, OHttpCryptoConfiguration configuration) {
         int secretLength = Math.max(aead.nk(), aead.nn());
         byte[] secret = context.export(configuration.responseExportContext(), secretLength);
         byte[] salt = Arrays.concatenate(enc, responseNonce);

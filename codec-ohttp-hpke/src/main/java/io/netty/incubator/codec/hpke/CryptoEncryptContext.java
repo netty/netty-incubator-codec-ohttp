@@ -15,10 +15,21 @@
  */
 package io.netty.incubator.codec.hpke;
 
+import io.netty.buffer.ByteBuf;
+
 /**
- * {@link CryptoContext} implementation of
- * <a href="https://datatracker.ietf.org/doc/html/rfc5116">AEAD encryption algorithm [RFC5116]</a>.
+ * {@link CryptoContext} that can be used for encryption.
  */
-public interface AEADContext extends CryptoDecryptContext, CryptoEncryptContext {
-    // TODO: Move some methods in here.
+public interface CryptoEncryptContext extends CryptoContext {
+
+    /**
+     * Authenticate and encrypt data. The {@link ByteBuf#readerIndex()} will be increased by the amount of
+     * data read and {@link ByteBuf#writerIndex()} by the bytes written.
+     *
+     * @param aad   the AAD buffer
+     * @param pt    the data to encrypt.
+     * @param out   the buffer for writing into
+     * @throws      CryptoException in case of an error.
+     */
+    void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException;
 }

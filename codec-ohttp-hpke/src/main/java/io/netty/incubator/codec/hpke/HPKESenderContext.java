@@ -15,10 +15,15 @@
  */
 package io.netty.incubator.codec.hpke;
 
+
 /**
- * {@link CryptoContext} implementation of
- * <a href="https://datatracker.ietf.org/doc/html/rfc5116">AEAD encryption algorithm [RFC5116]</a>.
+ * {@link HPKEContext} that can be used for encryption.
  */
-public interface AEADContext extends CryptoDecryptContext, CryptoEncryptContext {
-    // TODO: Move some methods in here.
+public interface HPKESenderContext extends HPKEContext, CryptoEncryptContext {
+    /**
+     * Return the bytes that are used for encapsulation.
+     *
+     * @return encapsulation
+     */
+    byte[] encapsulation();
 }

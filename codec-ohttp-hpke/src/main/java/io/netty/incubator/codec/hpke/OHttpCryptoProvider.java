@@ -32,7 +32,7 @@ public interface OHttpCryptoProvider {
     AEADContext setupAEAD(AEAD aead, byte[] key, byte[] baseNonce);
 
     /**
-     * Establish a {@link HPKEContextWithEncapsulation} that can be used for encryption.
+     * Establish a {@link HPKESenderContext} that can be used for encryption.
      *
      * @param mode  the {@link Mode} to use.
      * @param kem   the {@link KEM} to use.
@@ -43,11 +43,11 @@ public interface OHttpCryptoProvider {
      * @param kpE   the ephemeral keypair or {@code null} if none should be used.
      * @return      the context.
      */
-    HPKEContextWithEncapsulation setupHPKEBaseS(Mode mode, KEM kem, KDF kdf, AEAD aead,
+    HPKESenderContext setupHPKEBaseS(Mode mode, KEM kem, KDF kdf, AEAD aead,
                                                 AsymmetricKeyParameter pkR, byte[] info, AsymmetricCipherKeyPair kpE);
 
     /**
-     * Establish a {@link HPKEContext} that can be used for decryption.
+     * Establish a {@link HPKERecipientContext} that can be used for decryption.
      *
      * @param mode  the {@link Mode} to use.
      * @param kem   the {@link KEM} to use.
@@ -58,7 +58,7 @@ public interface OHttpCryptoProvider {
      * @param info  info parameter.
      * @return      the context.
      */
-    HPKEContext setupHPKEBaseR(Mode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
+    HPKERecipientContext setupHPKEBaseR(Mode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
                                AsymmetricCipherKeyPair skR, byte[] info);
 
     /**
