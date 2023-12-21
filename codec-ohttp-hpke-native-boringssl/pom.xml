@@ -41,7 +41,7 @@
         <skipTests>false</skipTests>
         <packaging.type>jar</packaging.type>
         <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
-        <jniLibName>netty_quiche_${os.detected.name}_${os.detected.arch}</jniLibName>
+        <jniLibName>netty_incubator_codec_ohttp_hpke_boringssl_${os.detected.name}_${os.detected.arch}</jniLibName>
         <jniUtilIncludeDir>${project.build.directory}/netty-jni-util/</jniUtilIncludeDir>
         <boringsslSourceDir>${project.build.directory}/boringssl-source</boringsslSourceDir>
         <boringsslBuildDir>${boringsslSourceDir}/build-target</boringsslBuildDir>
@@ -63,10 +63,6 @@
         <extraLdflags />
         <extraConfigureArg />
         <extraConfigureArg2 />
-        <!-- We need 10.12 as minimum to compile quiche and use it.
-             Anything below will fail when trying to load quiche with:
-             Symbol not found: ___isPlatformVersionAtLeast
-        -->
         <macosxDeploymentTarget />
         <bundleNativeCode />
         <crossCompile />
@@ -81,10 +77,6 @@
                 </os>
             </activation>
             <properties>
-                <!--  We need 10.12 as minimum to compile quiche and use it.
-                      Anything below will fail when trying to load quiche with:
-                      Symbol not found: ___isPlatformVersionAtLeast
-                -->
                 <macosxDeploymentTarget>10.12</macosxDeploymentTarget>
                 <!-- On *nix, add ASM flags to disable executable stack -->
                 <cmakeAsmFlags>-Wa,--noexecstack -mmacosx-version-min=${macosxDeploymentTarget}</cmakeAsmFlags>
@@ -102,7 +94,7 @@
         <profile>
             <id>mac-m1-cross-compile</id>
             <properties>
-                <jniLibName>netty_quiche_osx_aarch_64</jniLibName>
+                <jniLibName>netty_incubator_codec_ohttp_hpke_boringssl_osx_aarch_64</jniLibName>
                 <jni.classifier>osx-aarch_64</jni.classifier>
                 <javaModuleNameClassifier>osx.aarch_64</javaModuleNameClassifier>
                 <macosxDeploymentTarget>11.0</macosxDeploymentTarget>
@@ -128,7 +120,7 @@
         <profile>
             <id>mac-intel-cross-compile</id>
             <properties>
-                <jniLibName>netty_quiche_osx_x86_64</jniLibName>
+                <jniLibName>netty_incubator_codec_ohttp_hpke_boringssl_osx_x86_64</jniLibName>
                 <jni.classifier>osx-x86_64</jni.classifier>
                 <javaModuleNameClassifier>osx.x86_64</javaModuleNameClassifier>
                 <macosxDeploymentTarget>10.12</macosxDeploymentTarget>
@@ -186,7 +178,7 @@
                 <libcrypto>libcrypto.a</libcrypto>
                 <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL</extraLdflags>
                 <bundleNativeCode>META-INF/native/lib${jniLibName}.so;osname=linux;processor=aarch64</bundleNativeCode>
-                <jniLibName>netty_quiche_linux_aarch_64</jniLibName>
+                <jniLibName>netty_incubator_codec_ohttp_hpke_boringssl_linux_aarch_64</jniLibName>
                 <jni.classifier>linux-aarch_64</jni.classifier>
                 <javaModuleNameClassifier>linux.aarch_64</javaModuleNameClassifier>
                 <extraConfigureArg>--host=aarch64-linux-gnu</extraConfigureArg>
@@ -598,6 +590,27 @@
             <version>${netty.jni-util.version}</version>
             <classifier>sources</classifier>
             <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>netty-incubator-codec-ohttp-hpke-classes-boringssl</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

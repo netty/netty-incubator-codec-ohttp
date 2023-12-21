@@ -75,8 +75,8 @@ final class BoringSSL {
             BoringSSLNativeStaticallyReferencedJniMethods.EVP_AEAD_DEFAULT_TAG_LENGTH();
 
     static native long EVP_HPKE_CTX_new();
-    static native long EVP_HPKE_CTX_cleanup(long ctx);
-    static native long EVP_HPKE_CTX_free(long ctx);
+    static native void EVP_HPKE_CTX_cleanup(long ctx);
+    static native void EVP_HPKE_CTX_free(long ctx);
 
     // TODO: Do we also need the auth methods ?
     static native byte[] EVP_HPKE_CTX_setup_sender(
@@ -110,7 +110,6 @@ final class BoringSSL {
     static native int EVP_AEAD_key_length(long aead);
     static native int EVP_AEAD_nonce_length(long aead);
     static native int EVP_AEAD_max_overhead(long aead);
-    static native int EVP_AEAD_max_tag_len(long aead);
 
     static native long EVP_AEAD_CTX_new(long aead, byte[] key, int tag_len);
     static native void EVP_AEAD_CTX_cleanup(long ctx);

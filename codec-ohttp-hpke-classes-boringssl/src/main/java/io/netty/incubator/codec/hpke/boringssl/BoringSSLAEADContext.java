@@ -20,6 +20,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.CryptoException;
 
+/**
+ * BoringSSL based implementation of an {@link AEADContext}.
+ */
 final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADContext {
 
     private final ByteBuf baseNonce;

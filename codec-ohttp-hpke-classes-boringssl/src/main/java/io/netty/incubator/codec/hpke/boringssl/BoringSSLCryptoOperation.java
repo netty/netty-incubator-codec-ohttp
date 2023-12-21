@@ -17,8 +17,22 @@ package io.netty.incubator.codec.hpke.boringssl;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * Abstract base class to perform native crypto operations via BoringSSL.
+ */
 abstract class BoringSSLCryptoOperation {
 
+    /**
+     * Executes a crypto related function and returns {@code true} if successful, {@code false} otherwise.
+     * If successfully the {@link ByteBuf#readerIndex()} and {@link ByteBuf#writerIndex()} will be adjusted
+     * accordingly.
+     *
+     * @param ctx   the native *_CTX pointer.
+     * @param aad   the AAD buffer.
+     * @param in    the input data.
+     * @param out   the buffer for writing into.
+     * @return      {@code true} if successful, {@code false} otherwise.
+     */
     final boolean execute(long ctx, ByteBuf aad, ByteBuf in, ByteBuf out) {
         ByteBuf directAad = null;
         ByteBuf directIn = null;

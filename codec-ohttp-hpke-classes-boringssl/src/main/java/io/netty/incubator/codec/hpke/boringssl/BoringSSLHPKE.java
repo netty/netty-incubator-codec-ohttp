@@ -15,6 +15,9 @@
  */
 package io.netty.incubator.codec.hpke.boringssl;
 
+/**
+ * Helper class to check if the native BoringSSL based crypto can be used.
+ */
 public final class BoringSSLHPKE {
 
     @SuppressWarnings("unchecked")

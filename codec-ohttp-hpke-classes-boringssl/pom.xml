@@ -24,7 +24,7 @@
         <version>0.0.3.Final-SNAPSHOT</version>
     </parent>
 
-    <artifactId>netty-incubator-ohttp-hpke-classes-boringssl</artifactId>
+    <artifactId>netty-incubator-codec-ohttp-hpke-classes-boringssl</artifactId>
     <version>0.0.3.Final-SNAPSHOT</version>
     <name>Netty/Incubator/Codec/OHTTP/HPKE/Classes/BoringSSL</name>
 

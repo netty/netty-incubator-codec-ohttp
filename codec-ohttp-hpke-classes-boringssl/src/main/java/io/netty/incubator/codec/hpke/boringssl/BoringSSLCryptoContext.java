@@ -31,6 +31,13 @@ abstract class BoringSSLCryptoContext implements CryptoContext {
         assert ctx != -1;
         this.ctxRef = new AtomicLong(ctx);
     }
+
+    /**
+     * Returns the native {@code *_CTX} pointer or throws a {@link IllegalStateException} if the context was
+     * already closed.
+     *
+     * @return context
+     */
     protected final long checkClosedAndReturnCtx() {
         long ctx = ctxRef.get();
         if (ctx == -1) {
@@ -46,6 +53,11 @@ abstract class BoringSSLCryptoContext implements CryptoContext {
            destroyCtx(ctx);
        }
     }
-    
+
+    /**
+     * Destroy the native {@code *_CTX} pointer.
+     *
+     * @param ctx   context.
+     */
     protected abstract void destroyCtx(long ctx);
 }

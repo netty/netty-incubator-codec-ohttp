@@ -234,9 +234,7 @@ static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_nonce_length(JNI
 static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_max_overhead(JNIEnv* env, jclass clazz, jlong aead) {
     return (jint) EVP_AEAD_max_overhead((EVP_AEAD *) aead);
 }
-static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_max_tag_len(JNIEnv* env, jclass clazz, jlong aead) {
-    return (jint) EVP_AEAD_max_tag_len((EVP_AEAD *) aead);
-}
+
 
 static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_new(JNIEnv* env, jclass clazz, jlong aead, jbyteArray key_array, jint tag_len) {
     size_t key_len = (size_t)(*env)->GetArrayLength(env, key_array);
@@ -308,7 +306,7 @@ static const JNINativeMethod fixed_method_table[] = {
   { "EVP_HPKE_CTX_max_overhead", "(J)I", (void * ) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_max_overhead },
   { "EVP_HPKE_KEY_new", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_new },
   { "EVP_HPKE_KEY_free", "(J)V", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_free },
-  { "EVP_HPKE_KEY_init", "(JJJI)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_init },
+  { "EVP_HPKE_KEY_init", "(JJ[B)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_init },
   { "EVP_HPKE_KEY_public_key", "(J)[B", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_public_key },
   { "EVP_HPKE_KEY_private_key", "(J)[B", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_private_key },
   { "EVP_HPKE_KEM_public_key_len", "(J)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEM_public_key_len },
@@ -317,7 +315,6 @@ static const JNINativeMethod fixed_method_table[] = {
   { "EVP_AEAD_key_length", "(J)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_key_length },
   { "EVP_AEAD_nonce_length", "(J)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_nonce_length },
   { "EVP_AEAD_max_overhead", "(J)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_max_overhead },
-  { "EVP_AEAD_max_tag_len", "(J)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_max_tag_len },
 
   { "EVP_AEAD_CTX_new", "(J[BI)J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_new },
   { "EVP_AEAD_CTX_cleanup", "(J)V", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_cleanup },

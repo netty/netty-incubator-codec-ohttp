@@ -20,7 +20,7 @@ import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 import java.util.Arrays;
 
 final class BoringSSLAsymmetricKeyParameter implements AsymmetricKeyParameter {
-
+    // Package-private so we can access it without doing a clone().
     final byte[] bytes;
     private final boolean isPrivate;
 

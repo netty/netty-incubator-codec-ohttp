@@ -39,6 +39,9 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
     private static final List<KEM> SUPPORTED_KEM_LIST = Collections.singletonList(KEM.X25519_SHA256);
     private static final List<KDF> SUPPORTED_KDF_LIST = Collections.singletonList(KDF.HKDF_SHA256);
 
+    /**
+     * {@link BoringSSLOHttpCryptoProvider} instance.
+     */
     public static final BoringSSLOHttpCryptoProvider INSTANCE = new BoringSSLOHttpCryptoProvider();
 
     private BoringSSLOHttpCryptoProvider() { }
@@ -125,7 +128,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
                         encodedAsymmetricKeyParameter(kpE.privateParameters()));
             }
             if (encapsulation == null) {
-                throw new IllegalStateException("Unable to init EVP_HPKE_CTX");
+                throw new IllegalStateException("Unable to setup EVP_HPKE_CTX");
             }
             BoringSSLHPKESenderContext hpkeCtx =
                     new BoringSSLHPKESenderContext(ctx, encapsulation);
@@ -162,7 +165,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
             key = BoringSSL.EVP_HPKE_KEY_new_and_init_or_throw(boringSSLKem, privateKeyBytes);
             ctx = BoringSSL.EVP_HPKE_CTX_new_or_throw();
             if (BoringSSL.EVP_HPKE_CTX_setup_recipient(ctx, key, boringSSLKdf, boringSSLAead, enc, info) != -1) {
-                throw new IllegalStateException("Unable to init EVP_HPKE_CTX");
+                throw new IllegalStateException("Unable to setup EVP_HPKE_CTX");
             }
 
             BoringSSLHPKERecipientContext hpkeCtx = new BoringSSLHPKERecipientContext(ctx);

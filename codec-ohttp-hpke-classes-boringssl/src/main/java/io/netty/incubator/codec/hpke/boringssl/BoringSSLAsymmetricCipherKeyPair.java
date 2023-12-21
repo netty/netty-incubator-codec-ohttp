@@ -20,7 +20,6 @@ import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 
 // TODO: Maybe expose sub-type which is ReferenceCounted and so allows to take ownership of EVP_HPKE_KEY.
 final class BoringSSLAsymmetricCipherKeyPair implements AsymmetricCipherKeyPair {
-
     private final BoringSSLAsymmetricKeyParameter privateKey;
     private final BoringSSLAsymmetricKeyParameter publicKey;
 
