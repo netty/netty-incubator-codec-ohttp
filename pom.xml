@@ -69,6 +69,7 @@
     <module>codec-ohttp</module>
     <module>codec-bhttp</module>
     <module>codec-ohttp-hpke</module>
+    <module>codec-ohttp-hpke-bouncycastle</module>
   </modules>
   <properties>
     <javaModuleName />
