@@ -70,6 +70,8 @@
     <module>codec-bhttp</module>
     <module>codec-ohttp-hpke</module>
     <module>codec-ohttp-hpke-bouncycastle</module>
+    <module>codec-ohttp-hpke-classes-boringssl</module>
+    <module>codec-ohttp-hpke-native-boringssl</module>
   </modules>
   <properties>
     <javaModuleName />

@@ -1,0 +1,603 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2023 The Netty Project
+  ~
+  ~ The Netty Project licenses this file to you under the Apache License,
+  ~ version 2.0 (the "License"); you may not use this file except in compliance
+  ~ with the License. You may obtain a copy of the License at:
+  ~
+  ~   https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+  ~ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+  ~ License for the specific language governing permissions and limitations
+  ~ under the License.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.netty.incubator</groupId>
+        <artifactId>netty-incubator-codec-parent-ohttp</artifactId>
+        <version>0.0.3.Final-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>netty-incubator-ohttp-hpke-native-boringssl</artifactId>
+    <version>0.0.3.Final-SNAPSHOT</version>
+    <name>Netty/Incubator/Codec/OHTTP/HPKE/Native/BoringSSL</name>
+
+    <packaging>${packaging.type}</packaging>
+
+    <properties>
+        <javaModuleNameClassifier>${os.detected.name}.${os.detected.arch}</javaModuleNameClassifier>
+        <javaModuleNameWithClassifier>${javaModuleName}.${javaModuleNameClassifier}</javaModuleNameWithClassifier>
+        <javaModuleName>io.netty.incubator.codec.hpke.boringssl</javaModuleName>
+
+        <fragmentHost>io.netty.incubator.netty-incubator-codec-ohttp-hpke-classes-native</fragmentHost>
+        <nativeSourceDirectory>${project.basedir}/src/main/c</nativeSourceDirectory>
+        <nativeLibOnlyDir>${project.build.directory}/native-lib-only</nativeLibOnlyDir>
+        <skipTests>false</skipTests>
+        <packaging.type>jar</packaging.type>
+        <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
+        <jniLibName>netty_quiche_${os.detected.name}_${os.detected.arch}</jniLibName>
+        <jniUtilIncludeDir>${project.build.directory}/netty-jni-util/</jniUtilIncludeDir>
+        <boringsslSourceDir>${project.build.directory}/boringssl-source</boringsslSourceDir>
+        <boringsslBuildDir>${boringsslSourceDir}/build-target</boringsslBuildDir>
+        <boringsslHomeDir>${project.build.directory}/boringssl</boringsslHomeDir>
+        <boringsslHomeBuildDir>${boringsslHomeDir}/build</boringsslHomeBuildDir>
+        <boringsslHomeIncludeDir>${boringsslHomeDir}/include</boringsslHomeIncludeDir>
+        <boringsslRepository>https://boringssl.googlesource.com/boringssl</boringsslRepository>
+        <!-- Lets use what we use in netty-tcnative-boringssl-static -->
+        <boringsslBranch>chromium-stable</boringsslBranch>
+        <boringsslCommitSha>dd5219451c3ce26221762a15d867edf43b463bb2</boringsslCommitSha>
+
+        <generatedSourcesDir>${project.build.directory}/generated-sources</generatedSourcesDir>
+        <templateDir>${project.build.directory}/template</templateDir>
+        <cflags />
+        <ldflags />
+        <extraCmakeFlags />
+        <extraCflags />
+        <extraCxxflags />
+        <extraLdflags />
+        <extraConfigureArg />
+        <extraConfigureArg2 />
+        <!-- We need 10.12 as minimum to compile quiche and use it.
+             Anything below will fail when trying to load quiche with:
+             Symbol not found: ___isPlatformVersionAtLeast
+        -->
+        <macosxDeploymentTarget />
+        <bundleNativeCode />
+        <crossCompile />
+    </properties>
+
+    <profiles>
+        <profile>
+            <id>mac</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                </os>
+            </activation>
+            <properties>
+                <!--  We need 10.12 as minimum to compile quiche and use it.
+                      Anything below will fail when trying to load quiche with:
+                      Symbol not found: ___isPlatformVersionAtLeast
+                -->
+                <macosxDeploymentTarget>10.12</macosxDeploymentTarget>
+                <!-- On *nix, add ASM flags to disable executable stack -->
+                <cmakeAsmFlags>-Wa,--noexecstack -mmacosx-version-min=${macosxDeploymentTarget}</cmakeAsmFlags>
+                <extraCflags>-mmacosx-version-min=${macosxDeploymentTarget}</extraCflags>
+                <cmakeCFlags>${extraCflags} -O3 -fno-omit-frame-pointer</cmakeCFlags>
+                <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
+                <cmakeCxxFlags>${extraCxxflags} -O3 -fno-omit-frame-pointer -Wno-error=range-loop-analysis</cmakeCxxFlags>
+                <libssl>libssl.a</libssl>
+                <libcrypto>libcrypto.a</libcrypto>
+                <extraLdflags>-platform_version,macos,${macosxDeploymentTarget},${macosxDeploymentTarget} -mmacosx-version-min=${macosxDeploymentTarget}</extraLdflags>
+                <extraConfigureArg>MACOSX_DEPLOYMENT_TARGET=${macosxDeploymentTarget}</extraConfigureArg>
+                <bundleNativeCode>META-INF/native/lib${jniLibName}.jnilib;osname=macos;osname=macosx;processor=${os.detected.arch}</bundleNativeCode>
+            </properties>
+        </profile>
+        <profile>
+            <id>mac-m1-cross-compile</id>
+            <properties>
+                <jniLibName>netty_quiche_osx_aarch_64</jniLibName>
+                <jni.classifier>osx-aarch_64</jni.classifier>
+                <javaModuleNameClassifier>osx.aarch_64</javaModuleNameClassifier>
+                <macosxDeploymentTarget>11.0</macosxDeploymentTarget>
+                <extraCflags>-target arm64-apple-macos11</extraCflags>
+                <extraCxxflags>-target arm64-apple-macos11</extraCxxflags>
+                <!-- On *nix, add ASM flags to disable executable stack -->
+                <cmakeAsmFlags>-Wa,--noexecstack -target arm64-apple-macos11</cmakeAsmFlags>
+                <extraCmakeFlags>-DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_OSX_ARCHITECTURES=arm64</extraCmakeFlags>
+                <cmakeCFlags>${extraCflags} -O3 -fno-omit-frame-pointer</cmakeCFlags>
+                <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
+                <cmakeCxxFlags>${extraCxxflags} -O3 -fno-omit-frame-pointer -Wno-error=range-loop-analysis</cmakeCxxFlags>
+                <libssl>libssl.a</libssl>
+                <libcrypto>libcrypto.a</libcrypto>
+                <extraLdflags>-arch arm64 -platform_version,macos,${macosxDeploymentTarget},${macosxDeploymentTarget}</extraLdflags>
+                <extraConfigureArg>--host=aarch64-apple-darwin</extraConfigureArg>
+                <extraConfigureArg2>MACOSX_DEPLOYMENT_TARGET=${macosxDeploymentTarget}</extraConfigureArg2>
+                <bundleNativeCode>META-INF/native/lib${jniLibName}.jnilib;osname=macos;osname=macosx;processor=aarch64</bundleNativeCode>
+                <!-- Don't run tests as we can't load the aarch64 lib on a x86_64 system -->
+                <skipTests>true</skipTests>
+                <crossCompile>mac</crossCompile>
+            </properties>
+        </profile>
+        <profile>
+            <id>mac-intel-cross-compile</id>
+            <properties>
+                <jniLibName>netty_quiche_osx_x86_64</jniLibName>
+                <jni.classifier>osx-x86_64</jni.classifier>
+                <javaModuleNameClassifier>osx.x86_64</javaModuleNameClassifier>
+                <macosxDeploymentTarget>10.12</macosxDeploymentTarget>
+                <extraCflags>-target x86_64-apple-macos10.12 -mmacosx-version-min=${macosxDeploymentTarget}</extraCflags>
+                <extraCxxflags>-target x86_64-apple-macos10.12</extraCxxflags>
+                <!-- On *nix, add ASM flags to disable executable stack -->
+                <cmakeAsmFlags>-Wa,--noexecstack -target x86_64-apple-macos10.12 -mmacosx-version-min=${macosxDeploymentTarget}</cmakeAsmFlags>
+                <extraCmakeFlags>-DCMAKE_SYSTEM_PROCESSOR=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64</extraCmakeFlags>
+                <cmakeCFlags>${extraCflags} -O3 -fno-omit-frame-pointer</cmakeCFlags>
+                <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
+                <cmakeCxxFlags>${extraCxxflags} -O3 -fno-omit-frame-pointer -Wno-error=range-loop-analysis</cmakeCxxFlags>
+                <libssl>libssl.a</libssl>
+                <libcrypto>libcrypto.a</libcrypto>
+                <extraLdflags>-arch x86_64 -platform_version,macos,${macosxDeploymentTarget},${macosxDeploymentTarget} -mmacosx-version-min=${macosxDeploymentTarget}</extraLdflags>
+                <extraConfigureArg>--host=x86_64-apple-darwin</extraConfigureArg>
+                <extraConfigureArg2>MACOSX_DEPLOYMENT_TARGET=${macosxDeploymentTarget}</extraConfigureArg2>
+                <bundleNativeCode>META-INF/native/lib${jniLibName}.jnilib;osname=macos;osname=macosx;processor=x86_64</bundleNativeCode>
+                <!-- Don't run tests as we can't load the x86_64 lib on a aarch64 system -->
+                <skipTests>true</skipTests>
+                <crossCompile>mac</crossCompile>
+            </properties>
+        </profile>
+        <profile>
+            <id>linux</id>
+            <activation>
+                <os>
+                    <family>linux</family>
+                </os>
+            </activation>
+            <properties>
+                <extraCflags>-O3 -fno-omit-frame-pointer</extraCflags>
+                <extraCxxflags>-O3 -fno-omit-frame-pointer</extraCxxflags>
+                <!-- On *nix, add ASM flags to disable executable stack -->
+                <cmakeAsmFlags>-Wa,--noexecstack</cmakeAsmFlags>
+                <cmakeCFlags>${extraCflags}</cmakeCFlags>
+                <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
+                <cmakeCxxFlags>${extraCxxflags} -Wno-error=maybe-uninitialized -Wno-error=shadow -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS</cmakeCxxFlags>
+                <libssl>libssl.a</libssl>
+                <libcrypto>libcrypto.a</libcrypto>
+                <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL -Wl,-lrt</extraLdflags>
+                <bundleNativeCode>META-INF/native/lib${jniLibName}.so;osname=linux;processor=${os.detected.arch}</bundleNativeCode>
+            </properties>
+        </profile>
+        <profile>
+            <id>linux-aarch64</id>
+            <properties>
+                <extraCflags>-O3 -fno-omit-frame-pointer</extraCflags>
+                <extraCxxflags>-O3 -fno-omit-frame-pointer</extraCxxflags>
+                <!-- On *nix, add ASM flags to disable executable stack -->
+                <cmakeAsmFlags>-Wa,--noexecstack</cmakeAsmFlags>
+                <cmakeCFlags>${extraCflags}</cmakeCFlags>
+                <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
+                <cmakeCxxFlags>${extraCxxflags} -Wno-error=maybe-uninitialized -Wno-error=shadow -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS</cmakeCxxFlags>
+                <libssl>libssl.a</libssl>
+                <libcrypto>libcrypto.a</libcrypto>
+                <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL</extraLdflags>
+                <bundleNativeCode>META-INF/native/lib${jniLibName}.so;osname=linux;processor=aarch64</bundleNativeCode>
+                <jniLibName>netty_quiche_linux_aarch_64</jniLibName>
+                <jni.classifier>linux-aarch_64</jni.classifier>
+                <javaModuleNameClassifier>linux.aarch_64</javaModuleNameClassifier>
+                <extraConfigureArg>--host=aarch64-linux-gnu</extraConfigureArg>
+                <extraConfigureArg2>CC=aarch64-none-linux-gnu-gcc</extraConfigureArg2>
+                <extraCmakeFlags>-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=aarch64-none-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-none-linux-gnu-g++</extraCmakeFlags>
+                <!-- Don't run tests as we can't load the aarch64 lib on a x86_64 system -->
+                <skipTests>true</skipTests>
+                <crossCompile>linux</crossCompile>
+            </properties>
+        </profile>
+    </profiles>
+
+    <build>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.7.0</version>
+            </extension>
+        </extensions>
+        <plugins>
+            <!-- Also include c files in source jar -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${nativeSourceDirectory}</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <!-- unpack netty-jni-util files -->
+                    <execution>
+                        <id>unpack</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeGroupIds>io.netty</includeGroupIds>
+                            <includeArtifactIds>netty-jni-util</includeArtifactIds>
+                            <classifier>sources</classifier>
+                            <outputDirectory>${jniUtilIncludeDir}</outputDirectory>
+                            <includes>**.h,**.c</includes>
+                            <overWriteReleases>false</overWriteReleases>
+                            <overWriteSnapshots>true</overWriteSnapshots>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+
+                    <!-- Build the BoringSSL static libs -->
+                    <execution>
+                        <id>build-boringssl</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- Add the ant tasks from ant-contrib -->
+                                <taskdef resource="net/sf/antcontrib/antcontrib.properties" />
+                                <property environment="env" />
+                                <if>
+                                    <available file="${boringsslHomeDir}" />
+                                    <then>
+                                        <echo message="BoringSSL was already build, skipping the build step." />
+                                    </then>
+                                    <else>
+                                        <if>
+                                            <available file="${boringsslSourceDir}" />
+                                            <then>
+                                                <echo message="BoringSSL was already cloned, skipping the clone step." />
+                                            </then>
+                                            <else>
+                                                <echo message="Clone BoringSSL" />
+
+                                                <exec executable="git" failonerror="true" dir="${project.build.directory}" resolveexecutable="true">
+                                                    <arg value="clone" />
+                                                    <arg value="--branch" />
+                                                    <arg value="${boringsslBranch}" />
+                                                    <arg value="${boringsslRepository}" />
+                                                    <arg value="${boringsslSourceDir}" />
+                                                </exec>
+                                            </else>
+                                        </if>
+
+                                        <echo message="Building BoringSSL" />
+
+                                        <!-- Use the known SHA of the commit -->
+                                        <exec executable="git" failonerror="true" dir="${boringsslSourceDir}" resolveexecutable="true">
+                                            <arg value="checkout" />
+                                            <arg value="${boringsslCommitSha}" />
+                                        </exec>
+
+                                        <mkdir dir="${boringsslBuildDir}" />
+
+                                        <exec executable="cmake" failonerror="true" dir="${boringsslBuildDir}" resolveexecutable="true">
+                                            <env key="MACOSX_DEPLOYMENT_TARGET" value="${macosxDeploymentTarget}" />
+                                            <arg value="-DCMAKE_POSITION_INDEPENDENT_CODE=TRUE" />
+                                            <arg value="-DCMAKE_BUILD_TYPE=Release" />
+                                            <arg value="-DCMAKE_ASM_FLAGS=${cmakeAsmFlags}" />
+                                            <arg value="-DCMAKE_C_FLAGS_RELEASE=${cmakeCFlags}" />
+                                            <arg value="-DCMAKE_CXX_FLAGS_RELEASE=${cmakeCxxFlags}" />
+                                            <arg value="-DCMAKE_CXX_FLAGS_RELEASE=${cmakeCxxFlags}" />
+                                            <arg line="${extraCmakeFlags}" />
+                                            <arg value="-GNinja" />
+                                            <arg value="${boringsslSourceDir}" />
+                                        </exec>
+                                        <if>
+                                            <!-- may be called ninja-build or ninja -->
+                                            <!-- See https://github.com/netty/netty-tcnative/issues/475 -->
+                                            <available file="ninja-build" filepath="${PATH}" />
+                                            <then>
+                                                <property name="ninjaExecutable" value="ninja-build" />
+                                            </then>
+                                            <else>
+                                                <property name="ninjaExecutable" value="ninja" />
+                                            </else>
+                                        </if>
+                                        <exec executable="${ninjaExecutable}" failonerror="true" dir="${boringsslBuildDir}" resolveexecutable="true">
+                                            <arg value="crypto" />
+                                            <arg value="ssl" />
+                                        </exec>
+
+                                        <!-- Only copy the libs and header files we need -->
+                                        <mkdir dir="${boringsslHomeBuildDir}" />
+                                        <copy file="${boringsslBuildDir}/ssl/${libssl}" todir="${boringsslHomeBuildDir}" verbose="true" />
+                                        <copy file="${boringsslBuildDir}/crypto/${libcrypto}" todir="${boringsslHomeBuildDir}" verbose="true" />
+                                        <copy todir="${boringsslHomeIncludeDir}" verbose="true">
+                                            <fileset dir="${boringsslSourceDir}/include" />
+                                        </copy>
+                                    </else>
+                                </if>
+                            </target>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>copy-src</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- Copy all of the c code -->
+                                <delete dir="${generatedSourcesDir}" quiet="true" />
+                                <copy todir="${generatedSourcesDir}/c">
+                                    <fileset dir="${project.basedir}/src/main/c" />
+                                </copy>
+
+                                <copy todir="${generatedSourcesDir}/c">
+                                    <fileset dir="${jniUtilIncludeDir}" />
+                                </copy>
+                            </target>
+                        </configuration>
+                    </execution>
+
+                    <execution>
+                        <!-- Adjust our template and copy it over so it can be used when compiling on windows -->
+                        <id>setup-template</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- Add the ant tasks from ant-contrib -->
+                                <taskdef resource="net/sf/antcontrib/antcontrib.properties" />
+                                <property environment="env" />
+                                <!-- Convert the paths to windows format -->
+                                <pathconvert property="boringsslHomeIncludeWindowsDir" targetos="windows">
+                                    <path location="${boringsslHomeIncludeDir}" />
+                                </pathconvert>
+                                <pathconvert property="boringsslHomeBuildWindowsDir" targetos="windows">
+                                    <path location="${boringsslHomeBuildDir}" />
+                                </pathconvert>
+                                <!-- Copy custom.m4 to fix building library without version-suffix on Android -->
+                                <if>
+                                    <equals arg1="${os.detected.name}" arg2="windows" />
+                                    <then>
+                                        <!-- Copy and filter the template MSVC project -->
+                                        <filter token="BORINGSSL_INCLUDE_DIR" value="${boringsslHomeIncludeWindowsDir}" />
+                                        <filter token="BORINGSSL_LIB_DIR" value="${boringsslHomeBuildWindowsDir}" />
+                                        <filter token="CRYPTO_LIB" value="${libcrypto}" />
+                                        <filter token="SSL_LIB" value="${libssl}" />
+                                        <copy file="src/main/native-package/vs2010.custom.props.template" tofile="${templateDir}/vs2010.custom.props" filtering="true" overwrite="true" verbose="true" />
+                                    </then>
+                                    <else>
+                                        <!-- Copy and filter custom.m4 -->
+                                        <filter token="BORINGSSL_INCLUDE_DIR" value="${boringsslHomeIncludeDir}" />
+                                        <filter token="BORINGSSL_LIB_DIR" value="${boringsslHomeBuildDir}" />
+                                        <filter token="CRYPTO_LIB" value="crypto" />
+                                        <filter token="SSL_LIB" value="ssl" />
+                                        <filter token="EXTRA_LDFLAGS" value="${extraLdflags}" />
+                                        <filter token="EXTRA_CFLAGS" value="${extraCflags}" />
+                                        <copy file="src/main/native-package/m4/custom.m4.template" tofile="${templateDir}/m4/custom.m4" filtering="true" overwrite="true" verbose="true" />
+                                    </else>
+                                </if>
+                            </target>
+                        </configuration>
+                    </execution>
+
+                    <!-- Copy the native lib that was generated and the license material for attribution -->
+                    <execution>
+                        <id>copy-native-lib-and-license</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- Add the ant tasks from ant-contrib -->
+                                <taskdef resource="net/sf/antcontrib/antcontrib.properties" />
+
+                                <copy todir="${project.build.outputDirectory}" includeEmptyDirs="false">
+                                    <zipfileset dir="${nativeLibOnlyDir}/META-INF/native" />
+                                    <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="META-INF/native/\1" />
+                                </copy>
+
+                                <!-- Copy license material for attribution-->
+                                <copy file="../NOTICE.txt" todir="${project.build.outputDirectory}/META-INF/" />
+                                <copy file="../LICENSE.txt" todir="${project.build.outputDirectory}/META-INF/" />
+                                <copy todir="${project.build.outputDirectory}/META-INF/license">
+                                    <fileset dir="../license" />
+                                </copy>
+
+                            </target>
+                        </configuration>
+                    </execution>
+                    <!-- Copy the manifest file that we populated so far so we can use it as a starting point when generating the jars and adding more things to it. -->
+                    <execution>
+                        <id>copy-manifest</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <copy file="${project.build.outputDirectory}/META-INF/MANIFEST.MF" tofile="${project.build.directory}/manifests/MANIFEST-native.MF" />
+                                <copy file="${project.build.outputDirectory}/META-INF/MANIFEST.MF" tofile="${project.build.directory}/manifests/MANIFEST.MF" />
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- always produce osgi bundles -->
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-manifest</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>manifest</goal>
+                        </goals>
+                        <configuration>
+                            <supportedProjectTypes>
+                                <supportedProjectType>jar</supportedProjectType>
+                                <supportedProjectType>bundle</supportedProjectType>
+                            </supportedProjectTypes>
+                            <instructions>
+                                <Export-Package>${project.groupId}.*</Export-Package>
+                                <BoringSSL-Revision>${boringsslCommitSha}</BoringSSL-Revision>
+                                <BoringSSL-Branch>${boringsslBranch}</BoringSSL-Branch>
+                            </instructions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-source-plugin</artifactId>
+                <!-- Eclipse-related OSGi manifests
+                      See https://github.com/netty/netty/issues/3886
+                      More information: https://rajakannappan.blogspot.ie/2010/03/automating-eclipse-source-bundle.html -->
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Bundle-ManifestVersion>2</Bundle-ManifestVersion>
+                            <Bundle-Name>${project.name}</Bundle-Name>
+                            <Bundle-SymbolicName>${project.groupId}.${project.artifactId}.source</Bundle-SymbolicName>
+                            <Bundle-Vendor>${project.organization.name}</Bundle-Vendor>
+                            <Bundle-Version>${parsedVersion.osgiVersion}</Bundle-Version>
+                            <Eclipse-SourceBundle>${project.groupId}.${project.artifactId};version="${parsedVersion.osgiVersion}";roots:="."</Eclipse-SourceBundle>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>attach-test-sources</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>test-jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.fusesource.hawtjni</groupId>
+                <artifactId>hawtjni-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-native-lib</id>
+                        <configuration>
+                            <name>${jniLibName}</name>
+                            <nativeSourceDirectory>${generatedSourcesDir}</nativeSourceDirectory>
+                            <customPackageDirectory>${templateDir}</customPackageDirectory>
+                            <windowsBuildTool>msbuild</windowsBuildTool>
+                            <windowsCustomProps>true</windowsCustomProps>
+                            <windowsPlatformToolset>v142</windowsPlatformToolset>
+                            <libDirectory>${nativeLibOnlyDir}</libDirectory>
+                            <verbose>true</verbose>
+                            <configureArgs>
+                                <configureArg>${extraConfigureArg}</configureArg>
+                                <configureArg>${extraConfigureArg2}</configureArg>
+                                <configureArg>--libdir=${project.build.directory}/native-build/target/lib</configureArg>
+                            </configureArgs>
+                        </configuration>
+                        <goals>
+                            <goal>generate</goal>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-jar</id>
+                        <configuration>
+                            <!-- Exclude native lib and attribution for the jar without classifier-->
+                            <excludes>
+                                <exclude>META-INF/native/**</exclude>
+                                <exclude>META-INF/license/**</exclude>
+                                <exclude>META-INF/NOTICE.txt</exclude>
+                                <exclude>META-INF/LICENSE.txt</exclude>
+                            </excludes>
+                            <archive>
+                                <manifest>
+                                    <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                                </manifest>
+                                <manifestEntries>
+                                    <Automatic-Module-Name>${javaModuleName}</Automatic-Module-Name>
+                                </manifestEntries>
+                                <index>true</index>
+                                <manifestFile>${project.build.directory}/manifests/MANIFEST.MF</manifestFile>
+                            </archive>
+                        </configuration>
+                    </execution>
+                    <!-- Generate the JAR that contains the native library in it. -->
+                    <execution>
+                        <id>native-jar</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <archive>
+                                <manifest>
+                                    <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                                </manifest>
+                                <manifestEntries>
+                                    <Automatic-Module-Name>${javaModuleNameWithClassifier}</Automatic-Module-Name>
+                                    <Fragment-Host>${fragmentHost}</Fragment-Host>
+                                    <Bundle-NativeCode>${bundleNativeCode}</Bundle-NativeCode>
+                                </manifestEntries>
+                                <index>true</index>
+                                <manifestFile>${project.build.directory}/manifests/MANIFEST-native.MF</manifestFile>
+                            </archive>
+                            <classifier>${jni.classifier}</classifier>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-jni-util</artifactId>
+            <version>${netty.jni-util.version}</version>
+            <classifier>sources</classifier>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>

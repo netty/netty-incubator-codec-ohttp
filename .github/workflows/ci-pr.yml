@@ -43,8 +43,12 @@ jobs:
           key: verify-cache-m2-repository-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             verify-cache-m2-repository-
+
+      - name: Install tools / libraries
+        run: sudo apt-get update && sudo apt-get -y install autoconf automake libtool make tar cmake perl ninja-build git
+
       - name: Verify with Maven
-        run: ./mvnw -B --file pom.xml verify -DskipTests=true -DskipH3Spec=true
+        run: ./mvnw -B --file pom.xml verify -DskipTests=true
 
   build:
     runs-on: ubuntu-latest

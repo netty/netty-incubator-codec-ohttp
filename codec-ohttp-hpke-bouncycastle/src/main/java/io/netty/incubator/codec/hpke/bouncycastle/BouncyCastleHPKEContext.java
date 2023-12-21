@@ -15,12 +15,7 @@
  */
 package io.netty.incubator.codec.hpke.bouncycastle;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.HPKEContext;
-import org.bouncycastle.crypto.InvalidCipherTextException;
-
-import java.nio.ByteBuffer;
 
 abstract class BouncyCastleHPKEContext implements HPKEContext {
     protected final org.bouncycastle.crypto.hpke.HPKEContext context;
