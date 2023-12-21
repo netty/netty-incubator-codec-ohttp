@@ -14,7 +14,22 @@ services:
   build-leak:
     image: netty-codec-ohttp-centos7:centos-7-1.8
 
+  build-no-unsafe:
+    image: netty-codec-ohttp-centos7:centos-7-1.8
+
+  build-clean:
+    image: netty-codec-ohttp-centos7:centos-7-1.8
+
   deploy:
+    image: netty-codec-ohttp-centos7:centos-7-1.8
+
+  deploy-clean:
+    image: netty-codec-ohttp-centos7:centos-7-1.8
+
+  stage-snapshot:
+    image: netty-codec-ohttp-centos7:centos-7-1.8
+
+  stage-release:
     image: netty-codec-ohttp-centos7:centos-7-1.8
 
   shell:
