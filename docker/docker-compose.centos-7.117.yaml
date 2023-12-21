@@ -1,0 +1,36 @@
+version: "3"
+
+services:
+
+  runtime-setup:
+    image: netty-codec-ohttp-centos7:centos-7-17
+    build:
+      args:
+        java_version : "17.0.9-zulu"
+
+  build:
+    image: netty-codec-ohttp-centos7:centos-7-17
+
+  build-leak:
+    image: netty-codec-ohttp-centos7:centos-7-17
+
+  build-no-unsafe:
+    image: netty-codec-ohttp-centos7:centos-7-17
+
+  build-clean:
+    image: netty-codec-ohttp-centos7:centos-7-17
+
+  deploy:
+    image: netty-codec-ohttp-centos7:centos-7-17
+
+  deploy-clean:
+    image: netty-codec-ohttp-centos7:centos-7-17
+
+  stage-snapshot:
+    image: netty-codec-ohttp-centos7:centos-7-17
+
+  stage-release:
+    image: netty-codec-ohttp-centos7:centos-7-17
+
+  shell:
+    image: netty-codec-ohttp-centos7:centos-7-17

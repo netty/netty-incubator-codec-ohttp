@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'java' ]
+        language: [ 'cpp', 'java' ]
         # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python' ]
         # Learn more...
         # https://docs.github.com/en/github/finding-security-vulnerabilities-and-errors-in-your-code/configuring-code-scanning#overriding-automatic-language-detection
@@ -63,8 +63,11 @@ jobs:
         # Prefix the list here with "+" to use these queries and those in the config file.
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
+    - name: Install tools / libraries
+      run: sudo apt-get update && sudo apt-get -y install autoconf automake libtool make tar cmake perl ninja-build git
+
     - name: Build project
-      run: ./mvnw clean package -DskipTests=true -DskipH3Spec=true
+      run: ./mvnw clean package -DskipTests=true
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2

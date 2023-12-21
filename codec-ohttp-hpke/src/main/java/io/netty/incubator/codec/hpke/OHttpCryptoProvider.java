@@ -15,6 +15,8 @@
  */
 package io.netty.incubator.codec.hpke;
 
+import java.util.List;
+
 /**
  * Provides methods to handle <a href="https://www.rfc-editor.org/rfc/rfc9180.html">Hybrid Public Key Encryption</a>
  * for oHTTP. Because of that the functionality is limited to what is needed for oHTTP.
@@ -79,6 +81,34 @@ public interface OHttpCryptoProvider {
      * @return                  the deserialized {@link AsymmetricKeyParameter}.
      */
     AsymmetricKeyParameter deserializePublicKey(KEM kem, byte[] publicKeyBytes);
+
+    /**
+     * Returns an immutable {@link List} of all supported {@link AEAD}s.
+     *
+     * @return supported {@link AEAD}s.
+     */
+    List<AEAD> supportedAEAD();
+
+    /**
+     * Returns an immutable {@link List} of all supported {@link KEM}s.
+     *
+     * @return supported {@link KEM}s.
+     */
+    List<KEM> supportedKEM();
+
+    /**
+     * Returns an immutable {@link List} of all supported {@link KDF}s.
+     *
+     * @return supported {@link KDF}s.
+     */
+    List<KDF> supportedKDF();
+
+    /**
+     * Returns an immutable {@link List} of all supported {@link Mode}s.
+     *
+     * @return supported {@link Mode}s.
+     */
+    List<Mode> supportedMode();
 
     /**
      * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#name-hybrid-public-key-encryptio">Hybrid Public Key Encryption</a>

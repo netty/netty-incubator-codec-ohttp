@@ -35,8 +35,16 @@ import org.bouncycastle.math.ec.custom.sec.SecP521R1Curve;
 import org.bouncycastle.util.encoders.Hex;
 
 import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvider {
+
+    private static final List<AEAD> SUPPORTED_AEAD_LIST = Collections.unmodifiableList(Arrays.asList(AEAD.values()));
+    private static final List<Mode> SUPPORTED_MODE_LIST = Collections.unmodifiableList(Arrays.asList(Mode.values()));
+    private static final List<KEM> SUPPORTED_KEM_LIST = Collections.unmodifiableList(Arrays.asList(KEM.values()));
+    private static final List<KDF> SUPPORTED_KDF_LIST = Collections.unmodifiableList(Arrays.asList(KDF.values()));
 
     public static final BouncyCastleOHttpCryptoProvider INSTANCE = new BouncyCastleOHttpCryptoProvider();
 
@@ -49,14 +57,14 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
 
     private static BouncyCastleAsymmetricKeyParameter castOrThrow(AsymmetricKeyParameter param) {
         if (!(param instanceof BouncyCastleAsymmetricKeyParameter)) {
-            throw new IllegalArgumentException("param must be of type " + BouncyCastleAsymmetricKeyParameter.class);
+            throw new IllegalArgumentException("param must be of type " + BouncyCastleAsymmetricKeyParameter.class + ": " + param);
         }
         return (BouncyCastleAsymmetricKeyParameter) param;
     }
 
     private static BouncyCastleAsymmetricCipherKeyPair castOrThrow(AsymmetricCipherKeyPair pair) {
         if (!(pair instanceof BouncyCastleAsymmetricCipherKeyPair)) {
-            throw new IllegalArgumentException("pair must be of type " + BouncyCastleAsymmetricCipherKeyPair.class);
+            throw new IllegalArgumentException("pair must be of type " + BouncyCastleAsymmetricCipherKeyPair.class + ": " + pair);
         }
         return (BouncyCastleAsymmetricCipherKeyPair) pair;
     }
@@ -179,5 +187,25 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
             default:
                 throw new IllegalArgumentException("invalid kem: " + kem);
         }
+    }
+
+    @Override
+    public List<AEAD> supportedAEAD() {
+        return SUPPORTED_AEAD_LIST;
+    }
+
+    @Override
+    public List<KEM> supportedKEM() {
+        return SUPPORTED_KEM_LIST;
+    }
+
+    @Override
+    public List<KDF> supportedKDF() {
+        return SUPPORTED_KDF_LIST;
+    }
+
+    @Override
+    public List<Mode> supportedMode() {
+        return SUPPORTED_MODE_LIST;
     }
 }

@@ -29,6 +29,7 @@
 
   <properties>
     <javaModuleName>io.netty.incubator.codec.ohttp</javaModuleName>
+    <netty.hpke.boringssl.classifier>${os.detected.name}-${os.detected.arch}</netty.hpke.boringssl.classifier>
   </properties>
 
   <build>
@@ -109,5 +110,33 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>io.netty.incubator</groupId>
+      <artifactId>netty-incubator-codec-ohttp-hpke-classes-boringssl</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty.incubator</groupId>
+      <artifactId>netty-incubator-codec-ohttp-hpke-native-boringssl</artifactId>
+      <version>${project.version}</version>
+      <classifier>${netty.hpke.boringssl.classifier}</classifier>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
+
+  <profiles>
+    <profile>
+      <id>linux-aarch64</id>
+      <properties>
+        <netty.hpke.boringssl.classifier>linux-aarch_64</netty.hpke.boringssl.classifier>
+      </properties>
+    </profile>
+    <profile>
+      <id>mac-intel-cross-compile</id>
+      <properties>
+        <netty.hpke.boringssl.classifier>osx-x86_64</netty.hpke.boringssl.classifier>
+      </properties>
+    </profile>
+  </profiles>
 </project>
