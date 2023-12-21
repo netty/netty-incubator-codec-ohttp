@@ -124,4 +124,13 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <profiles>
+    <profile>
+      <id>linux-aarch64</id>
+      <properties>
+        <netty.hpke.boringssl.classifier>linux-aarch64</netty.hpke.boringssl.classifier>
+      </properties>
+    </profile>
+  </profiles>
 </project>
