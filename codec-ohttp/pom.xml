@@ -132,5 +132,11 @@
         <netty.hpke.boringssl.classifier>linux-aarch_64</netty.hpke.boringssl.classifier>
       </properties>
     </profile>
+    <profile>
+      <id>mac-intel-cross-compile</id>
+      <properties>
+        <netty.hpke.boringssl.classifier>osx-x86_64</netty.hpke.boringssl.classifier>
+      </properties>
+    </profile>
   </profiles>
 </project>
