@@ -21,6 +21,11 @@ final class BoringSSLNativeStaticallyReferencedJniMethods {
     static native long EVP_hpke_aes_128_gcm();
     static native long EVP_hpke_aes_256_gcm();
     static native long EVP_hpke_chacha20_poly1305();
+
+    static native long EVP_aead_aes_128_gcm();
+    static native long EVP_aead_aes_256_gcm();
+    static native long EVP_aead_chacha20_poly1305();
+
     static native int EVP_AEAD_DEFAULT_TAG_LENGTH();
 
     private BoringSSLNativeStaticallyReferencedJniMethods() { }

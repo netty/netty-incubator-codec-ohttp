@@ -74,6 +74,13 @@ final class BoringSSL {
     static final int EVP_AEAD_DEFAULT_TAG_LENGTH =
             BoringSSLNativeStaticallyReferencedJniMethods.EVP_AEAD_DEFAULT_TAG_LENGTH();
 
+    static final long EVP_aead_aes_128_gcm =
+            BoringSSLNativeStaticallyReferencedJniMethods.EVP_aead_aes_128_gcm();
+    static final long EVP_aead_aes_256_gcm =
+            BoringSSLNativeStaticallyReferencedJniMethods.EVP_aead_aes_256_gcm();
+    static final long EVP_aead_chacha20_poly1305 =
+            BoringSSLNativeStaticallyReferencedJniMethods.EVP_aead_chacha20_poly1305();
+
     static native long EVP_HPKE_CTX_new();
     static native void EVP_HPKE_CTX_cleanup(long ctx);
     static native void EVP_HPKE_CTX_free(long ctx);

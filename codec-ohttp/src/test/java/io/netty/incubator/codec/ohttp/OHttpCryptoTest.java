@@ -16,6 +16,9 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
+import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
+import io.netty.incubator.codec.hpke.boringssl.BoringSSLHPKE;
+import io.netty.incubator.codec.hpke.boringssl.BoringSSLOHttpCryptoProvider;
 import io.netty.incubator.codec.hpke.bouncycastle.BouncyCastleOHttpCryptoProvider;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.buffer.ByteBuf;
@@ -24,9 +27,16 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
 import org.bouncycastle.crypto.params.X25519PrivateKeyParameters;
 import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.ArgumentsProvider;
+import org.junit.jupiter.params.provider.ArgumentsSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static io.netty.incubator.codec.hpke.OHttpCryptoProvider.AEAD;
 import static io.netty.incubator.codec.hpke.OHttpCryptoProvider.KDF;
@@ -36,22 +46,35 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class OHttpCryptoTest {
 
-    static AsymmetricCipherKeyPair createX25519KeyPair(String privateKeyHexBytes)  {
+    private static final class OHttpCryptoProviderArgumentsProvider implements ArgumentsProvider {
+        @Override
+        public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
+            List<Arguments> arguments = new ArrayList<>();
+            arguments.add(Arguments.of(BouncyCastleOHttpCryptoProvider.INSTANCE));
+            if (BoringSSLHPKE.isAvailable()) {
+                arguments.add(Arguments.of(BoringSSLOHttpCryptoProvider.INSTANCE));
+            }
+            return arguments.stream();
+        }
+    }
+
+    static AsymmetricCipherKeyPair createX25519KeyPair(OHttpCryptoProvider cryptoProvider, String privateKeyHexBytes)  {
         X25519PrivateKeyParameters privateKey = new X25519PrivateKeyParameters(
                 ByteBufUtil.decodeHexDump(privateKeyHexBytes));
         X25519PublicKeyParameters publicKey = privateKey.generatePublicKey();
-        return BouncyCastleOHttpCryptoProvider.INSTANCE.deserializePrivateKey(
+        return cryptoProvider.deserializePrivateKey(
                 KEM.X25519_SHA256, privateKey.getEncoded(), publicKey.getEncoded());
     }
 
     /*
      * Use values from https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#name-complete-example-of-a-reque
      */
-    @Test
-    public void testCryptoVectors() throws DecoderException, CryptoException {
+    @ParameterizedTest
+    @ArgumentsSource(value = OHttpCryptoProviderArgumentsProvider.class)
+    public void testCryptoVectors(OHttpCryptoProvider provider) throws DecoderException, CryptoException {
         byte keyId = 1;
-        AsymmetricCipherKeyPair kpR = createX25519KeyPair("3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
-        AsymmetricCipherKeyPair kpE = createX25519KeyPair("bc51d5e930bda26589890ac7032f70ad12e4ecb37abb1b65b1256c9c48999c73");
+        AsymmetricCipherKeyPair kpR = createX25519KeyPair(provider, "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+        AsymmetricCipherKeyPair kpE = createX25519KeyPair(provider, "bc51d5e930bda26589890ac7032f70ad12e4ecb37abb1b65b1256c9c48999c73");
         byte[] request = ByteBufUtil.decodeHexDump("00034745540568747470730b6578616d706c652e636f6d012f");
         byte[] response = ByteBufUtil.decodeHexDump("0140c8");
 
@@ -92,7 +115,7 @@ public class OHttpCryptoTest {
                 ByteBufUtil.hexDump(ciphersuite.createInfo(OHttpVersionDraft.INSTANCE)));
 
         try (OHttpCryptoSender sender = OHttpCryptoSender.newBuilder()
-                .setOHttpCryptoProvider(BouncyCastleOHttpCryptoProvider.INSTANCE)
+                .setOHttpCryptoProvider(provider)
                 .setConfiguration(OHttpVersionDraft.INSTANCE)
                 .setCiphersuite(ciphersuite)
                 .setReceiverPublicKeyBytes(kpR.publicParameters())
@@ -124,7 +147,7 @@ public class OHttpCryptoTest {
                 encodedRequest.readBytes(receiverEncapsulatedKey);
 
                 try (OHttpCryptoReceiver receiver = OHttpCryptoReceiver.newBuilder()
-                        .setOHttpCryptoProvider(BouncyCastleOHttpCryptoProvider.INSTANCE)
+                        .setOHttpCryptoProvider(provider)
                         .setConfiguration(OHttpVersionDraft.INSTANCE)
                         .setServerKeys(serverKeys)
                         .setCiphersuite(receiverCiphersuite)

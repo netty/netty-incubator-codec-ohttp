@@ -29,6 +29,7 @@
 
   <properties>
     <javaModuleName>io.netty.incubator.codec.ohttp</javaModuleName>
+    <netty.hpke.boringssl.classifier>${os.detected.name}-${os.detected.arch}</netty.hpke.boringssl.classifier>
   </properties>
 
   <build>
@@ -107,6 +108,19 @@
       <groupId>io.netty.incubator</groupId>
       <artifactId>netty-incubator-codec-ohttp-hpke-bouncycastle</artifactId>
       <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty.incubator</groupId>
+      <artifactId>netty-incubator-codec-ohttp-hpke-classes-boringssl</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty.incubator</groupId>
+      <artifactId>netty-incubator-codec-ohttp-hpke-native-boringssl</artifactId>
+      <version>${project.version}</version>
+      <classifier>${netty.hpke.boringssl.classifier}</classifier>
       <scope>test</scope>
     </dependency>
   </dependencies>

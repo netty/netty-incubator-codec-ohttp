@@ -78,7 +78,14 @@ public abstract class OHttpCrypto implements AutoCloseable {
 
     @Override
     public void close()  {
-        encryptCrypto().close();
-        decryptCrypto().close();
+        // Check for null as these could be null if the constructor did throw.
+        CryptoEncryptContext encryptContext = encryptCrypto();
+        if (encryptContext != null) {
+            encryptContext.close();
+        }
+        CryptoDecryptContext decryptContext = decryptCrypto();
+        if (decryptContext != null) {
+            decryptContext.close();;
+        }
     }
 }

@@ -41,6 +41,8 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.incubator.codec.hpke.boringssl.BoringSSLHPKE;
+import io.netty.incubator.codec.hpke.boringssl.BoringSSLOHttpCryptoProvider;
 import io.netty.incubator.codec.hpke.bouncycastle.BouncyCastleOHttpCryptoProvider;
 import io.netty.util.ReferenceCountUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -53,6 +55,7 @@ import org.junit.jupiter.params.provider.ArgumentsSource;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -68,10 +71,15 @@ public class OHttpCodecsTest {
     private static final class OHttpVersionArgumentsProvider implements ArgumentsProvider {
         @Override
         public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
-            return Stream.of(
-                    Arguments.of(OHttpVersionDraft.INSTANCE),
-                    Arguments.of(OHttpVersionChunkDraft.INSTANCE)
-            );
+            List<Arguments> arguments = new ArrayList<>();
+            arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
+            arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
+
+            if (BoringSSLHPKE.isAvailable()) {
+                arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
+            }
+            return arguments.stream();
         }
     }
 
@@ -96,8 +104,8 @@ public class OHttpCodecsTest {
         EmbeddedChannel server();
     }
 
-    public static ChannelPair createChannelPair(OHttpVersion version) throws Exception {
-        AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair("3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+    public static ChannelPair createChannelPair(OHttpVersion version, OHttpCryptoProvider cryptoProvider) throws Exception {
+        AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(cryptoProvider, "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
         byte keyId = 0x66;
 
         OHttpServerKeys serverKeys = new OHttpServerKeys(
@@ -118,33 +126,34 @@ public class OHttpCodecsTest {
         return new ChannelPair() {
             @Override
             public EmbeddedChannel client() {
-                return createClientChannel(version, ciphersuite, publicKey);
+                return createClientChannel(version, cryptoProvider, ciphersuite, publicKey);
             }
 
             @Override
             public EmbeddedChannel server() {
-                return createServerChannel(serverKeys);
+                return createServerChannel(cryptoProvider, serverKeys);
             }
         };
     }
 
-    private static EmbeddedChannel createClientChannel(OHttpVersion version, OHttpCiphersuite ciphersuite, AsymmetricKeyParameter publicKey) {
+    private static EmbeddedChannel createClientChannel(OHttpVersion version, OHttpCryptoProvider cryptoProvider,
+                                                       OHttpCiphersuite ciphersuite, AsymmetricKeyParameter publicKey) {
         return new EmbeddedChannel(
                 new LoggingHandler("CLIENT-RAW"),
                 new HttpClientCodec(),
                 new LoggingHandler("CLIENT-OUTER"),
-                new OHttpClientCodec(BouncyCastleOHttpCryptoProvider.INSTANCE,
+                new OHttpClientCodec(cryptoProvider,
                         __ -> OHttpClientCodec.EncapsulationParameters.newInstance(version, ciphersuite, publicKey,
                         "/ohttp", "autority")),
                 new LoggingHandler("CLIENT-INNER"));
     }
 
-    private static EmbeddedChannel createServerChannel(OHttpServerKeys keys) {
+    private static EmbeddedChannel createServerChannel(OHttpCryptoProvider cryptoProvider, OHttpServerKeys keys) {
         return new EmbeddedChannel(
                 new LoggingHandler("SERVER-RAW"),
                 new HttpServerCodec(),
                 new LoggingHandler("SERVER-OUTER"),
-                new OHttpServerCodec(BouncyCastleOHttpCryptoProvider.INSTANCE, keys),
+                new OHttpServerCodec(cryptoProvider, keys),
                 new LoggingHandler("SERVER-INNER"));
     }
 
@@ -180,9 +189,9 @@ public class OHttpCodecsTest {
 
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
-    void testContent(OHttpVersion version) throws Exception {
+    void testContent(OHttpVersion version, OHttpCryptoProvider cryptoProvider) throws Exception {
 
-        ChannelPair channels = createChannelPair(version);
+        ChannelPair channels = createChannelPair(version, cryptoProvider);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 
@@ -220,11 +229,11 @@ public class OHttpCodecsTest {
 
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
-    void testContentChunked(OHttpVersion version) throws Exception {
+    void testContentChunked(OHttpVersion version, OHttpCryptoProvider cryptoProvider) throws Exception {
 
         assumeTrue(version != OHttpVersionDraft.INSTANCE);
 
-        ChannelPair channels = createChannelPair(version);
+        ChannelPair channels = createChannelPair(version, cryptoProvider);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 
@@ -272,9 +281,9 @@ public class OHttpCodecsTest {
 
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
-    void testCodec(OHttpVersion version) throws Exception {
+    void testCodec(OHttpVersion version, OHttpCryptoProvider cryptoProvider) throws Exception {
 
-        ChannelPair channels = createChannelPair(version);
+        ChannelPair channels = createChannelPair(version, cryptoProvider);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 

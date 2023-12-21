@@ -66,6 +66,18 @@ static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_chacha20_poly13
     return (jlong) EVP_hpke_chacha20_poly1305();
 }
 
+static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_aead_aes_128_gcm(JNIEnv* env, jclass clazz) {
+    return (jlong) EVP_aead_aes_128_gcm();
+}
+
+static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_aead_aes_256_gcm(JNIEnv* env, jclass clazz) {
+    return (jlong) EVP_aead_aes_256_gcm();
+}
+
+static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_aead_chacha20_poly1305(JNIEnv* env, jclass clazz) {
+    return (jlong) EVP_aead_chacha20_poly1305();
+}
+
 static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_DEFAULT_TAG_LENGTH(JNIEnv* env, jclass clazz) {
     return (jint) EVP_AEAD_DEFAULT_TAG_LENGTH;
 }
@@ -137,7 +149,7 @@ static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_setup_recipi
                                                     jbyteArray info_bytes) {
     size_t enc_len = (size_t) (*env)->GetArrayLength(env, enc_bytes);
     const uint8_t *enc = (const uint8_t*) (*env)->GetByteArrayElements(env, enc_bytes, 0);
-    size_t info_len = (size_t) (*env)->GetArrayLength(env, enc_bytes);
+    size_t info_len = (size_t) (*env)->GetArrayLength(env, info_bytes);
     const uint8_t *info = (const uint8_t*) (*env)->GetByteArrayElements(env, info_bytes, 0);
 
     int result = EVP_HPKE_CTX_setup_recipient((EVP_HPKE_CTX *) ctx, (const EVP_HPKE_KEY *) key, (const EVP_HPKE_KDF *)kdf,
@@ -206,6 +218,10 @@ static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_new(JNIEnv*
     return (jlong) EVP_HPKE_KEY_new();
 }
 
+static void netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_cleanup(JNIEnv* env, jclass clazz, jlong key) {
+    EVP_HPKE_KEY_cleanup((EVP_HPKE_KEY *) key);
+}
+
 static void netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_free(JNIEnv* env, jclass clazz, jlong key) {
     EVP_HPKE_KEY_free((EVP_HPKE_KEY *) key);
 }
@@ -261,8 +277,10 @@ static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_new(JNIEnv*
     const uint8_t *key = (const uint8_t*) (*env)->GetByteArrayElements(env, key_array, 0);
 
     EVP_AEAD_CTX* ctx = EVP_AEAD_CTX_new((const EVP_AEAD *) aead, key, key_len, (size_t) tag_len);
-
     (*env)->ReleaseByteArrayElements(env, key_array, (jbyte *) key, JNI_ABORT);
+    if (ctx == NULL) {
+        return -1;
+    }
     return (jlong) ctx;
 }
 
@@ -353,6 +371,10 @@ static const JNINativeMethod statically_referenced_fixed_method_table[] = {
   { "EVP_hpke_aes_128_gcm", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_aes_128_gcm },
   { "EVP_hpke_aes_256_gcm", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_aes_256_gcm },
   { "EVP_hpke_chacha20_poly1305", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_chacha20_poly1305 },
+
+  { "EVP_aead_aes_128_gcm", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_aead_aes_128_gcm },
+  { "EVP_aead_aes_256_gcm", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_aead_aes_256_gcm },
+  { "EVP_aead_chacha20_poly1305", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_aead_chacha20_poly1305 },
   { "EVP_AEAD_DEFAULT_TAG_LENGTH", "()I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_DEFAULT_TAG_LENGTH }
 };
 
@@ -370,6 +392,7 @@ static const JNINativeMethod fixed_method_table[] = {
   { "EVP_HPKE_CTX_kdf", "(J)J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_kdf },
   { "EVP_HPKE_CTX_max_overhead", "(J)I", (void * ) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_max_overhead },
   { "EVP_HPKE_KEY_new", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_new },
+  { "EVP_HPKE_KEY_cleanup", "(J)V", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_cleanup },
   { "EVP_HPKE_KEY_free", "(J)V", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_free },
   { "EVP_HPKE_KEY_init", "(JJ[B)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_init },
   { "EVP_HPKE_KEY_public_key", "(J)[B", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_public_key },

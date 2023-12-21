@@ -51,11 +51,11 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
         long boringSSLAead = boringSSLAEAD(aead);
         int keyLength = BoringSSL.EVP_AEAD_key_length(boringSSLAead);
         if (keyLength != key.length) {
-            throw new IllegalArgumentException("key length must be: " + keyLength);
+            throw new IllegalArgumentException("key length must be " + keyLength + ": " + key.length);
         }
         int nounceLength = BoringSSL.EVP_AEAD_nonce_length(boringSSLAead);
         if (nounceLength != baseNonce.length) {
-            throw new IllegalArgumentException("baseNonce length must be: " + nounceLength);
+            throw new IllegalArgumentException("baseNonce length must be " + nounceLength + ": " + baseNonce.length);
         }
 
         int maxOverhead = BoringSSL.EVP_AEAD_max_overhead(boringSSLAead);
@@ -68,6 +68,19 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
             if (ctx != -1) {
                 BoringSSL.EVP_AEAD_CTX_cleanup_and_free(ctx);
             }
+        }
+    }
+
+    private static long boringSSLAEAD(AEAD aead) {
+        switch (aead) {
+            case AES_GCM128:
+                return BoringSSL.EVP_aead_aes_128_gcm;
+            case AES_GCM256:
+                return BoringSSL.EVP_aead_aes_256_gcm;
+            case CHACHA20_POLY1305:
+                return BoringSSL.EVP_aead_chacha20_poly1305;
+            default:
+                throw new IllegalArgumentException("AEAD not supported: " + aead);
         }
     }
 
@@ -85,7 +98,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
         return BoringSSL.EVP_hpke_x25519_hkdf_sha256;
     }
 
-    private static long boringSSLAEAD(AEAD aead) {
+    private static long boringSSLHPKEAEAD(AEAD aead) {
         switch (aead) {
             case AES_GCM128:
                 return BoringSSL.EVP_hpke_aes_128_gcm;
@@ -112,7 +125,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
         validateMode(mode);
         long boringSSLKem = boringSSLKEM(kem);
         long boringSSLKdf = boringSSLKDF(kdf);
-        long boringSSLAead = boringSSLAEAD(aead);
+        long boringSSLAead = boringSSLHPKEAEAD(aead);
         final byte[] pkRBytes = encodedAsymmetricKeyParameter(pkR);
         final byte[] encapsulation;
         long ctx = BoringSSL.EVP_HPKE_CTX_new_or_throw();
@@ -156,7 +169,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
         // Validate that KEM is supported by BoringSSL
         long boringSSLKem = boringSSLKEM(kem);
         long boringSSLKdf = boringSSLKDF(kdf);
-        long boringSSLAead = boringSSLAEAD(aead);
+        long boringSSLAead = boringSSLHPKEAEAD(aead);
 
         long ctx = -1;
         long key = -1;
@@ -164,7 +177,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
             byte[] privateKeyBytes = encodedAsymmetricKeyParameter(skR.privateParameters());
             key = BoringSSL.EVP_HPKE_KEY_new_and_init_or_throw(boringSSLKem, privateKeyBytes);
             ctx = BoringSSL.EVP_HPKE_CTX_new_or_throw();
-            if (BoringSSL.EVP_HPKE_CTX_setup_recipient(ctx, key, boringSSLKdf, boringSSLAead, enc, info) != -1) {
+            if (BoringSSL.EVP_HPKE_CTX_setup_recipient(ctx, key, boringSSLKdf, boringSSLAead, enc, info) != 1) {
                 throw new IllegalStateException("Unable to setup EVP_HPKE_CTX");
             }
 

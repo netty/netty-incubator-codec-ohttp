@@ -57,14 +57,14 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
 
     private static BouncyCastleAsymmetricKeyParameter castOrThrow(AsymmetricKeyParameter param) {
         if (!(param instanceof BouncyCastleAsymmetricKeyParameter)) {
-            throw new IllegalArgumentException("param must be of type " + BouncyCastleAsymmetricKeyParameter.class);
+            throw new IllegalArgumentException("param must be of type " + BouncyCastleAsymmetricKeyParameter.class + ": " + param);
         }
         return (BouncyCastleAsymmetricKeyParameter) param;
     }
 
     private static BouncyCastleAsymmetricCipherKeyPair castOrThrow(AsymmetricCipherKeyPair pair) {
         if (!(pair instanceof BouncyCastleAsymmetricCipherKeyPair)) {
-            throw new IllegalArgumentException("pair must be of type " + BouncyCastleAsymmetricCipherKeyPair.class);
+            throw new IllegalArgumentException("pair must be of type " + BouncyCastleAsymmetricCipherKeyPair.class + ": " + pair);
         }
         return (BouncyCastleAsymmetricCipherKeyPair) pair;
     }
