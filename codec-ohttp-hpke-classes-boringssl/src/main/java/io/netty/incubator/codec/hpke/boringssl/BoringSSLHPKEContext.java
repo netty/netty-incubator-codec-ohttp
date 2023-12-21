@@ -29,22 +29,25 @@ class BoringSSLHPKEContext extends BoringSSLCryptoContext implements HPKEContext
     @Override
     public final byte[] export(byte[] exportContext, int length) {
         long ctx = checkClosedAndReturnCtx();
-        // TODO: implement me
-        throw new UnsupportedOperationException();
+        return BoringSSL.EVP_HPKE_CTX_export(ctx, length, exportContext);
     }
 
     @Override
     public final byte[] extract(byte[] salt, byte[] ikm) {
-        long ctx = checkClosedAndReturnCtx();
-        // TODO: implement me
-        throw new UnsupportedOperationException();
+        long digest = boringSSLDigest();
+        return BoringSSL.HKDF_extract(digest, ikm, salt);
     }
 
     @Override
     public final byte[] expand(byte[] prk, byte[] info, int length) {
+        long digest = boringSSLDigest();
+        return BoringSSL.HKDF_expand(digest, length, prk, info);
+    }
+
+    private long boringSSLDigest() {
         long ctx = checkClosedAndReturnCtx();
-        // TODO: implement me
-        throw new UnsupportedOperationException();
+        long kdf = BoringSSL.EVP_HPKE_CTX_kdf(ctx);
+        return BoringSSL.EVP_HPKE_KDF_hkdf_md(kdf);
     }
 
     @Override

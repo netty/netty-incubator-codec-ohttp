@@ -24,8 +24,9 @@
 
 #include <openssl/hpke.h>
 #include <openssl/aead.h>
+#include <openssl/hkdf.h>
 
-// Add define if NETTY_QUIC_BUILD_STATIC is defined so it is picked up in netty_jni_util.c
+// Add define if NETTY_OHTTP_HPKE_BORINGSSL_BUILD_STATIC is defined so it is picked up in netty_jni_util.c
 #ifdef NETTY_OHTTP_HPKE_BORINGSSL_BUILD_STATIC
 #define NETTY_JNI_UTIL_BUILD_STATIC
 #endif
@@ -169,12 +170,31 @@ static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_seal(
     return result == 1 ? (jint) out_len : -1;
 }
 
-static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_export(
-        JNIEnv* env, jclass clazz, jlong ctx, jlong out,
-        jint secret_len, jlong context, jint context_len) {
+static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_export(
+        JNIEnv* env, jclass clazz, jlong ctx,
+        jint secret_len, jbyteArray context_array) {
+    size_t context_len = (size_t) (*env)->GetArrayLength(env, context_array);
+    const uint8_t *context = (const uint8_t*) (*env)->GetByteArrayElements(env, context_array, 0);
+    jbyteArray out_array = (*env)->NewByteArray(env, secret_len);
+    uint8_t* out = (uint8_t*) (*env)->GetByteArrayElements(env, out_array, NULL);
 
-    return (jint) EVP_HPKE_CTX_export((const EVP_HPKE_CTX *) ctx, (uint8_t *) out, (size_t) secret_len,
-                                       (const uint8_t *) context, (size_t) context_len);
+    int result = EVP_HPKE_CTX_export((const EVP_HPKE_CTX *) ctx, out, (size_t) secret_len, context, context_len);
+
+    (*env)->ReleaseByteArrayElements(env, context_array, (jbyte *) context, JNI_ABORT);
+
+    if (result == 1) {
+        // Copy back changes
+        (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, 0);
+        return out_array;
+    } else {
+        // No need to copy back changes.
+        (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, JNI_ABORT);
+        return NULL;
+    }
+}
+
+static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_kdf(JNIEnv* env, jclass clazz, jlong ctx) {
+    return (jlong) EVP_HPKE_CTX_kdf((const EVP_HPKE_CTX *) ctx);
 }
 
 
@@ -224,17 +244,17 @@ static jlong netty_incubator_codec_ohttp_hpke_boringssl_memory_address(JNIEnv* e
     return (jlong) (*env)->GetDirectBufferAddress(env, buffer);
 }
 
-
 static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_key_length(JNIEnv* env, jclass clazz, jlong aead) {
     return (jint) EVP_AEAD_key_length((EVP_AEAD *) aead);
 }
+
 static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_nonce_length(JNIEnv* env, jclass clazz, jlong aead) {
     return (jint) EVP_AEAD_nonce_length((EVP_AEAD *) aead);
 }
+
 static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_max_overhead(JNIEnv* env, jclass clazz, jlong aead) {
     return (jint) EVP_AEAD_max_overhead((EVP_AEAD *) aead);
 }
-
 
 static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_new(JNIEnv* env, jclass clazz, jlong aead, jbyteArray key_array, jint tag_len) {
     size_t key_len = (size_t)(*env)->GetArrayLength(env, key_array);
@@ -280,6 +300,50 @@ static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_open(JNIEnv*
     return result == 1 ? (jint) out_len : -1;
 }
 
+static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KDF_hkdf_md(JNIEnv* env, jclass clazz, jlong kdf) {
+    return (jlong) EVP_HPKE_KDF_hkdf_md((const EVP_HPKE_KDF *) kdf);
+}
+
+static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_HKDF_extract(JNIEnv* env, jclass clazz, jlong digest, jbyteArray secret_array, jbyteArray salt_array) {
+    uint8_t out_key[EVP_MAX_MD_SIZE];
+    size_t out_len;
+
+    size_t secret_len = (size_t)(*env)->GetArrayLength(env, secret_array);
+    const uint8_t *secret = (const uint8_t*) (*env)->GetByteArrayElements(env, secret_array, 0);
+    size_t salt_len = (size_t)(*env)->GetArrayLength(env, salt_array);
+    const uint8_t *salt = (const uint8_t*) (*env)->GetByteArrayElements(env, salt_array, 0);
+
+    int result = HKDF_extract(out_key, &out_len, (const EVP_MD *) digest, secret, secret_len, salt, salt_len);
+
+    (*env)->ReleaseByteArrayElements(env, secret_array, (jbyte *) secret, JNI_ABORT);
+    (*env)->ReleaseByteArrayElements(env, salt_array, (jbyte *) salt, JNI_ABORT);
+
+    return to_byte_array(env, result, (const uint8_t *) out_key, out_len);
+}
+
+static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_HKDF_expand(JNIEnv* env, jclass clazz, jlong digest, jint out_len, jbyteArray prk_array, jbyteArray info_array) {
+    size_t prk_len = (size_t) (*env)->GetArrayLength(env, prk_array);
+    const uint8_t *prk = (const uint8_t*) (*env)->GetByteArrayElements(env, prk_array, 0);
+    size_t info_len = (size_t) (*env)->GetArrayLength(env, info_array);
+    const uint8_t *info = (const uint8_t*) (*env)->GetByteArrayElements(env, info_array, 0);
+    jbyteArray out_array = (*env)->NewByteArray(env, out_len);
+    uint8_t* out = (uint8_t*) (*env)->GetByteArrayElements(env, out_array, NULL);
+
+    int result = HKDF_expand(out, out_len, (const EVP_MD *) digest, prk, prk_len, info, info_len);
+
+    (*env)->ReleaseByteArrayElements(env, prk_array, (jbyte *) prk, JNI_ABORT);
+    (*env)->ReleaseByteArrayElements(env, info_array, (jbyte *) info, JNI_ABORT);
+
+    if (result == 1) {
+        // Copy back changes
+        (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, 0);
+        return out_array;
+    } else {
+        // No need to copy back changes.
+        (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, JNI_ABORT);
+        return NULL;
+    }
+}
 // JNI Registered Methods End
 
 // JNI Method Registration Table Begin
@@ -302,7 +366,8 @@ static const JNINativeMethod fixed_method_table[] = {
   { "EVP_HPKE_CTX_setup_recipient", "(JJJJ[B[B)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_setup_recipient },
   { "EVP_HPKE_CTX_open", "(JJIJIJI)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_open },
   { "EVP_HPKE_CTX_seal", "(JJIJIJI)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_seal },
-  { "EVP_HPKE_CTX_export", "(JJIJI)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_export },
+  { "EVP_HPKE_CTX_export", "(JI[B)[B", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_export },
+  { "EVP_HPKE_CTX_kdf", "(J)J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_kdf },
   { "EVP_HPKE_CTX_max_overhead", "(J)I", (void * ) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_max_overhead },
   { "EVP_HPKE_KEY_new", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_new },
   { "EVP_HPKE_KEY_free", "(J)V", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_free },
@@ -320,8 +385,11 @@ static const JNINativeMethod fixed_method_table[] = {
   { "EVP_AEAD_CTX_cleanup", "(J)V", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_cleanup },
   { "EVP_AEAD_CTX_free", "(J)V", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_free },
   { "EVP_AEAD_CTX_seal", "(JJIJIJIJI)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_seal },
-  { "EVP_AEAD_CTX_open", "(JJIJIJIJI)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_open }
+  { "EVP_AEAD_CTX_open", "(JJIJIJIJI)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_open },
 
+  { "EVP_HPKE_KDF_hkdf_md", "(J)J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KDF_hkdf_md },
+  { "HKDF_extract", "(J[B[B)[B", (void *) netty_incubator_codec_ohttp_hpke_boringssl_HKDF_extract },
+  { "HKDF_expand", "(JI[B[B)[B", (void *) netty_incubator_codec_ohttp_hpke_boringssl_HKDF_expand }
 };
 
 static const jint fixed_method_table_size = sizeof(fixed_method_table) / sizeof(fixed_method_table[0]);

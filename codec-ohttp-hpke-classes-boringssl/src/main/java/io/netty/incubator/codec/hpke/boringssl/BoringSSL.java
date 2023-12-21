@@ -90,8 +90,10 @@ final class BoringSSL {
             long ctx, long out, int max_out_len, long in, int in_len, long ad, int ad_len);
     static native int EVP_HPKE_CTX_seal(
             long ctx, long out, int max_out_len, long in, int in_len, long ad, int ad_len);
-    static native int EVP_HPKE_CTX_export(
-            long ctx, long out, int secret_len, long context, int context_len);
+    static native byte[] EVP_HPKE_CTX_export(
+            long ctx, int secret_len, byte[] context);
+
+    static native long EVP_HPKE_CTX_kdf(long ctx);
 
     static native int EVP_HPKE_CTX_max_overhead(long ctx);
 
@@ -120,6 +122,12 @@ final class BoringSSL {
 
     static native int EVP_AEAD_CTX_open(
             long ctx, long out, int max_out_len, long nonce, int nonce_len, long in, int in_len, long ad, int ad_len);
+
+    static native long EVP_HPKE_KDF_hkdf_md(long kdf);
+
+    static native byte[] HKDF_extract(long digest, byte[] secret, byte[] salt);
+
+    static native byte[] HKDF_expand(long digest, int out_len, byte[] prk, byte[] info);
 
     static long memory_address(ByteBuf buffer) {
         if (buffer.hasMemoryAddress()) {
