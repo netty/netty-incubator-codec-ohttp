@@ -28,12 +28,12 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
     private final ByteBuf baseNonce;
     private final long baseNonceAddress;
     private final int baseNonceLen;
-    private final int AEAD_max_overhead;
+    private final int aeadMaxOverhead;
 
     private final BoringSSLCryptoOperation seal = new BoringSSLCryptoOperation() {
         @Override
         int maxOutLen(long ctx, int inReadable) {
-            return AEAD_max_overhead + inReadable;
+            return aeadMaxOverhead + inReadable;
         }
 
         @Override
@@ -54,12 +54,12 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         }
     };
 
-    BoringSSLAEADContext(long ctx, int AEAD_max_overhead, byte[] baseNonce) {
+    BoringSSLAEADContext(long ctx, int aeadMaxOverhead, byte[] baseNonce) {
         super(ctx);
         this.baseNonce = Unpooled.directBuffer(baseNonce.length).writeBytes(baseNonce);
         this.baseNonceAddress = BoringSSL.memory_address(this.baseNonce);
         this.baseNonceLen = this.baseNonce.readableBytes();
-        this.AEAD_max_overhead = AEAD_max_overhead;
+        this.aeadMaxOverhead = aeadMaxOverhead;
     }
 
     @Override

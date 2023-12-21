@@ -27,7 +27,7 @@ abstract class BoringSSLCryptoOperation {
      * If successfully the {@link ByteBuf#readerIndex()} and {@link ByteBuf#writerIndex()} will be adjusted
      * accordingly.
      *
-     * @param ctx   the native *_CTX pointer.
+     * @param ctx   the native {@code *_CTX} pointer.
      * @param aad   the AAD buffer.
      * @param in    the input data.
      * @param out   the buffer for writing into.

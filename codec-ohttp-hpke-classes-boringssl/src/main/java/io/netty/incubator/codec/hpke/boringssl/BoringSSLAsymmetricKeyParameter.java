@@ -61,4 +61,12 @@ final class BoringSSLAsymmetricKeyParameter implements AsymmetricKeyParameter {
         result = 31 * result + (isPrivate ? 1 : 0);
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "BoringSSLAsymmetricKeyParameter{" +
+                "bytes=" + Arrays.toString(bytes) +
+                ", isPrivate=" + isPrivate +
+                '}';
+    }
 }

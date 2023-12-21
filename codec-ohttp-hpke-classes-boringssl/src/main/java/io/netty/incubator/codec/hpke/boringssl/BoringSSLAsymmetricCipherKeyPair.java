@@ -60,5 +60,13 @@ final class BoringSSLAsymmetricCipherKeyPair implements AsymmetricCipherKeyPair 
         result = 31 * result + publicKey.hashCode();
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "BoringSSLAsymmetricCipherKeyPair{" +
+                "privateKey=" + privateKey +
+                ", publicKey=" + publicKey +
+                '}';
+    }
 }
 
