@@ -84,7 +84,6 @@
                 <cmakeCFlags>${extraCflags} -O3 -fno-omit-frame-pointer</cmakeCFlags>
                 <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
                 <cmakeCxxFlags>${extraCxxflags} -O3 -fno-omit-frame-pointer -Wno-error=range-loop-analysis</cmakeCxxFlags>
-                <libssl>libssl.a</libssl>
                 <libcrypto>libcrypto.a</libcrypto>
                 <extraLdflags>-platform_version,macos,${macosxDeploymentTarget},${macosxDeploymentTarget} -mmacosx-version-min=${macosxDeploymentTarget}</extraLdflags>
                 <extraConfigureArg>MACOSX_DEPLOYMENT_TARGET=${macosxDeploymentTarget}</extraConfigureArg>
@@ -106,7 +105,6 @@
                 <cmakeCFlags>${extraCflags} -O3 -fno-omit-frame-pointer</cmakeCFlags>
                 <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
                 <cmakeCxxFlags>${extraCxxflags} -O3 -fno-omit-frame-pointer -Wno-error=range-loop-analysis</cmakeCxxFlags>
-                <libssl>libssl.a</libssl>
                 <libcrypto>libcrypto.a</libcrypto>
                 <extraLdflags>-arch arm64 -platform_version,macos,${macosxDeploymentTarget},${macosxDeploymentTarget}</extraLdflags>
                 <extraConfigureArg>--host=aarch64-apple-darwin</extraConfigureArg>
@@ -132,7 +130,6 @@
                 <cmakeCFlags>${extraCflags} -O3 -fno-omit-frame-pointer</cmakeCFlags>
                 <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
                 <cmakeCxxFlags>${extraCxxflags} -O3 -fno-omit-frame-pointer -Wno-error=range-loop-analysis</cmakeCxxFlags>
-                <libssl>libssl.a</libssl>
                 <libcrypto>libcrypto.a</libcrypto>
                 <extraLdflags>-arch x86_64 -platform_version,macos,${macosxDeploymentTarget},${macosxDeploymentTarget} -mmacosx-version-min=${macosxDeploymentTarget}</extraLdflags>
                 <extraConfigureArg>--host=x86_64-apple-darwin</extraConfigureArg>
@@ -158,7 +155,6 @@
                 <cmakeCFlags>${extraCflags}</cmakeCFlags>
                 <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
                 <cmakeCxxFlags>${extraCxxflags} -Wno-error=maybe-uninitialized -Wno-error=shadow -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS</cmakeCxxFlags>
-                <libssl>libssl.a</libssl>
                 <libcrypto>libcrypto.a</libcrypto>
                 <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL -Wl,-lrt</extraLdflags>
                 <bundleNativeCode>META-INF/native/lib${jniLibName}.so;osname=linux;processor=${os.detected.arch}</bundleNativeCode>
@@ -174,7 +170,6 @@
                 <cmakeCFlags>${extraCflags}</cmakeCFlags>
                 <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
                 <cmakeCxxFlags>${extraCxxflags} -Wno-error=maybe-uninitialized -Wno-error=shadow -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS</cmakeCxxFlags>
-                <libssl>libssl.a</libssl>
                 <libcrypto>libcrypto.a</libcrypto>
                 <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL</extraLdflags>
                 <bundleNativeCode>META-INF/native/lib${jniLibName}.so;osname=linux;processor=aarch64</bundleNativeCode>
@@ -321,7 +316,6 @@
 
                                         <!-- Only copy the libs and header files we need -->
                                         <mkdir dir="${boringsslHomeBuildDir}" />
-                                        <copy file="${boringsslBuildDir}/ssl/${libssl}" todir="${boringsslHomeBuildDir}" verbose="true" />
                                         <copy file="${boringsslBuildDir}/crypto/${libcrypto}" todir="${boringsslHomeBuildDir}" verbose="true" />
                                         <copy todir="${boringsslHomeIncludeDir}" verbose="true">
                                             <fileset dir="${boringsslSourceDir}/include" />
@@ -379,7 +373,6 @@
                                         <filter token="BORINGSSL_INCLUDE_DIR" value="${boringsslHomeIncludeWindowsDir}" />
                                         <filter token="BORINGSSL_LIB_DIR" value="${boringsslHomeBuildWindowsDir}" />
                                         <filter token="CRYPTO_LIB" value="${libcrypto}" />
-                                        <filter token="SSL_LIB" value="${libssl}" />
                                         <copy file="src/main/native-package/vs2010.custom.props.template" tofile="${templateDir}/vs2010.custom.props" filtering="true" overwrite="true" verbose="true" />
                                     </then>
                                     <else>
@@ -387,7 +380,6 @@
                                         <filter token="BORINGSSL_INCLUDE_DIR" value="${boringsslHomeIncludeDir}" />
                                         <filter token="BORINGSSL_LIB_DIR" value="${boringsslHomeBuildDir}" />
                                         <filter token="CRYPTO_LIB" value="crypto" />
-                                        <filter token="SSL_LIB" value="ssl" />
                                         <filter token="EXTRA_LDFLAGS" value="${extraLdflags}" />
                                         <filter token="EXTRA_CFLAGS" value="${extraCflags}" />
                                         <copy file="src/main/native-package/m4/custom.m4.template" tofile="${templateDir}/m4/custom.m4" filtering="true" overwrite="true" verbose="true" />
