@@ -36,8 +36,8 @@ final class BoringSSLHPKERecipientContext extends BoringSSLHPKEContext implement
         }
     };
 
-    BoringSSLHPKERecipientContext(long hpkeCtx) {
-        super(hpkeCtx);
+    BoringSSLHPKERecipientContext(BoringSSLOHttpCryptoProvider cryptoProvider, long hpkeCtx) {
+        super(cryptoProvider, hpkeCtx);
     }
 
     @Override

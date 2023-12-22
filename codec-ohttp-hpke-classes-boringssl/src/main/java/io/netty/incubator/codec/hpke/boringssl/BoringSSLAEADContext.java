@@ -54,8 +54,8 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         }
     };
 
-    BoringSSLAEADContext(long ctx, int aeadMaxOverhead, byte[] baseNonce) {
-        super(ctx);
+    BoringSSLAEADContext(BoringSSLOHttpCryptoProvider cryptoProvider, long ctx, int aeadMaxOverhead, byte[] baseNonce) {
+        super(cryptoProvider, ctx);
         this.baseNonce = Unpooled.directBuffer(baseNonce.length).writeBytes(baseNonce);
         this.baseNonceAddress = BoringSSL.memory_address(this.baseNonce);
         this.baseNonceLen = this.baseNonce.readableBytes();
