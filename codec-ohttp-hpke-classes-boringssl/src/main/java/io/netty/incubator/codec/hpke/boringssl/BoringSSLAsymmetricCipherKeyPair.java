@@ -22,8 +22,11 @@ import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 final class BoringSSLAsymmetricCipherKeyPair implements AsymmetricCipherKeyPair {
     private final BoringSSLAsymmetricKeyParameter privateKey;
     private final BoringSSLAsymmetricKeyParameter publicKey;
+    final long key;
 
-    BoringSSLAsymmetricCipherKeyPair(byte[] privateKeyBytes, byte[] publicKeyBytes) {
+    BoringSSLAsymmetricCipherKeyPair(long key, byte[] privateKeyBytes, byte[] publicKeyBytes) {
+        assert key != -1;
+        this.key = key;
         privateKey = new BoringSSLAsymmetricKeyParameter(privateKeyBytes, true);
         publicKey = new BoringSSLAsymmetricKeyParameter(publicKeyBytes, false);
     }
