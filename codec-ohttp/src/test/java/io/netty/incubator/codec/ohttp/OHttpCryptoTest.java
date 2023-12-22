@@ -118,7 +118,7 @@ public class OHttpCryptoTest {
                 .setOHttpCryptoProvider(provider)
                 .setConfiguration(OHttpVersionDraft.INSTANCE)
                 .setCiphersuite(ciphersuite)
-                .setReceiverPublicKeyBytes(kpR.publicParameters())
+                .setReceiverPublicKey(kpR.publicParameters())
                 .setForcedEphemeralKeyPair(kpE)
                 .build()) {
 

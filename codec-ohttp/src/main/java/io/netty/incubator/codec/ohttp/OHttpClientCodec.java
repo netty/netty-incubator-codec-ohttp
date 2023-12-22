@@ -317,7 +317,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                     .setOHttpCryptoProvider(provider)
                     .setConfiguration(parameters.version())
                     .setCiphersuite(requireNonNull(parameters.ciphersuite(), "ciphersuite"))
-                    .setReceiverPublicKeyBytes(requireNonNull(parameters.serverPublicKey(), "serverPublicKey"))
+                    .setReceiverPublicKey(requireNonNull(parameters.serverPublicKey(), "serverPublicKey"))
                     .build();
         }
 

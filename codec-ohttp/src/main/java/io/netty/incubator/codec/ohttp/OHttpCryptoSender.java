@@ -40,7 +40,7 @@ public final class OHttpCryptoSender extends OHttpCrypto {
         private OHttpCryptoProvider provider;
         private OHttpCryptoConfiguration configuration;
         private OHttpCiphersuite ciphersuite;
-        private AsymmetricKeyParameter receiverPublicKeyBytes;
+        private AsymmetricKeyParameter receiverPublicKey;
         private AsymmetricCipherKeyPair forcedEphemeralKeyPair; // for testing only!
 
         public Builder setOHttpCryptoProvider(OHttpCryptoProvider provider) {
@@ -58,8 +58,8 @@ public final class OHttpCryptoSender extends OHttpCrypto {
             return this;
         }
 
-        public Builder setReceiverPublicKeyBytes(AsymmetricKeyParameter value) {
-            this.receiverPublicKeyBytes = value;
+        public Builder setReceiverPublicKey(AsymmetricKeyParameter value) {
+            this.receiverPublicKey = value;
             return this;
         }
 
@@ -90,7 +90,7 @@ public final class OHttpCryptoSender extends OHttpCrypto {
         this.ciphersuite = requireNonNull(builder.ciphersuite, "ciphersuite");
         this.provider = requireNonNull(builder.provider, "provider");
 
-        AsymmetricKeyParameter pkR = requireNonNull(builder.receiverPublicKeyBytes, "receiverPublicKeyBytes");
+        AsymmetricKeyParameter pkR = requireNonNull(builder.receiverPublicKey, "receiverPublicKey");
         AsymmetricCipherKeyPair forcedEphemeralKeyPair = builder.forcedEphemeralKeyPair;
         this.context = this.provider.setupHPKEBaseS(OHttpCryptoProvider.Mode.Base, ciphersuite.kem(),
                 ciphersuite.kdf(), ciphersuite.aead(), pkR, ciphersuite.createInfo(configuration),
