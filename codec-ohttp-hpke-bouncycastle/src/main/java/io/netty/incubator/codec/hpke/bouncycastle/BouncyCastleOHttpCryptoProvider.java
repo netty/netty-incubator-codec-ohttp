@@ -39,17 +39,8 @@ import org.bouncycastle.math.ec.custom.sec.SecP521R1Curve;
 import org.bouncycastle.util.encoders.Hex;
 
 import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvider {
-
-    private static final List<AEAD> SUPPORTED_AEAD_LIST = Collections.unmodifiableList(Arrays.asList(AEAD.values()));
-    private static final List<HPKEMode> SUPPORTED_MODE_LIST = Collections.unmodifiableList(Arrays.asList(HPKEMode.values()));
-    private static final List<KEM> SUPPORTED_KEM_LIST = Collections.unmodifiableList(Arrays.asList(KEM.values()));
-    private static final List<KDF> SUPPORTED_KDF_LIST = Collections.unmodifiableList(Arrays.asList(KDF.values()));
-
     public static final BouncyCastleOHttpCryptoProvider INSTANCE = new BouncyCastleOHttpCryptoProvider();
 
     private BouncyCastleOHttpCryptoProvider() { }
@@ -194,22 +185,65 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
     }
 
     @Override
-    public List<AEAD> supportedAEAD() {
-        return SUPPORTED_AEAD_LIST;
+    public boolean isSupported(AEAD aead) {
+        if (aead == null) {
+            return false;
+        }
+        switch (aead) {
+            case AES_GCM128:
+            case AES_GCM256:
+            case CHACHA20_POLY1305:
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Override
-    public List<KEM> supportedKEM() {
-        return SUPPORTED_KEM_LIST;
+    public boolean isSupported(KEM kem) {
+        if (kem == null) {
+            return false;
+        }
+        switch (kem) {
+            case X25519_SHA256:
+            case P256_SHA256:
+            case P384_SHA348:
+            case P521_SHA512:
+            case X448_SHA512:
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Override
-    public List<KDF> supportedKDF() {
-        return SUPPORTED_KDF_LIST;
+    public boolean isSupported(KDF kdf) {
+        if (kdf == null) {
+            return false;
+        }
+        switch (kdf) {
+            case HKDF_SHA256:
+            case HKDF_SHA384:
+            case HKDF_SHA512:
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Override
-    public List<HPKEMode> supportedMode() {
-        return SUPPORTED_MODE_LIST;
+    public boolean isSupported(HPKEMode mode) {
+        if (mode == null) {
+            return false;
+        }
+        switch (mode) {
+            case Psk:
+            case Base:
+            case Auth:
+            case AuthPsk:
+                return true;
+            default:
+                return false;
+        }
     }
 }

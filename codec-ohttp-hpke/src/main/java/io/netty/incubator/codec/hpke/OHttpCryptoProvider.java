@@ -15,8 +15,6 @@
  */
 package io.netty.incubator.codec.hpke;
 
-import java.util.List;
-
 /**
  * Provides methods to handle <a href="https://www.rfc-editor.org/rfc/rfc9180.html">Hybrid Public Key Encryption</a>
  * for oHTTP. Because of that the functionality is limited to what is needed for oHTTP.
@@ -83,30 +81,34 @@ public interface OHttpCryptoProvider {
     AsymmetricKeyParameter deserializePublicKey(KEM kem, byte[] publicKeyBytes);
 
     /**
-     * Returns an immutable {@link List} of all supported {@link AEAD}s.
+     * Returns {@code true} if the given {@link AEAD} is supported by the implementation, {@code false} otherwise.
      *
-     * @return supported {@link AEAD}s.
+     * @param aead  the {@link AEAD}.
+     * @return      if supported.
      */
-    List<AEAD> supportedAEAD();
+    boolean isSupported(AEAD aead);
 
     /**
-     * Returns an immutable {@link List} of all supported {@link KEM}s.
+     * Returns {@code true} if the given {@link KEM} is supported by the implementation, {@code false} otherwise.
      *
-     * @return supported {@link KEM}s.
+     * @param kem   the {@link KEM}.
+     * @return      if supported.
      */
-    List<KEM> supportedKEM();
+    boolean isSupported(KEM kem);
 
     /**
-     * Returns an immutable {@link List} of all supported {@link KDF}s.
+     * Returns {@code true} if the given {@link KDF} is supported by the implementation, {@code false} otherwise.
      *
-     * @return supported {@link KDF}s.
+     * @param kdf   the {@link KDF}.
+     * @return      if supported.
      */
-    List<KDF> supportedKDF();
+    boolean isSupported(KDF kdf);
 
     /**
-     * Returns an immutable {@link List} of all supported {@link HPKEMode}s.
+     * Returns {@code true} if the given {@link HPKEMode} is supported by the implementation, {@code false} otherwise.
      *
-     * @return supported {@link HPKEMode}s.
+     * @param mode  the {@link HPKEMode}.
+     * @return      if supported.
      */
-    List<HPKEMode> supportedMode();
+    boolean isSupported(HPKEMode mode);
 }
