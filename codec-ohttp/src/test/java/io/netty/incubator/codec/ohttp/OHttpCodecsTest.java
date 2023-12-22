@@ -72,12 +72,18 @@ public class OHttpCodecsTest {
         @Override
         public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
             List<Arguments> arguments = new ArrayList<>();
-            arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
-            arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
+            arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
+            arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
 
             if (BoringSSLHPKE.isAvailable()) {
-                arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
-                arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
+
+                arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
+
+                arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
             }
             return arguments.stream();
         }
@@ -104,8 +110,8 @@ public class OHttpCodecsTest {
         EmbeddedChannel server();
     }
 
-    public static ChannelPair createChannelPair(OHttpVersion version, OHttpCryptoProvider cryptoProvider) throws Exception {
-        AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(cryptoProvider, "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+    public static ChannelPair createChannelPair(OHttpVersion version, OHttpCryptoProvider clientProvider, OHttpCryptoProvider serverProvider) throws Exception {
+        AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(serverProvider, "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
         byte keyId = 0x66;
 
         OHttpServerKeys serverKeys = new OHttpServerKeys(
@@ -122,16 +128,16 @@ public class OHttpCodecsTest {
                 OHttpCryptoProvider.KDF.HKDF_SHA256,
                 OHttpCryptoProvider.AEAD.AES_GCM128);
 
-        AsymmetricKeyParameter publicKey = kpR.publicParameters();
+        AsymmetricKeyParameter publicKey = clientProvider.deserializePublicKey(OHttpCryptoProvider.KEM.X25519_SHA256, kpR.publicParameters().encoded());
         return new ChannelPair() {
             @Override
             public EmbeddedChannel client() {
-                return createClientChannel(version, cryptoProvider, ciphersuite, publicKey);
+                return createClientChannel(version, clientProvider, ciphersuite, publicKey);
             }
 
             @Override
             public EmbeddedChannel server() {
-                return createServerChannel(cryptoProvider, serverKeys);
+                return createServerChannel(serverProvider, serverKeys);
             }
         };
     }
@@ -184,14 +190,13 @@ public class OHttpCodecsTest {
     }
 
     public static ByteBuf strToBuf(String str) {
-        return Unpooled.wrappedBuffer(str.getBytes(StandardCharsets.US_ASCII));
+        return Unpooled.directBuffer().writeBytes(str.getBytes(StandardCharsets.US_ASCII));
     }
 
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
-    void testContent(OHttpVersion version, OHttpCryptoProvider cryptoProvider) throws Exception {
-
-        ChannelPair channels = createChannelPair(version, cryptoProvider);
+    void testContent(OHttpVersion version, OHttpCryptoProvider clientProvider, OHttpCryptoProvider serverProvider) throws Exception {
+        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 
@@ -229,11 +234,11 @@ public class OHttpCodecsTest {
 
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
-    void testContentChunked(OHttpVersion version, OHttpCryptoProvider cryptoProvider) throws Exception {
+    void testContentChunked(OHttpVersion version, OHttpCryptoProvider clientProvider, OHttpCryptoProvider serverProvider) throws Exception {
 
         assumeTrue(version != OHttpVersionDraft.INSTANCE);
 
-        ChannelPair channels = createChannelPair(version, cryptoProvider);
+        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 
@@ -281,9 +286,9 @@ public class OHttpCodecsTest {
 
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
-    void testCodec(OHttpVersion version, OHttpCryptoProvider cryptoProvider) throws Exception {
+    void testCodec(OHttpVersion version, OHttpCryptoProvider clientProvider, OHttpCryptoProvider serverProvider) throws Exception {
 
-        ChannelPair channels = createChannelPair(version, cryptoProvider);
+        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 
