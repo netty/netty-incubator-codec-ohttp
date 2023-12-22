@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
+import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.incubator.codec.hpke.boringssl.BoringSSLHPKE;
 import io.netty.incubator.codec.hpke.boringssl.BoringSSLOHttpCryptoProvider;
@@ -50,9 +51,11 @@ public class OHttpCryptoTest {
         @Override
         public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
             List<Arguments> arguments = new ArrayList<>();
-            arguments.add(Arguments.of(BouncyCastleOHttpCryptoProvider.INSTANCE));
+            arguments.add(Arguments.of(BouncyCastleOHttpCryptoProvider.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
             if (BoringSSLHPKE.isAvailable()) {
-                arguments.add(Arguments.of(BoringSSLOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(BoringSSLOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(BouncyCastleOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(BoringSSLOHttpCryptoProvider.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
             }
             return arguments.stream();
         }
@@ -71,10 +74,10 @@ public class OHttpCryptoTest {
      */
     @ParameterizedTest
     @ArgumentsSource(value = OHttpCryptoProviderArgumentsProvider.class)
-    public void testCryptoVectors(OHttpCryptoProvider provider) throws DecoderException, CryptoException {
+    public void testCryptoVectors(OHttpCryptoProvider senderProvider, OHttpCryptoProvider receiverProvider) throws DecoderException, CryptoException {
         byte keyId = 1;
-        AsymmetricCipherKeyPair kpR = createX25519KeyPair(provider, "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
-        AsymmetricCipherKeyPair kpE = createX25519KeyPair(provider, "bc51d5e930bda26589890ac7032f70ad12e4ecb37abb1b65b1256c9c48999c73");
+        AsymmetricCipherKeyPair kpR = createX25519KeyPair(receiverProvider, "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+        AsymmetricCipherKeyPair kpE = createX25519KeyPair(senderProvider, "bc51d5e930bda26589890ac7032f70ad12e4ecb37abb1b65b1256c9c48999c73");
         byte[] request = ByteBufUtil.decodeHexDump("00034745540568747470730b6578616d706c652e636f6d012f");
         byte[] response = ByteBufUtil.decodeHexDump("0140c8");
 
@@ -114,11 +117,14 @@ public class OHttpCryptoTest {
         assertEquals("6d6573736167652f626874747020726571756573740001002000010001",
                 ByteBufUtil.hexDump(ciphersuite.createInfo(OHttpVersionDraft.INSTANCE)));
 
+        AsymmetricKeyParameter receiverPublicKey
+                = senderProvider.deserializePublicKey(KEM.X25519_SHA256, kpR.publicParameters().encoded());
+
         try (OHttpCryptoSender sender = OHttpCryptoSender.newBuilder()
-                .setOHttpCryptoProvider(provider)
+                .setOHttpCryptoProvider(senderProvider)
                 .setConfiguration(OHttpVersionDraft.INSTANCE)
                 .setCiphersuite(ciphersuite)
-                .setReceiverPublicKey(kpR.publicParameters())
+                .setReceiverPublicKey(receiverPublicKey)
                 .setForcedEphemeralKeyPair(kpE)
                 .build()) {
 
@@ -147,7 +153,7 @@ public class OHttpCryptoTest {
                 encodedRequest.readBytes(receiverEncapsulatedKey);
 
                 try (OHttpCryptoReceiver receiver = OHttpCryptoReceiver.newBuilder()
-                        .setOHttpCryptoProvider(provider)
+                        .setOHttpCryptoProvider(receiverProvider)
                         .setConfiguration(OHttpVersionDraft.INSTANCE)
                         .setServerKeys(serverKeys)
                         .setCiphersuite(receiverCiphersuite)
