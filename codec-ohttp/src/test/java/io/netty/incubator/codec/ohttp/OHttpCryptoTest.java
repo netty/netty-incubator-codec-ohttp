@@ -39,9 +39,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static io.netty.incubator.codec.hpke.OHttpCryptoProvider.AEAD;
-import static io.netty.incubator.codec.hpke.OHttpCryptoProvider.KDF;
-import static io.netty.incubator.codec.hpke.OHttpCryptoProvider.KEM;
+import io.netty.incubator.codec.hpke.AEAD;
+
+import io.netty.incubator.codec.hpke.KDF;
+
+import io.netty.incubator.codec.hpke.KEM;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 

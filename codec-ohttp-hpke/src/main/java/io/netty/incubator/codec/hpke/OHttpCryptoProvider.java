@@ -36,7 +36,7 @@ public interface OHttpCryptoProvider {
     /**
      * Establish a {@link HPKESenderContext} that can be used for encryption.
      *
-     * @param mode  the {@link Mode} to use.
+     * @param mode  the {@link HPKEMode} to use.
      * @param kem   the {@link KEM} to use.
      * @param kdf   the {@link KDF} to use.
      * @param aead  the {@link AEAD} to use.
@@ -45,13 +45,13 @@ public interface OHttpCryptoProvider {
      * @param kpE   the ephemeral keypair or {@code null} if none should be used.
      * @return      the context.
      */
-    HPKESenderContext setupHPKEBaseS(Mode mode, KEM kem, KDF kdf, AEAD aead,
-                                                AsymmetricKeyParameter pkR, byte[] info, AsymmetricCipherKeyPair kpE);
+    HPKESenderContext setupHPKEBaseS(HPKEMode mode, KEM kem, KDF kdf, AEAD aead,
+                                     AsymmetricKeyParameter pkR, byte[] info, AsymmetricCipherKeyPair kpE);
 
     /**
      * Establish a {@link HPKERecipientContext} that can be used for decryption.
      *
-     * @param mode  the {@link Mode} to use.
+     * @param mode  the {@link HPKEMode} to use.
      * @param kem   the {@link KEM} to use.
      * @param kdf   the {@link KDF} to use.
      * @param aead  the {@link AEAD} to use.
@@ -60,8 +60,8 @@ public interface OHttpCryptoProvider {
      * @param info  info parameter.
      * @return      the context.
      */
-    HPKERecipientContext setupHPKEBaseR(Mode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
-                               AsymmetricCipherKeyPair skR, byte[] info);
+    HPKERecipientContext setupHPKEBaseR(HPKEMode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
+                                        AsymmetricCipherKeyPair skR, byte[] info);
 
     /**
      * Deserialize the input and return the private key.
@@ -104,146 +104,9 @@ public interface OHttpCryptoProvider {
     List<KDF> supportedKDF();
 
     /**
-     * Returns an immutable {@link List} of all supported {@link Mode}s.
+     * Returns an immutable {@link List} of all supported {@link HPKEMode}s.
      *
-     * @return supported {@link Mode}s.
+     * @return supported {@link HPKEMode}s.
      */
-    List<Mode> supportedMode();
-
-    /**
-     * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#name-hybrid-public-key-encryptio">Hybrid Public Key Encryption</a>
-     */
-    enum Mode {
-        Base((byte) 0x00),
-        Psk((byte) 0x01),
-        Auth((byte) 0x02),
-        AuthPsk((byte) 0x03);
-
-        private final byte id;
-
-        Mode(byte id) {
-            this.id = id;
-        }
-
-        public byte value() {
-            return id;
-        }
-
-        public static Mode forId(byte id) {
-            for (Mode val : values()) {
-                if (val.id == id) {
-                    return val;
-                }
-            }
-            throw new IllegalArgumentException("unknown Mode id " + id);
-        }
-    }
-
-    /**
-     * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#section-7.1">Key Encapsulation Mechanism</a>
-     */
-    enum KEM {
-        P256_SHA256((short) 16, 65, 65),
-        P384_SHA348((short) 17, 97, 97),
-        P521_SHA512((short) 18, 133, 133),
-        X25519_SHA256((short) 32, 32, 32),
-        X448_SHA512((short) 33, 56, 56);
-
-        public static KEM forId(short id) {
-            for (KEM val : values()) {
-                if (val.id == id) {
-                    return val;
-                }
-            }
-            throw new IllegalArgumentException("unknown KEM id " + id);
-        }
-
-        KEM(short id, int nenc, int npk) {
-            this.id = id;
-            this.nenc = nenc;
-            this.npk = npk;
-        }
-
-        private final short id;
-        private final int nenc;
-        private final int npk;
-
-        public short id() {
-            return id;
-        }
-
-        public int nenc() {
-            return nenc;
-        }
-
-        public int npk() {
-            return npk;
-        }
-    }
-
-    /**
-     * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#name-key-derivation-functions-kd">Key Derivation Functions (KDFs)</a>
-     */
-    enum KDF {
-        HKDF_SHA256((short) 0x0001),
-        HKDF_SHA384((short) 0x0002),
-        HKDF_SHA512((short) 0x0003);
-
-        public static KDF forId(short id) {
-            for (KDF val : values()) {
-                if (val.id == id) {
-                    return val;
-                }
-            }
-            throw new IllegalArgumentException("unknown KDF id " + id);
-        }
-
-        private final short id;
-        KDF(short id) {
-            this.id = id;
-        }
-
-        public short id() {
-            return id;
-        }
-    }
-
-    /**
-     * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#name-authenticated-encryption-wi">Authenticated Encryption with Associated Data (AEAD) Functions</a>
-     */
-    enum AEAD {
-        AES_GCM128((short) 0x0001, 16, 12),
-        AES_GCM256((short) 0x0002, 32, 12),
-        CHACHA20_POLY1305((short) 0x0003, 32, 12);
-
-        public static AEAD forId(short id) {
-            for (AEAD val : values()) {
-                if (val.id == id) {
-                    return val;
-                }
-            }
-            throw new IllegalArgumentException("unknown AEAD id " + id);
-        }
-
-        private final short id;
-        private final int nk;
-        private final int nn;
-        AEAD(short id, int nk, int nn) {
-            this.id = id;
-            this.nk = nk;
-            this.nn = nn;
-        }
-
-        public short id() {
-            return id;
-        }
-
-        public int nk() {
-            return nk;
-        }
-
-        public int nn() {
-            return nn;
-        }
-    }
+    List<HPKEMode> supportedMode();
 }

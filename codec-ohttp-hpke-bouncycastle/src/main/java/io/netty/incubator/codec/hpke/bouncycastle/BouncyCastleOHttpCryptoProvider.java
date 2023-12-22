@@ -15,11 +15,15 @@
  */
 package io.netty.incubator.codec.hpke.bouncycastle;
 
+import io.netty.incubator.codec.hpke.AEAD;
 import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
+import io.netty.incubator.codec.hpke.HPKEMode;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.HPKESenderContext;
+import io.netty.incubator.codec.hpke.KDF;
+import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
@@ -42,7 +46,7 @@ import java.util.List;
 public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvider {
 
     private static final List<AEAD> SUPPORTED_AEAD_LIST = Collections.unmodifiableList(Arrays.asList(AEAD.values()));
-    private static final List<Mode> SUPPORTED_MODE_LIST = Collections.unmodifiableList(Arrays.asList(Mode.values()));
+    private static final List<HPKEMode> SUPPORTED_MODE_LIST = Collections.unmodifiableList(Arrays.asList(HPKEMode.values()));
     private static final List<KEM> SUPPORTED_KEM_LIST = Collections.unmodifiableList(Arrays.asList(KEM.values()));
     private static final List<KDF> SUPPORTED_KDF_LIST = Collections.unmodifiableList(Arrays.asList(KDF.values()));
 
@@ -70,9 +74,9 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
     }
 
     @Override
-    public HPKESenderContext setupHPKEBaseS(Mode mode, KEM kem, KDF kdf, AEAD aead,
-                                                       AsymmetricKeyParameter pkR, byte[] info,
-                                                       AsymmetricCipherKeyPair kpE) {
+    public HPKESenderContext setupHPKEBaseS(HPKEMode mode, KEM kem, KDF kdf, AEAD aead,
+                                            AsymmetricKeyParameter pkR, byte[] info,
+                                            AsymmetricCipherKeyPair kpE) {
         org.bouncycastle.crypto.hpke.HPKE hpke =
                 new org.bouncycastle.crypto.hpke.HPKE(mode.value(), kem.id(), kdf.id(), aead.id());
         final org.bouncycastle.crypto.hpke.HPKEContextWithEncapsulation ctx;
@@ -85,7 +89,7 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
     }
 
     @Override
-    public HPKERecipientContext setupHPKEBaseR(Mode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
+    public HPKERecipientContext setupHPKEBaseR(HPKEMode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
                                                AsymmetricCipherKeyPair skR, byte[] info) {
         org.bouncycastle.crypto.hpke.HPKE hpke =
                 new org.bouncycastle.crypto.hpke.HPKE(mode.value(), kem.id(), kdf.id(), aead.id());
@@ -205,7 +209,7 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
     }
 
     @Override
-    public List<Mode> supportedMode() {
+    public List<HPKEMode> supportedMode() {
         return SUPPORTED_MODE_LIST;
     }
 }

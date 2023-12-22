@@ -16,11 +16,15 @@
 package io.netty.incubator.codec.hpke.boringssl;
 
 
+import io.netty.incubator.codec.hpke.AEAD;
 import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
+import io.netty.incubator.codec.hpke.HPKEMode;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.HPKESenderContext;
+import io.netty.incubator.codec.hpke.KDF;
+import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
 import java.util.Arrays;
@@ -35,7 +39,7 @@ import java.util.List;
 public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
 
     private static final List<AEAD> SUPPORTED_AEAD_LIST = Collections.unmodifiableList(Arrays.asList(AEAD.values()));
-    private static final List<Mode> SUPPORTED_MODE_LIST = Collections.singletonList(Mode.Base);
+    private static final List<HPKEMode> SUPPORTED_MODE_LIST = Collections.singletonList(HPKEMode.Base);
     private static final List<KEM> SUPPORTED_KEM_LIST = Collections.singletonList(KEM.X25519_SHA256);
     private static final List<KDF> SUPPORTED_KDF_LIST = Collections.singletonList(KDF.HKDF_SHA256);
 
@@ -111,16 +115,16 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
         }
     }
 
-    private static void validateMode(Mode mode) {
+    private static void validateMode(HPKEMode mode) {
         // TODO: Also support AUTH
-        if (mode != Mode.Base) {
+        if (mode != HPKEMode.Base) {
             throw new IllegalArgumentException("Mode not supported: " + mode);
         }
     }
 
     @Override
     public HPKESenderContext setupHPKEBaseS(
-            Mode mode, KEM kem, KDF kdf, AEAD aead, AsymmetricKeyParameter pkR,
+            HPKEMode mode, KEM kem, KDF kdf, AEAD aead, AsymmetricKeyParameter pkR,
             byte[] info, AsymmetricCipherKeyPair kpE) {
         validateMode(mode);
         long boringSSLKem = boringSSLKEM(kem);
@@ -163,7 +167,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
     }
 
     @Override
-    public HPKERecipientContext setupHPKEBaseR(Mode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
+    public HPKERecipientContext setupHPKEBaseR(HPKEMode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
                                                AsymmetricCipherKeyPair skR, byte[] info) {
         validateMode(mode);
         // Validate that KEM is supported by BoringSSL
@@ -240,7 +244,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
     }
 
     @Override
-    public List<Mode> supportedMode() {
+    public List<HPKEMode> supportedMode() {
         return SUPPORTED_MODE_LIST;
     }
 }
