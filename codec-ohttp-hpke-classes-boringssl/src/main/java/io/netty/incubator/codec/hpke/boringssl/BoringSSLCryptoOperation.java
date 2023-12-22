@@ -53,7 +53,7 @@ abstract class BoringSSLCryptoOperation {
             int result = execute(ctx, directAadAddress, directAddReadableBytes,
                     directInAddress, directInReadableBytes,
                     directOutAddress, directOutWritableBytes);
-            if (result <= 0) {
+            if (result < 0) {
                 return false;
             }
             aad.skipBytes(directAddReadableBytes);
