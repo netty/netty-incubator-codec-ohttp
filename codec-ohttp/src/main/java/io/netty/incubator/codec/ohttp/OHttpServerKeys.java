@@ -25,7 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import static io.netty.incubator.codec.hpke.OHttpCryptoProvider.KEM;
+import io.netty.incubator.codec.hpke.KEM;
 
 /**
  * Set of key pairs and cipher suites for a OHTTP server.

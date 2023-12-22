@@ -15,9 +15,11 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.incubator.codec.hpke.AEAD;
 import io.netty.incubator.codec.hpke.AEADContext;
-import io.netty.incubator.codec.hpke.CryptoContext;
 import io.netty.incubator.codec.hpke.HPKEContext;
+import io.netty.incubator.codec.hpke.KDF;
+import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -35,8 +37,8 @@ public final class OHttpCiphersuite {
 
     private static final int ENCODED_LENGTH = 7;
 
-    public OHttpCiphersuite(byte keyId, OHttpCryptoProvider.KEM kem, OHttpCryptoProvider.KDF kdf,
-                            OHttpCryptoProvider.AEAD aead) {
+    public OHttpCiphersuite(byte keyId, KEM kem, KDF kdf,
+                            AEAD aead) {
         this.keyId = keyId;
         this.kem = requireNonNull(kem, "kem");
         this.kdf = requireNonNull(kdf, "kdf");
@@ -44,9 +46,9 @@ public final class OHttpCiphersuite {
     }
 
     private final byte keyId;
-    private final OHttpCryptoProvider.KEM kem;
-    private final OHttpCryptoProvider.KDF kdf;
-    private final OHttpCryptoProvider.AEAD aead;
+    private final KEM kem;
+    private final KDF kdf;
+    private final AEAD aead;
 
     public int responseNonceLength() {
         return Math.max(aead.nk(), aead.nn());
@@ -61,15 +63,15 @@ public final class OHttpCiphersuite {
         return keyId;
     }
 
-    public OHttpCryptoProvider.KEM kem() {
+    public KEM kem() {
         return kem;
     }
 
-    public OHttpCryptoProvider.KDF kdf() {
+    public KDF kdf() {
         return kdf;
     }
 
-    public OHttpCryptoProvider.AEAD aead() {
+    public AEAD aead() {
         return aead;
     }
 
@@ -109,9 +111,9 @@ public final class OHttpCiphersuite {
             short aeadId = in.readShort();
             return new OHttpCiphersuite(
                     keyId,
-                    OHttpCryptoProvider.KEM.forId(kemId),
-                    OHttpCryptoProvider.KDF.forId(kdfId),
-                    OHttpCryptoProvider.AEAD.forId(aeadId));
+                    KEM.forId(kemId),
+                    KDF.forId(kdfId),
+                    AEAD.forId(aeadId));
         } catch (Exception e) {
             throw new DecoderException("invalid ciphersuite", e);
         }

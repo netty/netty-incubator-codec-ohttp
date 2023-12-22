@@ -21,8 +21,11 @@ import io.netty.incubator.codec.bhttp.DefaultBinaryHttpResponse;
 import io.netty.incubator.codec.bhttp.DefaultFullBinaryHttpRequest;
 import io.netty.incubator.codec.bhttp.DefaultFullBinaryHttpResponse;
 import io.netty.incubator.codec.bhttp.FullBinaryHttpRequest;
+import io.netty.incubator.codec.hpke.AEAD;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
+import io.netty.incubator.codec.hpke.KDF;
+import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -117,18 +120,18 @@ public class OHttpCodecsTest {
         OHttpServerKeys serverKeys = new OHttpServerKeys(
                 OHttpKey.newPrivateKey(
                         keyId,
-                        OHttpCryptoProvider.KEM.X25519_SHA256,
+                        KEM.X25519_SHA256,
                         Arrays.asList(
-                                OHttpKey.newCipher(OHttpCryptoProvider.KDF.HKDF_SHA256, OHttpCryptoProvider.AEAD.AES_GCM128),
-                                OHttpKey.newCipher(OHttpCryptoProvider.KDF.HKDF_SHA256, OHttpCryptoProvider.AEAD.CHACHA20_POLY1305)),
+                                OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.AES_GCM128),
+                                OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.CHACHA20_POLY1305)),
                         kpR));
 
         OHttpCiphersuite ciphersuite = new OHttpCiphersuite(keyId,
-                OHttpCryptoProvider.KEM.X25519_SHA256,
-                OHttpCryptoProvider.KDF.HKDF_SHA256,
-                OHttpCryptoProvider.AEAD.AES_GCM128);
+                KEM.X25519_SHA256,
+                KDF.HKDF_SHA256,
+                AEAD.AES_GCM128);
 
-        AsymmetricKeyParameter publicKey = clientProvider.deserializePublicKey(OHttpCryptoProvider.KEM.X25519_SHA256, kpR.publicParameters().encoded());
+        AsymmetricKeyParameter publicKey = clientProvider.deserializePublicKey(KEM.X25519_SHA256, kpR.publicParameters().encoded());
         return new ChannelPair() {
             @Override
             public EmbeddedChannel client() {

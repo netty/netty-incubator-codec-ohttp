@@ -16,12 +16,11 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
-import io.netty.incubator.codec.hpke.CryptoContext;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
-import io.netty.incubator.codec.hpke.HPKEContext;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.DecoderException;
+import io.netty.incubator.codec.hpke.HPKEMode;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
@@ -102,7 +101,7 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         if (keyPair == null) {
             throw new DecoderException("ciphersuite not supported");
         }
-        this.context = provider.setupHPKEBaseR(OHttpCryptoProvider.Mode.Base, ciphersuite.kem(), ciphersuite.kdf(),
+        this.context = provider.setupHPKEBaseR(HPKEMode.Base, ciphersuite.kem(), ciphersuite.kdf(),
                 ciphersuite.aead(), encapsulatedKey, keyPair, ciphersuite.createInfo(configuration));
         if (builder.forcedResponseNonce == null) {
             this.responseNonce = builder.ciphersuite.createResponseNonce();

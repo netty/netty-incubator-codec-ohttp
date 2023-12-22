@@ -20,6 +20,7 @@ import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.buffer.ByteBuf;
+import io.netty.incubator.codec.hpke.HPKEMode;
 import io.netty.incubator.codec.hpke.HPKESenderContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
@@ -92,7 +93,7 @@ public final class OHttpCryptoSender extends OHttpCrypto {
 
         AsymmetricKeyParameter pkR = requireNonNull(builder.receiverPublicKey, "receiverPublicKey");
         AsymmetricCipherKeyPair forcedEphemeralKeyPair = builder.forcedEphemeralKeyPair;
-        this.context = this.provider.setupHPKEBaseS(OHttpCryptoProvider.Mode.Base, ciphersuite.kem(),
+        this.context = this.provider.setupHPKEBaseS(HPKEMode.Base, ciphersuite.kem(),
                 ciphersuite.kdf(), ciphersuite.aead(), pkR, ciphersuite.createInfo(configuration),
                 forcedEphemeralKeyPair);
     }
