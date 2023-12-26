@@ -28,8 +28,6 @@ import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * BoringSSL based {@link OHttpCryptoProvider}. {@link BoringSSLHPKE#ensureAvailability()} or
@@ -38,17 +36,13 @@ import java.util.List;
  */
 public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
 
-    private static final List<AEAD> SUPPORTED_AEAD_LIST = Collections.unmodifiableList(Arrays.asList(AEAD.values()));
-    private static final List<HPKEMode> SUPPORTED_MODE_LIST = Collections.singletonList(HPKEMode.Base);
-    private static final List<KEM> SUPPORTED_KEM_LIST = Collections.singletonList(KEM.X25519_SHA256);
-    private static final List<KDF> SUPPORTED_KDF_LIST = Collections.singletonList(KDF.HKDF_SHA256);
-
     /**
      * {@link BoringSSLOHttpCryptoProvider} instance.
      */
     public static final BoringSSLOHttpCryptoProvider INSTANCE = new BoringSSLOHttpCryptoProvider();
 
-    private BoringSSLOHttpCryptoProvider() { }
+    private BoringSSLOHttpCryptoProvider() {
+    }
 
     @Override
     public AEADContext setupAEAD(AEAD aead, byte[] key, byte[] baseNonce) {
@@ -90,14 +84,14 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
 
     private static long boringSSLKDF(KDF kdf) {
         if (kdf != KDF.HKDF_SHA256) {
-            throw new IllegalArgumentException("KDF not supported: "+ kdf);
+            throw new IllegalArgumentException("KDF not supported: " + kdf);
         }
         return BoringSSL.EVP_hpke_hkdf_sha256;
     }
 
     private static long boringSSLKEM(KEM kem) {
         if (kem != KEM.X25519_SHA256) {
-            throw new IllegalArgumentException("KEM not supported: "+ kem);
+            throw new IllegalArgumentException("KEM not supported: " + kem);
         }
         return BoringSSL.EVP_hpke_x25519_hkdf_sha256;
     }
@@ -229,22 +223,33 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
     }
 
     @Override
-    public List<AEAD> supportedAEAD() {
-        return SUPPORTED_AEAD_LIST;
+    public boolean isSupported(AEAD aead) {
+        if (aead == null) {
+            return false;
+        }
+        switch (aead) {
+            case AES_GCM128:
+            case AES_GCM256:
+            case CHACHA20_POLY1305:
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Override
-    public List<KEM> supportedKEM() {
-        return SUPPORTED_KEM_LIST;
+    public boolean isSupported(KEM kem) {
+        return kem == KEM.X25519_SHA256;
     }
 
     @Override
-    public List<KDF> supportedKDF() {
-        return SUPPORTED_KDF_LIST;
+    public boolean isSupported(KDF kdf) {
+        return kdf == KDF.HKDF_SHA256;
     }
 
     @Override
-    public List<HPKEMode> supportedMode() {
-        return SUPPORTED_MODE_LIST;
+    public boolean isSupported(HPKEMode mode) {
+        return mode == HPKEMode.Base;
     }
 }
+
