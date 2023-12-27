@@ -130,8 +130,8 @@ public final class OHttpCryptoSender extends OHttpCrypto {
         }
         byte[] responseNonce = new byte[ciphersuite().responseNonceLength()];
         in.readBytes(responseNonce);
-        this.aead = ciphersuite.createResponseAead(
-                provider, context, context.encapsulation(), responseNonce, configuration);
+        this.aead = ciphersuite.createResponseAEAD(
+                provider, context, context.encapsulation(), responseNonce, configuration.responseExportContext());
         return true;
     }
 
