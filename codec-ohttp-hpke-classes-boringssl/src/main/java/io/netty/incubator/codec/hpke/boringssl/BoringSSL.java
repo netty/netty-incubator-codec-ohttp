@@ -168,7 +168,12 @@ final class BoringSSL {
 
     static long EVP_HPKE_KEY_new_and_init_or_throw(long kem, byte[] privateKeyBytes) {
         long key = EVP_HPKE_KEY_new_or_throw();
-        EVP_HPKE_KEY_init_or_throw(key, kem, privateKeyBytes);
+        try {
+            EVP_HPKE_KEY_init_or_throw(key, kem, privateKeyBytes);
+        } catch (Throwable e) {
+            EVP_HPKE_KEY_cleanup_and_free(key);
+            throw e;
+        }
         return key;
     }
 
