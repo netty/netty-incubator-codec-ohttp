@@ -101,15 +101,21 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         if (keyPair == null) {
             throw new DecoderException("ciphersuite not supported");
         }
-        this.context = provider.setupHPKEBaseR(HPKEMode.Base, ciphersuite.kem(), ciphersuite.kdf(),
-                ciphersuite.aead(), encapsulatedKey, keyPair, ciphersuite.createInfo(configuration));
         if (builder.forcedResponseNonce == null) {
             this.responseNonce = ciphersuite.createResponseNonce();
         } else {
             this.responseNonce = builder.forcedResponseNonce;
         }
-        this.aead = ciphersuite.createResponseAEAD(provider, this.context, encapsulatedKey,
-                this.responseNonce, configuration.responseExportContext());
+        this.context = provider.setupHPKEBaseR(HPKEMode.Base, ciphersuite.kem(), ciphersuite.kdf(),
+                ciphersuite.aead(), encapsulatedKey, keyPair, ciphersuite.createInfo(configuration));
+        try {
+            this.aead = ciphersuite.createResponseAEAD(provider, context, encapsulatedKey,
+                    this.responseNonce, configuration.responseExportContext());
+        } catch (Throwable cause) {
+            // Close context before rethrowing as otherwise we might leak resources.
+            context.close();
+            throw cause;
+        }
     }
 
     /**
