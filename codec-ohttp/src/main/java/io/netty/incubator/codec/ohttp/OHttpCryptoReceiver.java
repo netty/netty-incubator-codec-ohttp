@@ -104,12 +104,12 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         this.context = provider.setupHPKEBaseR(HPKEMode.Base, ciphersuite.kem(), ciphersuite.kdf(),
                 ciphersuite.aead(), encapsulatedKey, keyPair, ciphersuite.createInfo(configuration));
         if (builder.forcedResponseNonce == null) {
-            this.responseNonce = builder.ciphersuite.createResponseNonce();
+            this.responseNonce = ciphersuite.createResponseNonce();
         } else {
             this.responseNonce = builder.forcedResponseNonce;
         }
-        this.aead = builder.ciphersuite.createResponseAead(provider, this.context, encapsulatedKey,
-                this.responseNonce, configuration);
+        this.aead = ciphersuite.createResponseAEAD(provider, this.context, encapsulatedKey,
+                this.responseNonce, configuration.responseExportContext());
     }
 
     /**

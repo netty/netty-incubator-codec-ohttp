@@ -36,6 +36,8 @@ public final class OHttpCiphersuite {
     private static final Random RAND = new SecureRandom();
 
     private static final int ENCODED_LENGTH = 7;
+    private static final byte[] KEY_INFO  = "key".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] NONCE_INFO  = "nonce".getBytes(StandardCharsets.US_ASCII);
 
     public OHttpCiphersuite(byte keyId, KEM kem, KDF kdf,
                             AEAD aead) {
@@ -128,16 +130,17 @@ public final class OHttpCiphersuite {
     /*
      * See https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#name-encapsulation-of-responses
      */
-    AEADContext createResponseAead(OHttpCryptoProvider provider, HPKEContext context, byte[] enc,
-                                                 byte[] responseNonce, OHttpCryptoConfiguration configuration) {
+    AEADContext createResponseAEAD(OHttpCryptoProvider provider, HPKEContext context, byte[] enc,
+                                   byte[] responseNonce, byte[] responseExportContext) {
         int secretLength = Math.max(aead.nk(), aead.nn());
-        byte[] secret = context.export(configuration.responseExportContext(), secretLength);
+        byte[] secret = context.export(responseExportContext, secretLength);
         byte[] salt = Arrays.concatenate(enc, responseNonce);
         byte[] prk = context.extract(salt, secret);
-        byte[] aeadKey = context.expand(prk, "key".getBytes(StandardCharsets.US_ASCII), aead.nk());
-        byte[] aeadNonce = context.expand(prk, "nonce".getBytes(StandardCharsets.US_ASCII), aead.nn());
+        byte[] aeadKey = context.expand(prk, KEY_INFO, aead.nk());
+        byte[] aeadNonce = context.expand(prk, NONCE_INFO, aead.nn());
         return provider.setupAEAD(aead, aeadKey, aeadNonce);
     }
+
     @Override
     public String toString() {
         return "OHttpCiphersuite{id=" + Byte.toUnsignedInt(keyId) + ", kem=" + this.kem + ", kdf=" + this.kdf + ", aead=" + this.aead + "}";
