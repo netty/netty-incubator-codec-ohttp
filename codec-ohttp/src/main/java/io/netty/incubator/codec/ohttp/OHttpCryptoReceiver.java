@@ -19,7 +19,6 @@ import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.DecoderException;
 import io.netty.incubator.codec.hpke.HPKEMode;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
@@ -38,7 +37,7 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
     public final static class Builder {
         private OHttpCryptoProvider provider;
         private OHttpCryptoConfiguration configuration;
-        private OHttpServerKeys serverKeys;
+        private AsymmetricCipherKeyPair privateKey;
         private OHttpCiphersuite ciphersuite;
         private byte[] encapsulatedKey;
         private byte[] forcedResponseNonce; // for testing only!
@@ -53,8 +52,8 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
             return this;
         }
 
-        public Builder setServerKeys(OHttpServerKeys value) {
-            this.serverKeys = value;
+        public Builder setSenderPrivateKey(AsymmetricCipherKeyPair privateKey) {
+            this.privateKey = privateKey;
             return this;
         }
 
@@ -93,21 +92,17 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
 
     private OHttpCryptoReceiver(Builder builder) {
         this.configuration = requireNonNull(builder.configuration, "configuration");
-        OHttpServerKeys serverKeys = requireNonNull(builder.serverKeys, "serverKeys");
         OHttpCiphersuite ciphersuite = requireNonNull(builder.ciphersuite, "ciphersuite");
         byte[] encapsulatedKey = requireNonNull(builder.encapsulatedKey, "encapsulatedKey");
         OHttpCryptoProvider provider = requireNonNull(builder.provider, "provider");
-        AsymmetricCipherKeyPair keyPair = serverKeys.getKeyPair(ciphersuite);
-        if (keyPair == null) {
-            throw new DecoderException("ciphersuite not supported");
-        }
+        AsymmetricCipherKeyPair keyPair = requireNonNull(builder.privateKey, "privateKey");
         if (builder.forcedResponseNonce == null) {
             this.responseNonce = ciphersuite.createResponseNonce();
         } else {
             this.responseNonce = builder.forcedResponseNonce;
         }
         this.context = provider.setupHPKEBaseR(HPKEMode.Base, ciphersuite.kem(), ciphersuite.kdf(),
-                ciphersuite.aead(), encapsulatedKey, keyPair, ciphersuite.createInfo(configuration));
+                ciphersuite.aead(), encapsulatedKey, keyPair, ciphersuite.createInfo(configuration.requestExportContext()));
         try {
             this.aead = ciphersuite.createResponseAEAD(provider, context, encapsulatedKey,
                     this.responseNonce, configuration.responseExportContext());

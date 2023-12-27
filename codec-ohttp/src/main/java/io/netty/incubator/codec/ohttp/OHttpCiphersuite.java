@@ -87,13 +87,12 @@ public final class OHttpCiphersuite {
     /*
      * See https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#section-4.3
      */
-    byte[] createInfo(OHttpCryptoConfiguration configuration) {
-        byte[] exportContext = configuration.requestExportContext();
-        byte[] ret = new byte[exportContext.length + 8];
+    byte[] createInfo(byte[] requestExportContext) {
+        byte[] ret = new byte[requestExportContext.length + 1 + ENCODED_LENGTH];
         ByteBuf buf = Unpooled.wrappedBuffer(ret);
         try {
             buf.writerIndex(0)
-                    .writeBytes(exportContext)
+                    .writeBytes(requestExportContext)
                     .writeByte(0);
             encode(buf);
             return ret;

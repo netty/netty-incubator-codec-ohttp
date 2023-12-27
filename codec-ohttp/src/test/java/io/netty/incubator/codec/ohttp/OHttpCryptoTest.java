@@ -117,7 +117,7 @@ public class OHttpCryptoTest {
                 AEAD.AES_GCM128);
 
         assertEquals("6d6573736167652f626874747020726571756573740001002000010001",
-                ByteBufUtil.hexDump(ciphersuite.createInfo(OHttpVersionDraft.INSTANCE)));
+                ByteBufUtil.hexDump(ciphersuite.createInfo(OHttpVersionDraft.INSTANCE.requestExportContext())));
 
         AsymmetricKeyParameter receiverPublicKey
                 = senderProvider.deserializePublicKey(KEM.X25519_SHA256, kpR.publicParameters().encoded());
@@ -157,7 +157,7 @@ public class OHttpCryptoTest {
                 try (OHttpCryptoReceiver receiver = OHttpCryptoReceiver.newBuilder()
                         .setOHttpCryptoProvider(receiverProvider)
                         .setConfiguration(OHttpVersionDraft.INSTANCE)
-                        .setServerKeys(serverKeys)
+                        .setSenderPrivateKey(serverKeys.getKeyPair(ciphersuite))
                         .setCiphersuite(receiverCiphersuite)
                         .setEncapsulatedKey(receiverEncapsulatedKey)
                         .setForcedResponseNonce(ByteBufUtil.decodeHexDump("c789e7151fcba46158ca84b04464910d"))
