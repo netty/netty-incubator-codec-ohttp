@@ -43,7 +43,7 @@ public abstract class OHttpCrypto implements AutoCloseable {
 
     protected abstract CryptoDecryptContext decryptCrypto();
 
-    protected abstract OHttpCryptoConfiguration configuration();
+    protected abstract boolean useFinalAad();
 
     /**
      * Encrypt a message of a given length and write the encrypted data to a buffer.
@@ -55,7 +55,7 @@ public abstract class OHttpCrypto implements AutoCloseable {
      * @throws CryptoException  thrown when an error happens.
      */
     public final void encrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
-        encryptCrypto().seal(aad(isFinal && configuration().useFinalAad()),
+        encryptCrypto().seal(aad(isFinal && useFinalAad()),
                 message.slice(message.readerIndex(), messageLength), out);
         message.skipBytes(messageLength);
     }
@@ -71,7 +71,7 @@ public abstract class OHttpCrypto implements AutoCloseable {
      */
     public final void decrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
         decryptCrypto().open(
-                aad(isFinal && configuration().useFinalAad()),
+                aad(isFinal && useFinalAad()),
                 message.slice(message.readerIndex(), messageLength), out);
         message.skipBytes(messageLength);
     }

@@ -146,7 +146,7 @@ public final class OHttpCryptoSender extends OHttpCrypto {
     }
 
     @Override
-    protected OHttpCryptoConfiguration configuration() {
-        return configuration;
+    protected boolean useFinalAad() {
+        return configuration.useFinalAad();
     }
 }

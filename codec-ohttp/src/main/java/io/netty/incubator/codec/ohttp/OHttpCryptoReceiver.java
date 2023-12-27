@@ -130,16 +130,16 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
 
     @Override
     protected CryptoEncryptContext encryptCrypto() {
-        return this.aead;
+        return aead;
     }
 
     @Override
     protected CryptoDecryptContext decryptCrypto() {
-        return this.context;
+        return context;
     }
 
     @Override
-    protected OHttpCryptoConfiguration configuration() {
-        return configuration;
+    protected boolean useFinalAad() {
+        return configuration.useFinalAad();
     }
 }
