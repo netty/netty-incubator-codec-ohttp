@@ -133,7 +133,7 @@ abstract class OHttpRequestResponseContext {
      * Decode the initial bytes of the HTTP content.
      * @return true on success, on false if more bytes are needed.
      */
-    protected abstract boolean decodePrefix(ByteBuf in);
+    protected abstract boolean decodePrefix(ByteBuf in) throws CryptoException;
 
     /**
      * Decrypt a chunk.
@@ -174,7 +174,7 @@ abstract class OHttpRequestResponseContext {
         }
 
         @Override
-        public boolean decodePrefix(ByteBuf in) {
+        public boolean decodePrefix(ByteBuf in) throws CryptoException {
             if (decodedPrefix) {
                 throw new IllegalStateException("Prefix already decoded");
             }
