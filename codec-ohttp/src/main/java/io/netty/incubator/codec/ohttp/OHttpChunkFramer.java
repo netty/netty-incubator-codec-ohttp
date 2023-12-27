@@ -46,8 +46,9 @@ public interface OHttpChunkFramer<T> {
         /**
          * Decode the initial bytes of the HTTP content.
          * @return true on success, on false if more bytes are needed.
+         * @throws CryptoException if the prefix cannot be decoded.
          */
-        boolean decodePrefix(ByteBuf in);
+        boolean decodePrefix(ByteBuf in) throws CryptoException;
 
         /**
          * @return true if the prefix has not been decoded yet.
