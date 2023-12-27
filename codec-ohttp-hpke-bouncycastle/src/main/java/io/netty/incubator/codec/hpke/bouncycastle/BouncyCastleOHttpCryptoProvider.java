@@ -19,7 +19,6 @@ import io.netty.incubator.codec.hpke.AEAD;
 import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
-import io.netty.incubator.codec.hpke.HPKEMode;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.HPKESenderContext;
 import io.netty.incubator.codec.hpke.KDF;
@@ -43,8 +42,8 @@ import java.security.SecureRandom;
 
 public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvider {
     public static final BouncyCastleOHttpCryptoProvider INSTANCE = new BouncyCastleOHttpCryptoProvider();
-
     private final SecureRandom random = new SecureRandom();
+    private static final byte MODE_BASE = (byte) 0x00;
 
     private BouncyCastleOHttpCryptoProvider() { }
 
@@ -68,11 +67,11 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
     }
 
     @Override
-    public HPKESenderContext setupHPKEBaseS(HPKEMode mode, KEM kem, KDF kdf, AEAD aead,
+    public HPKESenderContext setupHPKEBaseS(KEM kem, KDF kdf, AEAD aead,
                                             AsymmetricKeyParameter pkR, byte[] info,
                                             AsymmetricCipherKeyPair kpE) {
         org.bouncycastle.crypto.hpke.HPKE hpke =
-                new org.bouncycastle.crypto.hpke.HPKE(mode.value(), kem.id(), kdf.id(), aead.id());
+                new org.bouncycastle.crypto.hpke.HPKE(MODE_BASE, kem.id(), kdf.id(), aead.id());
         final org.bouncycastle.crypto.hpke.HPKEContextWithEncapsulation ctx;
         if (kpE == null) {
             ctx = hpke.setupBaseS(castOrThrow(pkR).param, info);
@@ -83,10 +82,10 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
     }
 
     @Override
-    public HPKERecipientContext setupHPKEBaseR(HPKEMode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
+    public HPKERecipientContext setupHPKEBaseR(KEM kem, KDF kdf, AEAD aead, byte[] enc,
                                                AsymmetricCipherKeyPair skR, byte[] info) {
         org.bouncycastle.crypto.hpke.HPKE hpke =
-                new org.bouncycastle.crypto.hpke.HPKE(mode.value(), kem.id(), kdf.id(), aead.id());
+                new org.bouncycastle.crypto.hpke.HPKE(MODE_BASE, kem.id(), kdf.id(), aead.id());
         return new BouncyCastleHPKERecipientContext(hpke.setupBaseR(enc, castOrThrow(skR).pair, info));
     }
 
@@ -248,22 +247,6 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
             case HKDF_SHA256:
             case HKDF_SHA384:
             case HKDF_SHA512:
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    @Override
-    public boolean isSupported(HPKEMode mode) {
-        if (mode == null) {
-            return false;
-        }
-        switch (mode) {
-            case Psk:
-            case Base:
-            case Auth:
-            case AuthPsk:
                 return true;
             default:
                 return false;

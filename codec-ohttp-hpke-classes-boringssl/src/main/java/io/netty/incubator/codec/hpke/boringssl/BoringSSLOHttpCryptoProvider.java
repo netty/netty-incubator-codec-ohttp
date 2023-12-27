@@ -20,7 +20,6 @@ import io.netty.incubator.codec.hpke.AEAD;
 import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
-import io.netty.incubator.codec.hpke.HPKEMode;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.HPKESenderContext;
 import io.netty.incubator.codec.hpke.KDF;
@@ -109,18 +108,9 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
         }
     }
 
-    private static void validateMode(HPKEMode mode) {
-        // TODO: Also support AUTH
-        if (mode != HPKEMode.Base) {
-            throw new IllegalArgumentException("Mode not supported: " + mode);
-        }
-    }
-
     @Override
-    public HPKESenderContext setupHPKEBaseS(
-            HPKEMode mode, KEM kem, KDF kdf, AEAD aead, AsymmetricKeyParameter pkR,
+    public HPKESenderContext setupHPKEBaseS(KEM kem, KDF kdf, AEAD aead, AsymmetricKeyParameter pkR,
             byte[] info, AsymmetricCipherKeyPair kpE) {
-        validateMode(mode);
         long boringSSLKem = boringSSLKEM(kem);
         long boringSSLKdf = boringSSLKDF(kdf);
         long boringSSLAead = boringSSLHPKEAEAD(aead);
@@ -161,9 +151,8 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
     }
 
     @Override
-    public HPKERecipientContext setupHPKEBaseR(HPKEMode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
+    public HPKERecipientContext setupHPKEBaseR(KEM kem, KDF kdf, AEAD aead, byte[] enc,
                                                AsymmetricCipherKeyPair skR, byte[] info) {
-        validateMode(mode);
         // Validate that KEM is supported by BoringSSL
         long boringSSLKem = boringSSLKEM(kem);
         long boringSSLKdf = boringSSLKDF(kdf);
@@ -263,11 +252,6 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
     @Override
     public boolean isSupported(KDF kdf) {
         return kdf == KDF.HKDF_SHA256;
-    }
-
-    @Override
-    public boolean isSupported(HPKEMode mode) {
-        return mode == HPKEMode.Base;
     }
 }
 
