@@ -105,6 +105,8 @@ final class BoringSSL {
     static native int EVP_HPKE_CTX_max_overhead(long ctx);
 
     static native long EVP_HPKE_KEY_new();
+
+    static native int EVP_HPKE_KEY_generate(long key, long kem);
     static native void EVP_HPKE_KEY_free(long key);
     static native void EVP_HPKE_KEY_cleanup(long key);
 
@@ -182,6 +184,15 @@ final class BoringSSL {
             throw new IllegalArgumentException(
                     "privateKeyBytes does not contain a valid private key: " + Arrays.toString(privateKeyBytes));
         }
+    }
+
+    static long EVP_HPKE_KEY_new_and_generate_or_throw(long kem) {
+        long key = EVP_HPKE_KEY_new_or_throw();
+        if (EVP_HPKE_KEY_generate(key, kem) != 1) {
+            EVP_HPKE_KEY_cleanup_and_free(key);
+            throw new IllegalStateException("Unable to generate key for KEM: " + kem);
+        }
+        return key;
     }
 
     static void EVP_HPKE_KEY_cleanup_and_free(long key) {

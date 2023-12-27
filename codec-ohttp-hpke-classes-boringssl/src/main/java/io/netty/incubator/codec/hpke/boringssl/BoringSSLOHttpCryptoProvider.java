@@ -223,6 +223,24 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
     }
 
     @Override
+    public AsymmetricCipherKeyPair newRandomPrivateKey(KEM kem) {
+        // Validate that KEM is supported by BoringSSL.
+        long boringSSLKem = boringSSLKEM(kem);
+
+        long key = BoringSSL.EVP_HPKE_KEY_new_and_generate_or_throw(boringSSLKem);
+        try {
+            byte[] privateKeyBytes = BoringSSL.EVP_HPKE_KEY_private_key(key);
+            byte[] publicKeyBytes = BoringSSL.EVP_HPKE_KEY_public_key(key);
+            if (privateKeyBytes == null || publicKeyBytes == null) {
+                throw new IllegalStateException("Unable to generate random key");
+            }
+            return new BoringSSLAsymmetricCipherKeyPair(privateKeyBytes, publicKeyBytes);
+        } finally {
+            BoringSSL.EVP_HPKE_KEY_cleanup_and_free(key);
+        }
+    }
+
+    @Override
     public boolean isSupported(AEAD aead) {
         if (aead == null) {
             return false;
