@@ -24,7 +24,6 @@ import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
-import org.bouncycastle.util.Arrays;
 
 import java.nio.charset.StandardCharsets;
 
@@ -123,7 +122,9 @@ public final class OHttpCiphersuite {
                                    byte[] responseNonce, byte[] responseExportContext) {
         int secretLength = Math.max(aead.nk(), aead.nn());
         byte[] secret = context.export(responseExportContext, secretLength);
-        byte[] salt = Arrays.concatenate(enc, responseNonce);
+        byte[] salt = new byte[enc.length + responseNonce.length];
+        System.arraycopy(enc, 0, salt, 0, enc.length);
+        System.arraycopy(responseNonce, 0, salt, enc.length, responseNonce.length);
         byte[] prk = context.extract(salt, secret);
         byte[] aeadKey = context.expand(prk, KEY_INFO, aead.nk());
         byte[] aeadNonce = context.expand(prk, NONCE_INFO, aead.nn());
