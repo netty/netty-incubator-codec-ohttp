@@ -23,12 +23,17 @@ import io.netty.incubator.codec.hpke.HPKEMode;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
+import java.security.SecureRandom;
+import java.util.Random;
+
 import static java.util.Objects.requireNonNull;
 
 /**
  * {@link OHttpCryptoReceiver} handles all the server-side crypto for an OHTTP request/response.
  */
 public final class OHttpCryptoReceiver extends OHttpCrypto {
+    private static final Random RAND = new SecureRandom();
+
     private final OHttpCryptoConfiguration configuration;
     private final HPKERecipientContext context;
     private final byte[] responseNonce;
@@ -97,7 +102,8 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         OHttpCryptoProvider provider = requireNonNull(builder.provider, "provider");
         AsymmetricCipherKeyPair keyPair = requireNonNull(builder.privateKey, "privateKey");
         if (builder.forcedResponseNonce == null) {
-            this.responseNonce = ciphersuite.createResponseNonce();
+            this.responseNonce = new byte[ciphersuite.responseNonceLength()];
+            RAND.nextBytes(responseNonce);
         } else {
             this.responseNonce = builder.forcedResponseNonce;
         }

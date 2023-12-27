@@ -27,13 +27,10 @@ import io.netty.handler.codec.DecoderException;
 import org.bouncycastle.util.Arrays;
 
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.util.Random;
 
 import static java.util.Objects.requireNonNull;
 
 public final class OHttpCiphersuite {
-    private static final Random RAND = new SecureRandom();
 
     private static final int ENCODED_LENGTH = 7;
     private static final byte[] KEY_INFO  = "key".getBytes(StandardCharsets.US_ASCII);
@@ -55,7 +52,6 @@ public final class OHttpCiphersuite {
     public int responseNonceLength() {
         return Math.max(aead.nk(), aead.nn());
     }
-
 
     public int encapsulatedKeyLength() {
         return kem.nenc();
@@ -118,12 +114,6 @@ public final class OHttpCiphersuite {
         } catch (Exception e) {
             throw new DecoderException("invalid ciphersuite", e);
         }
-    }
-
-    byte[] createResponseNonce() {
-        byte[] ret = new byte[responseNonceLength()];
-        RAND.nextBytes(ret);
-        return ret;
     }
 
     /*
