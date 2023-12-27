@@ -218,12 +218,16 @@ static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_new(JNIEnv*
     return (jlong) EVP_HPKE_KEY_new();
 }
 
+static void netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_free(JNIEnv* env, jclass clazz, jlong key) {
+    EVP_HPKE_KEY_free((EVP_HPKE_KEY *) key);
+}
+
 static void netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_cleanup(JNIEnv* env, jclass clazz, jlong key) {
     EVP_HPKE_KEY_cleanup((EVP_HPKE_KEY *) key);
 }
 
-static void netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_free(JNIEnv* env, jclass clazz, jlong key) {
-    EVP_HPKE_KEY_free((EVP_HPKE_KEY *) key);
+static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_generate(JNIEnv* env, jclass clazz, jlong key, jlong kem) {
+    return (jint) EVP_HPKE_KEY_generate((EVP_HPKE_KEY *) key, (const EVP_HPKE_KEM *) kem);
 }
 
 static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_init(JNIEnv* env, jclass clazz, jlong key, jlong kem, jbyteArray priv_key_array) {
@@ -394,6 +398,7 @@ static const JNINativeMethod fixed_method_table[] = {
   { "EVP_HPKE_KEY_new", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_new },
   { "EVP_HPKE_KEY_cleanup", "(J)V", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_cleanup },
   { "EVP_HPKE_KEY_free", "(J)V", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_free },
+  { "EVP_HPKE_KEY_generate", "(JJ)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_generate },
   { "EVP_HPKE_KEY_init", "(JJ[B)I", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_init },
   { "EVP_HPKE_KEY_public_key", "(J)[B", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_public_key },
   { "EVP_HPKE_KEY_private_key", "(J)[B", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_private_key },

@@ -39,9 +39,12 @@ import org.bouncycastle.math.ec.custom.sec.SecP521R1Curve;
 import org.bouncycastle.util.encoders.Hex;
 
 import java.math.BigInteger;
+import java.security.SecureRandom;
 
 public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvider {
     public static final BouncyCastleOHttpCryptoProvider INSTANCE = new BouncyCastleOHttpCryptoProvider();
+
+    private final SecureRandom random = new SecureRandom();
 
     private BouncyCastleOHttpCryptoProvider() { }
 
@@ -181,6 +184,26 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
                 );
             default:
                 throw new IllegalArgumentException("invalid kem: " + kem);
+        }
+    }
+
+    @Override
+    public AsymmetricCipherKeyPair newRandomPrivateKey(KEM kem) {
+        return new BouncyCastleAsymmetricCipherKeyPair(newRandomPair(kem, random));
+    }
+
+    private static org.bouncycastle.crypto.AsymmetricCipherKeyPair newRandomPair(KEM kem, SecureRandom random) {
+        switch (kem) {
+            case X25519_SHA256:
+                X25519PrivateKeyParameters x25519PrivateKey = new X25519PrivateKeyParameters(random);
+                return new org.bouncycastle.crypto.AsymmetricCipherKeyPair(
+                        x25519PrivateKey.generatePublicKey(), x25519PrivateKey);
+            case X448_SHA512:
+                X448PrivateKeyParameters x448PrivateKey = new X448PrivateKeyParameters(random);
+                return new org.bouncycastle.crypto.AsymmetricCipherKeyPair(
+                        x448PrivateKey.generatePublicKey(), x448PrivateKey);
+            default:
+                throw new UnsupportedOperationException("Can't generate random key for kem: " + kem);
         }
     }
 

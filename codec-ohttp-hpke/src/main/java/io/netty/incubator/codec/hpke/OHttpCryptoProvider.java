@@ -80,6 +80,16 @@ public interface OHttpCryptoProvider {
      */
     AsymmetricKeyParameter deserializePublicKey(KEM kem, byte[] publicKeyBytes);
 
+
+    /**
+     * Generate a random private key. Please note that this might not be possible for all of the {@link KEM} and so
+     * this method might throw an {@link UnsupportedOperationException}.
+     *
+     * @param kem   the {@link KEM} that is used.
+     * @return      the generated key.
+     */
+    AsymmetricCipherKeyPair newRandomPrivateKey(KEM kem);
+
     /**
      * Returns {@code true} if the given {@link AEAD} is supported by the implementation, {@code false} otherwise.
      *
