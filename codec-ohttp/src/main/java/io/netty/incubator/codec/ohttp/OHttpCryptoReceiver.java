@@ -19,7 +19,6 @@ import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.buffer.ByteBuf;
-import io.netty.incubator.codec.hpke.HPKEMode;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
@@ -107,8 +106,8 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         } else {
             this.responseNonce = builder.forcedResponseNonce;
         }
-        this.context = provider.setupHPKEBaseR(HPKEMode.Base, ciphersuite.kem(), ciphersuite.kdf(),
-                ciphersuite.aead(), encapsulatedKey, keyPair, ciphersuite.createInfo(configuration.requestExportContext()));
+        this.context = provider.setupHPKEBaseR(ciphersuite.kem(), ciphersuite.kdf(), ciphersuite.aead(),
+                encapsulatedKey, keyPair, ciphersuite.createInfo(configuration.requestExportContext()));
         try {
             this.aead = ciphersuite.createResponseAEAD(provider, context, encapsulatedKey,
                     this.responseNonce, configuration.responseExportContext());

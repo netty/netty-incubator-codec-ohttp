@@ -34,22 +34,20 @@ public interface OHttpCryptoProvider {
     /**
      * Establish a {@link HPKESenderContext} that can be used for encryption.
      *
-     * @param mode  the {@link HPKEMode} to use.
      * @param kem   the {@link KEM} to use.
      * @param kdf   the {@link KDF} to use.
      * @param aead  the {@link AEAD} to use.
      * @param pkR   the public key.
      * @param info  info parameter.
-     * @param kpE   the ephemeral keypair or {@code null} if none should be used.
+     * @param kpE   the ephemeral keypair that is used for the seed or {@code null} if none should be used.
      * @return      the context.
      */
-    HPKESenderContext setupHPKEBaseS(HPKEMode mode, KEM kem, KDF kdf, AEAD aead,
+    HPKESenderContext setupHPKEBaseS(KEM kem, KDF kdf, AEAD aead,
                                      AsymmetricKeyParameter pkR, byte[] info, AsymmetricCipherKeyPair kpE);
 
     /**
      * Establish a {@link HPKERecipientContext} that can be used for decryption.
      *
-     * @param mode  the {@link HPKEMode} to use.
      * @param kem   the {@link KEM} to use.
      * @param kdf   the {@link KDF} to use.
      * @param aead  the {@link AEAD} to use.
@@ -58,7 +56,7 @@ public interface OHttpCryptoProvider {
      * @param info  info parameter.
      * @return      the context.
      */
-    HPKERecipientContext setupHPKEBaseR(HPKEMode mode, KEM kem, KDF kdf, AEAD aead, byte[] enc,
+    HPKERecipientContext setupHPKEBaseR(KEM kem, KDF kdf, AEAD aead, byte[] enc,
                                         AsymmetricCipherKeyPair skR, byte[] info);
 
     /**
@@ -113,12 +111,4 @@ public interface OHttpCryptoProvider {
      * @return      if supported.
      */
     boolean isSupported(KDF kdf);
-
-    /**
-     * Returns {@code true} if the given {@link HPKEMode} is supported by the implementation, {@code false} otherwise.
-     *
-     * @param mode  the {@link HPKEMode}.
-     * @return      if supported.
-     */
-    boolean isSupported(HPKEMode mode);
 }
