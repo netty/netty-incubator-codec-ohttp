@@ -111,14 +111,15 @@ public abstract class OHttpKey {
             requireNonNull(keyPair, "keyPair");
 
             byte[] encoded = keyPair.privateParameters().encoded();
-            if (encoded != null && encoded.length!= kem.npk()) {
+            if (encoded != null && encoded.length != kem.npk()) {
                 throw new CryptoException("Invalid public key, pkEncoded.length does not match Npk from KEM");
             }
             this.keyPair = keyPair;
         }
     }
 
-    public static PublicKey newPublicKey(byte id, KEM kem, List<Cipher> ciphers, byte[] pkEncoded) throws CryptoException {
+    public static PublicKey newPublicKey(byte id, KEM kem, List<Cipher> ciphers, byte[] pkEncoded)
+            throws CryptoException {
         return new PublicKey(id, kem, ciphers, pkEncoded);
     }
 
@@ -126,7 +127,8 @@ public abstract class OHttpKey {
         return new Cipher(kdf, aead);
     }
 
-    public static PrivateKey newPrivateKey(byte id, KEM kem, List<Cipher> ciphers, AsymmetricCipherKeyPair keyPair) throws CryptoException {
+    public static PrivateKey newPrivateKey(byte id, KEM kem, List<Cipher> ciphers, AsymmetricCipherKeyPair keyPair)
+            throws CryptoException {
         return new PrivateKey(id, kem, ciphers, keyPair);
     }
 }

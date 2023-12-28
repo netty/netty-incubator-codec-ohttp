@@ -23,7 +23,8 @@ public final class VarIntCodecUtils {
 
     /**
      * Returns the number of bytes needed to encode the
-     * <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">variable length integer</a>.
+     * <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">
+     *     variable length integer</a>.
      */
     public static int numBytesForVariableLengthInteger(long value) {
         if (value <= 63) {
@@ -43,7 +44,8 @@ public final class VarIntCodecUtils {
 
     /**
      * Returns the number of bytes needed to encode a
-     * <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">variable length integer</a>,
+     * <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">
+     *     variable length integer</a>,
      * based on the initial encoded byte.
      */
     public static int numBytesForVariableLengthIntegerFromByte(byte value) {
@@ -61,7 +63,8 @@ public final class VarIntCodecUtils {
     }
 
     /**
-     * Read the <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">variable length integer</a>
+     * Read the <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">
+     *     variable length integer</a>
      * from the {@link ByteBuf}.
      */
     public static long readVariableLengthInteger(ByteBuf in, int len) {
@@ -71,7 +74,8 @@ public final class VarIntCodecUtils {
     }
 
     /**
-     * Get the <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">variable length integer</a>
+     * Get the <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">
+     *     variable length integer</a>
      * from the {@link ByteBuf}.
      */
     public static long getVariableLengthInteger(ByteBuf in, int offset, int len) {
@@ -90,7 +94,8 @@ public final class VarIntCodecUtils {
     }
 
     /**
-     * Write the <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">variable length integer</a> into the {@link ByteBuf}.
+     * Write the <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">
+     *     variable length integer</a> into the {@link ByteBuf}.
      */
     public static void writeVariableLengthInteger(ByteBuf out, long value) {
         int numBytes = VarIntCodecUtils.numBytesForVariableLengthInteger(value);
@@ -98,7 +103,8 @@ public final class VarIntCodecUtils {
     }
 
     /**
-     * Write the <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">variable length integer</a> into the {@link ByteBuf}.
+     * Write the <a href="https://www.rfc-editor.org/rfc/rfc9000.html#name-variable-length-integer-enc">
+     *     variable length integer</a> into the {@link ByteBuf}.
      */
     private static void writeVariableLengthInteger(ByteBuf out, long value, int numBytes) {
         int writerIndex = out.writerIndex();

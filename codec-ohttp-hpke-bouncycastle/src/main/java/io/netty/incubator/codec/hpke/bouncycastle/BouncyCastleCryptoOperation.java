@@ -24,32 +24,32 @@ import java.nio.ByteBuffer;
 
 abstract class BouncyCastleCryptoOperation {
 
-    final void execute(ByteBuf arg1, ByteBuf arg2, ByteBuf out) throws CryptoException {
-        final int length1 = arg1.readableBytes();
-        final byte[] array1 = ByteBufUtil.getBytes(arg1, arg1.readerIndex(), arg1.readableBytes(), false);
-        final byte[] array2;
-        final int length2 = arg2.readableBytes();
-        final int offset2;
+    final void execute(ByteBuf aad, ByteBuf in, ByteBuf out) throws CryptoException {
+        final int aadLength = aad.readableBytes();
+        final byte[] aadArray = ByteBufUtil.getBytes(aad, aad.readerIndex(), aad.readableBytes(), false);
+        final byte[] inArray;
+        final int inLength = in.readableBytes();
+        final int inOffset;
 
-        if (arg2.hasArray()) {
+        if (in.hasArray()) {
             // This is backed by a bytearray, just use it as input to reduce memory copies.
-            array2 = arg2.array();
-            offset2 = arg2.arrayOffset() + arg2.readerIndex();
+            inArray = in.array();
+            inOffset = in.arrayOffset() + in.readerIndex();
         } else {
-            array2 = new byte[length2];
-            arg2.getBytes(arg2.readerIndex(), array2);
-            offset2 = 0;
+            inArray = new byte[inLength];
+            in.getBytes(in.readerIndex(), inArray);
+            inOffset = 0;
         }
         try {
-            byte[] result = execute(array1, array2, offset2, length2);
-            arg1.skipBytes(length1);
-            arg2.skipBytes(length2);
+            byte[] result = execute(aadArray, inArray, inOffset, inLength);
+            aad.skipBytes(aadLength);
+            in.skipBytes(inLength);
             out.writeBytes(result);
         } catch (InvalidCipherTextException e) {
             throw new CryptoException(e);
         }
     }
 
-   protected abstract byte[] execute(byte[] arg1, byte[] arg2, int offset2, int length2)
+   protected abstract byte[] execute(byte[] aad, byte[] in, int inOffset, int inLength)
             throws InvalidCipherTextException;
 }

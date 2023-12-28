@@ -14,6 +14,6 @@
  * under the License.
  */
 /**
- * Tests for OHTTP.
+ * BoringSSL based implementation.
  */
-package io.netty.incubator.codec.ohttp;
+package io.netty.incubator.codec.hpke.boringssl;

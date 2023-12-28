@@ -106,7 +106,6 @@ abstract class OHttpRequestResponseContext {
         }
     }
 
-
     /**
      * Parse OHTTP-encoded HTTP content bytes.
      * <br>
@@ -143,7 +142,8 @@ abstract class OHttpRequestResponseContext {
      * @param out the {@link ByteBuf} into which the decrypted bytes are written.
      * @throws CryptoException if the decryption fails.
      */
-    protected abstract void decryptChunk(ByteBuf chunk, int chunkLength, boolean isFinal, ByteBuf out) throws CryptoException;
+    protected abstract void decryptChunk(ByteBuf chunk, int chunkLength, boolean isFinal, ByteBuf out)
+            throws CryptoException;
 
     /**
      * Must be called once the {@link OHttpRequestResponseContext} will not be used anymore.

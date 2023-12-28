@@ -64,7 +64,8 @@ public interface OHttpChunkFramer<T> {
          * @param out {@link List} of {@link Object}s that are produced from the chunk.
          * @throws CryptoException if the chunk cannot be decrypted.
          */
-        void decodeChunk(ByteBuf chunk, int chunkLength, boolean completeBodyReceived, List<Object> out) throws CryptoException;
+        void decodeChunk(ByteBuf chunk, int chunkLength, boolean completeBodyReceived, List<Object> out)
+                throws CryptoException;
     }
 
     /**

@@ -93,8 +93,8 @@ public final class OHttpCryptoSender extends OHttpCrypto {
         AsymmetricKeyParameter pkR = requireNonNull(builder.receiverPublicKey, "receiverPublicKey");
         AsymmetricCipherKeyPair forcedEphemeralKeyPair = builder.forcedEphemeralKeyPair;
         this.context = this.provider.setupHPKEBaseS(ciphersuite.kem(),
-                ciphersuite.kdf(), ciphersuite.aead(), pkR, ciphersuite.createInfo(configuration.requestExportContext()),
-                forcedEphemeralKeyPair);
+                ciphersuite.kdf(), ciphersuite.aead(), pkR,
+                ciphersuite.createInfo(configuration.requestExportContext()), forcedEphemeralKeyPair);
     }
 
     /**

@@ -133,7 +133,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                     oHttpContext = new OHttpServerRequestResponseContext(version, provider, serverKeys);
                 } else {
                     sentResponse = true;
-                    FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.FORBIDDEN);
+                    FullHttpResponse response = new DefaultFullHttpResponse(
+                            HttpVersion.HTTP_1_1, HttpResponseStatus.FORBIDDEN);
                     HttpUtil.setKeepAlive(response, false);
                     onResponse(req, response);
                     ctx.writeAndFlush(response)
@@ -146,7 +147,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                     boolean isLast = msg instanceof LastHttpContent;
                     try {
                         ByteBuf content = ((HttpContent) msg).content();
-                        cumulationBuffer = MERGE_CUMULATOR.cumulate(content.alloc(), cumulationBuffer, content.retain());
+                        cumulationBuffer = MERGE_CUMULATOR.cumulate(
+                                content.alloc(), cumulationBuffer, content.retain());
                         oHttpContext.parse(cumulationBuffer, isLast, out);
                     } finally {
                         if (isLast && oHttpContext.receivedLastHttpContent()) {
@@ -253,7 +255,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         private boolean receivedLastHttpContent;
         private boolean sendLastHttpContent;
 
-        public OHttpServerRequestResponseContext(
+        OHttpServerRequestResponseContext(
                 OHttpVersion version, OHttpCryptoProvider provider, OHttpServerKeys keys) {
             super(version);
             this.provider = provider;
@@ -296,7 +298,6 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             checkPrefixDecoded();
             receiver.decrypt(chunk, chunkSize, isFinal, out);
         }
-
 
         @Override
         public void encodePrefix(ByteBuf out) throws CryptoException {

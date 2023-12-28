@@ -21,7 +21,8 @@ import io.netty.handler.codec.http.HttpVersion;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class BinaryHttpRequestEndToEndTest extends BinaryHttpMessageEndToEndTest<BinaryHttpRequest, FullBinaryHttpRequest> {
+public class BinaryHttpRequestEndToEndTest
+        extends BinaryHttpMessageEndToEndTest<BinaryHttpRequest, FullBinaryHttpRequest> {
 
     @Override
     protected BinaryHttpRequest newHttpMessage() {
@@ -30,7 +31,8 @@ public class BinaryHttpRequestEndToEndTest extends BinaryHttpMessageEndToEndTest
 
     @Override
     protected FullBinaryHttpRequest newFullHttpMessage(ByteBuf content) {
-        return new DefaultFullBinaryHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "scheme", "netty.io", "/path", content);
+        return new DefaultFullBinaryHttpRequest(
+                HttpVersion.HTTP_1_1, HttpMethod.GET, "scheme", "netty.io", "/path", content);
     }
 
     @Override

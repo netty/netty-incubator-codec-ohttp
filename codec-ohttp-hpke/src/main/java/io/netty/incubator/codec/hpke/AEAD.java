@@ -16,7 +16,8 @@
 package io.netty.incubator.codec.hpke;
 
 /**
- * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#name-authenticated-encryption-wi">Authenticated Encryption with Associated Data (AEAD) Functions</a>
+ * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#name-authenticated-encryption-wi">
+ *     Authenticated Encryption with Associated Data (AEAD) Functions</a>
  */
 public enum AEAD {
     AES_GCM128((short) 0x0001, 16, 12),

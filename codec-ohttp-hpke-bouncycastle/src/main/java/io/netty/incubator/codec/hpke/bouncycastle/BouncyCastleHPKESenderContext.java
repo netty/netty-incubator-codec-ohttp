@@ -24,13 +24,13 @@ import org.bouncycastle.crypto.hpke.HPKEContextWithEncapsulation;
 final class BouncyCastleHPKESenderContext extends BouncyCastleHPKEContext implements HPKESenderContext {
 
     private final BouncyCastleCryptoOperation seal;
-    public BouncyCastleHPKESenderContext(HPKEContextWithEncapsulation context) {
+    BouncyCastleHPKESenderContext(HPKEContextWithEncapsulation context) {
         super(context);
         this.seal = new BouncyCastleCryptoOperation() {
             @Override
-            protected byte[] execute(byte[] arg1, byte[] arg2, int offset2, int length2)
+            protected byte[] execute(byte[] aad, byte[] in, int inOffset, int inLength)
                     throws InvalidCipherTextException {
-                return context.seal(arg1, arg2, offset2, length2);
+                return context.seal(aad, in, inOffset, inLength);
             }
         };
     }

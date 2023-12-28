@@ -30,16 +30,16 @@ final class BouncyCastleAEADCryptoContext implements AEADContext {
     BouncyCastleAEADCryptoContext(AEAD aead) {
         this.open = new BouncyCastleCryptoOperation() {
             @Override
-            protected byte[] execute(byte[] arg1, byte[] arg2, int offset2, int length2)
+            protected byte[] execute(byte[] aad, byte[] in, int inOffset, int inLength)
                     throws InvalidCipherTextException {
-                return aead.open(arg1, arg2, offset2, length2);
+                return aead.open(aad, in, inOffset, inLength);
             }
         };
         this.seal = new BouncyCastleCryptoOperation() {
             @Override
-            protected byte[] execute(byte[] arg1, byte[] arg2, int offset2, int length2)
+            protected byte[] execute(byte[] aad, byte[] in, int inOffset, int inLength)
                     throws InvalidCipherTextException {
-                return aead.seal(arg1, arg2, offset2, length2);
+                return aead.seal(aad, in, inOffset, inLength);
             }
         };
     }

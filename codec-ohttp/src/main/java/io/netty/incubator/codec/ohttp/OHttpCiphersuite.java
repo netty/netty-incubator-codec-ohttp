@@ -133,6 +133,7 @@ public final class OHttpCiphersuite {
 
     @Override
     public String toString() {
-        return "OHttpCiphersuite{id=" + Byte.toUnsignedInt(keyId) + ", kem=" + this.kem + ", kdf=" + this.kdf + ", aead=" + this.aead + "}";
+        return "OHttpCiphersuite{id=" + Byte.toUnsignedInt(keyId) +
+                ", kem=" + this.kem + ", kdf=" + this.kdf + ", aead=" + this.aead + "}";
     }
 }

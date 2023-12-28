@@ -51,7 +51,8 @@ public class OHttpChunkFramerTest {
         }
     }
 
-    private static <T extends Throwable> void serializeThrowsHelper(String chunkHex, boolean isFinal, Class<T> exception) {
+    private static <T extends Throwable> void serializeThrowsHelper(
+            String chunkHex, boolean isFinal, Class<T> exception) {
         ByteBuf out = Unpooled.buffer();
         try {
             ByteBuf in = bytesFromHex(chunkHex);
