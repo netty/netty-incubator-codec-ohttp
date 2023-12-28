@@ -16,7 +16,8 @@
 package io.netty.incubator.codec.hpke;
 
 /**
- * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#name-key-derivation-functions-kd">Key Derivation Functions (KDFs)</a>
+ * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#name-key-derivation-functions-kd">
+ *     Key Derivation Functions (KDFs)</a>
  */
 public enum KDF {
     HKDF_SHA256((short) 0x0001),

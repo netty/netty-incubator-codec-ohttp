@@ -14,6 +14,7 @@
  * under the License.
  */
 /**
- * Implementation of <a href="https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html">Oblivious HTTP</a>.
+ * Implementation of
+ * <a href="https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html">Oblivious HTTP</a>.
  */
 package io.netty.incubator.codec.ohttp;

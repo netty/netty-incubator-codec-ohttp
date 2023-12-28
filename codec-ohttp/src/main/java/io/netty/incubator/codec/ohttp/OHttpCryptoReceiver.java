@@ -38,7 +38,7 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
     private final byte[] responseNonce;
     private final CryptoEncryptContext aead;
 
-    public final static class Builder {
+    public static final class Builder {
         private OHttpCryptoProvider provider;
         private OHttpCryptoConfiguration configuration;
         private AsymmetricCipherKeyPair privateKey;
@@ -83,7 +83,6 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         private Builder() {
         }
     }
-
 
     /**
      * Return a new {@link Builder} that can be used to build a {@link OHttpCryptoReceiver} instance.

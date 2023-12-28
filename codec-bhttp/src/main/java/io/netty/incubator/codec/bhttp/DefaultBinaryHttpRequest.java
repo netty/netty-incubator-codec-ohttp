@@ -51,7 +51,8 @@ public final class DefaultBinaryHttpRequest extends DefaultHttpRequest implement
      * @param scheme            the scheme to use.
      * @param authority         the authority to use.
      * @param uri               the uri / path to use
-     * @param validateHeaders   {@code true} if header validation should be done when add headers, {@code false} otherwise.
+     * @param validateHeaders   {@code true} if header validation should be done when add headers, {@code false}
+     *                          otherwise.
      */
     public DefaultBinaryHttpRequest(HttpVersion httpVersion, HttpMethod method, String scheme, String authority,
                                     String uri, boolean validateHeaders) {

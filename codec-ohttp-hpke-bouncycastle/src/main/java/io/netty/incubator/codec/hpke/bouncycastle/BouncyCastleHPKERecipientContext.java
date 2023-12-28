@@ -28,8 +28,9 @@ final class BouncyCastleHPKERecipientContext extends BouncyCastleHPKEContext imp
         super(context);
         open = new BouncyCastleCryptoOperation() {
             @Override
-            protected byte[] execute(byte[] arg1, byte[] arg2, int offset2, int length2) throws InvalidCipherTextException {
-                return context.open(arg1, arg2, offset2, length2);
+            protected byte[] execute(byte[] aad, byte[] in, int inOffset, int inLength)
+                    throws InvalidCipherTextException {
+                return context.open(aad, in, inOffset, inLength);
             }
         };
     }

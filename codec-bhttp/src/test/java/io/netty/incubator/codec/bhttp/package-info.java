@@ -13,4 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+/**
+ * BHTTP implementation
+ */
 package io.netty.incubator.codec.bhttp;

@@ -88,7 +88,6 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         }
     }
 
-
     private static final class Nonce {
         private final ByteBuf nonce;
         private final long nonceAddress;
@@ -118,7 +117,7 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
          * @return memory address of the nonce buffer.
          */
         long computeNext() {
-            for(int idx = 0, idx2 = baseNonce.length - 8 ; idx < 8; ++idx, ++idx2) {
+            for (int idx = 0, idx2 = baseNonce.length - 8 ; idx < 8; ++idx, ++idx2) {
                 nonce.setByte(idx2, baseNonce[idx2] ^ bigEndianByteAt(idx, seq));
             }
             return nonceAddress;

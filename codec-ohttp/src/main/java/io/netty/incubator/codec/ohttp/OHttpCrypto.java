@@ -85,7 +85,7 @@ public abstract class OHttpCrypto implements AutoCloseable {
         }
         CryptoDecryptContext decryptContext = decryptCrypto();
         if (decryptContext != null) {
-            decryptContext.close();;
+            decryptContext.close();
         }
     }
 }

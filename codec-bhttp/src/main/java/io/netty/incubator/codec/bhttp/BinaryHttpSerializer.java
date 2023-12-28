@@ -53,7 +53,8 @@ public final class BinaryHttpSerializer {
      * 1 {@link BinaryHttpResponse} | {@link BinaryHttpRequest}, 0-n {@link HttpContent}, 1 {@link LastHttpContent}.
      * </pre>
      *
-     * {@link FullBinaryHttpResponse} or {@link FullBinaryHttpRequest} can be used as a shortcut for such a valid sequence.
+     * {@link FullBinaryHttpResponse} or {@link FullBinaryHttpRequest} can be used as a shortcut for such a valid
+     * sequence.
      *
      * @param msg the {@link HttpObject} to serialize
      * @param out the {@link ByteBuf} into which to write.

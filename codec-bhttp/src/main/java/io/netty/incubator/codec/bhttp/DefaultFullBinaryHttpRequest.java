@@ -69,7 +69,8 @@ public final class DefaultFullBinaryHttpRequest extends DefaultFullHttpRequest i
      * @param authority         the authority to use.
      * @param uri               the uri / path to use
      * @param content           the payload of the request.
-     * @param validateHeaders   {@code true} if header validation should be done when add headers, {@code false} otherwise.
+     * @param validateHeaders   {@code true} if header validation should be done when add headers, {@code false}
+     *                          otherwise.
      */
     public DefaultFullBinaryHttpRequest(HttpVersion httpVersion, HttpMethod method, String scheme, String authority,
                                         String uri, ByteBuf content, boolean validateHeaders) {
@@ -103,7 +104,8 @@ public final class DefaultFullBinaryHttpRequest extends DefaultFullHttpRequest i
      * @param scheme            the scheme to use.
      * @param authority         the authority to use.
      * @param uri               the uri / path to use
-     * @param validateHeaders   {@code true} if header validation should be done when add headers, {@code false} otherwise.
+     * @param validateHeaders   {@code true} if header validation should be done when add headers, {@code false}
+     *                          otherwise.
      */
     public DefaultFullBinaryHttpRequest(HttpVersion httpVersion, HttpMethod method, String scheme, String authority,
                                         String uri, boolean validateHeaders) {

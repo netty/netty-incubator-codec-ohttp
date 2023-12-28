@@ -29,7 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class BinaryHttpResponseEndToEndTest extends BinaryHttpMessageEndToEndTest<BinaryHttpResponse, FullBinaryHttpResponse> {
+public class BinaryHttpResponseEndToEndTest
+        extends BinaryHttpMessageEndToEndTest<BinaryHttpResponse, FullBinaryHttpResponse> {
     @Override
     protected BinaryHttpResponse newHttpMessage() {
         return new DefaultBinaryHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);

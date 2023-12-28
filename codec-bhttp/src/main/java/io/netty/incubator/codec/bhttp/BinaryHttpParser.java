@@ -118,12 +118,14 @@ public final class BinaryHttpParser {
      * 1 {@link io.netty.handler.codec.http.HttpMessage}, 0-n {@link HttpContent}, 1 {@link LastHttpContent}.
      * </pre>
      *
-     * It might also use the shortcut of {@link io.netty.handler.codec.http.FullHttpMessage} to represent a full sequence.
+     * It might also use the shortcut of {@link io.netty.handler.codec.http.FullHttpMessage} to represent a full
+     * sequence.
      *
      * @param in                    the {@link ByteBuf} to parse.
      * @param completeBodyReceived  {@code true} if we should consider the end of body to be received, {@code false}
      *                              otherwise.
-     * @return                      the {@link HttpObject} or {@code null} if this method should be called again later once there are
+     * @return                      the {@link HttpObject} or {@code null} if this method should be called again later
+     *                              once there are
      *                              more readable bytes in the input {@link ByteBuf}.
      */
     public HttpObject parse(ByteBuf in, boolean completeBodyReceived) {
@@ -173,11 +175,11 @@ public final class BinaryHttpParser {
                         }
                         boolean informational = response.status().codeClass() == HttpStatusClass.INFORMATIONAL;
                         if (informational) {
-                            // There will be more responses to follow so just return a FullHttpResponse and NOT change the
-                            // state.
+                            // There will be more responses to follow so just return a FullHttpResponse and NOT change
+                            // the state.
                             // See https://www.rfc-editor.org/rfc/rfc9292.html#section-3.5.1
-                            return new DefaultFullHttpResponse(response.protocolVersion(), response.status(), Unpooled.EMPTY_BUFFER,
-                                    response.headers(), new DefaultHttpHeaders());
+                            return new DefaultFullHttpResponse(response.protocolVersion(), response.status(),
+                                    Unpooled.EMPTY_BUFFER, response.headers(), new DefaultHttpHeaders());
                         } else if (state.knownLength) {
                             state = State.READ_KNOWN_LENGTH_CONTENT;
                         } else {
@@ -326,8 +328,10 @@ public final class BinaryHttpParser {
     }
 
     /**
-     * Reads the request head which includes the <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-request-control-data">control data</a>
-     * and <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-header-and-trailer-field-li">headers field section</a>.
+     * Reads the request head which includes the
+     * <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-request-control-data">control data</a>
+     * and
+     * <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-header-and-trailer-field-li">headers field section</a>.
      *
      * @param in                    the {@link ByteBuf} to read from.
      * @param knownLength           {@code true} if the length is known, {@code false} otherwise.
@@ -426,8 +430,10 @@ public final class BinaryHttpParser {
     }
 
     /**
-     * Reads the response head which includes the <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-response-control-data">control data</a>
-     * and <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-header-and-trailer-field-li">headers field section</a>.
+     * Reads the response head which includes the
+     * <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-response-control-data">control data</a>
+     * and
+     * <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-header-and-trailer-field-li">headers field section</a>.
      *
      * @param in                    the {@link ByteBuf} to read from.
      * @param knownLength           {@code true} if the length is known, {@code false} otherwise.
@@ -475,7 +481,8 @@ public final class BinaryHttpParser {
     }
 
     /**
-     * Get the <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-indeterminate-length-messag">indeterminate length</a>
+     * Get the
+     * <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-indeterminate-length-messag">indeterminate length</a>
      * of the "section". This will return {@code -1} if the length was not found.
      *
      * @param in    the {@link ByteBuf} to search for the length.
@@ -512,7 +519,8 @@ public final class BinaryHttpParser {
      * @param maxFieldSectionSize   the maximum size of the field-section (in bytes)
      * @return                      {@link BinaryHttpHeaders} or {@code null} if not enough bytes are readable yet.
      */
-    private static BinaryHttpHeaders readFieldSection(ByteBuf in, boolean trailers, boolean knownLength, int maxFieldSectionSize) {
+    private static BinaryHttpHeaders readFieldSection(
+            ByteBuf in, boolean trailers, boolean knownLength, int maxFieldSectionSize) {
         if (!in.isReadable()) {
             return null;
         }
@@ -575,7 +583,8 @@ public final class BinaryHttpParser {
         if (fieldSectionSize > maxFieldSectionSize) {
             // Guard against buffering too much bytes.
             // See https://www.rfc-editor.org/rfc/rfc9292.html#section-8
-            throw new TooLongFrameException("field-section length exceeds configured maximum: " + fieldSectionSize + " > " + maxFieldSectionSize);
+            throw new TooLongFrameException("field-section length exceeds configured maximum: "
+                    + fieldSectionSize + " > " + maxFieldSectionSize);
         }
     }
 

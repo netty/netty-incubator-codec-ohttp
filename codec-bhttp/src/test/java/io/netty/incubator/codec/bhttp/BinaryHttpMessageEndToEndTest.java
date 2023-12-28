@@ -565,7 +565,8 @@ public abstract class BinaryHttpMessageEndToEndTest<M extends HttpMessage, F ext
         assertFalse(reader.finishAndReleaseAll());
     }
 
-    private static void assertContentWithoutTrailers(EmbeddedChannel reader, byte[] expectedContent) throws IOException {
+    private static void assertContentWithoutTrailers(EmbeddedChannel reader, byte[] expectedContent)
+            throws IOException {
         try (ByteArrayOutputStream contentWriter = new ByteArrayOutputStream()) {
             for (;;) {
                 HttpContent readContent = reader.readInbound();

@@ -34,7 +34,7 @@ final class BinaryHttpDecoder extends ByteToMessageDecoder {
      *
      * @param maxFieldSectionSize   the maximum size of the field-section (in bytes)
      */
-    public BinaryHttpDecoder(int maxFieldSectionSize) {
+    BinaryHttpDecoder(int maxFieldSectionSize) {
         this.parser = new BinaryHttpParser(maxFieldSectionSize);
     }
 

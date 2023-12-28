@@ -216,6 +216,6 @@ final class BoringSSL {
             BoringSSL.EVP_AEAD_CTX_free(ctx);
         }
     }
+
+    private BoringSSL() { }
 }
-
-

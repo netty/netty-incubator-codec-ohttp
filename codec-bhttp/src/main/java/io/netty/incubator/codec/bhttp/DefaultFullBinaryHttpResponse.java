@@ -40,8 +40,10 @@ public final class DefaultFullBinaryHttpResponse extends DefaultFullHttpResponse
         this(version, status, Unpooled.EMPTY_BUFFER, validateHeaders);
     }
 
-    public DefaultFullBinaryHttpResponse(HttpVersion version, HttpResponseStatus status, ByteBuf content, boolean validateHeaders) {
-        this(version, status, content, BinaryHttpHeaders.newHeaders(validateHeaders), BinaryHttpHeaders.newTrailers(validateHeaders));
+    public DefaultFullBinaryHttpResponse(
+            HttpVersion version, HttpResponseStatus status, ByteBuf content, boolean validateHeaders) {
+        this(version, status, content, BinaryHttpHeaders.newHeaders(validateHeaders),
+                BinaryHttpHeaders.newTrailers(validateHeaders));
     }
 
     private DefaultFullBinaryHttpResponse(HttpVersion version, HttpResponseStatus status, ByteBuf content,

@@ -27,7 +27,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * Implementation of <a href="https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html">the draft protocol</a>.
+ * Implementation of
+ * <a href="https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html">the draft protocol</a>.
  */
 public final class OHttpVersionDraft implements OHttpVersion {
 
@@ -65,7 +66,8 @@ public final class OHttpVersionDraft implements OHttpVersion {
     }
 
     @Override
-    public void parse(ByteBuf in, boolean completeBodyReceived, Decoder decoder, List<Object> out) throws CryptoException {
+    public void parse(ByteBuf in, boolean completeBodyReceived, Decoder decoder, List<Object> out)
+            throws CryptoException {
         if (completeBodyReceived) {
             if (decoder.isPrefixNeeded() && !decoder.decodePrefix(in)) {
                 throw new CorruptedFrameException("Prefix is truncated");

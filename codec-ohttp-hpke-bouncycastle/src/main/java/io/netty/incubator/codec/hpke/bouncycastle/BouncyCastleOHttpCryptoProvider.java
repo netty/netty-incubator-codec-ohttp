@@ -54,14 +54,16 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
 
     private static BouncyCastleAsymmetricKeyParameter castOrThrow(AsymmetricKeyParameter param) {
         if (!(param instanceof BouncyCastleAsymmetricKeyParameter)) {
-            throw new IllegalArgumentException("param must be of type " + BouncyCastleAsymmetricKeyParameter.class + ": " + param);
+            throw new IllegalArgumentException(
+                    "param must be of type " + BouncyCastleAsymmetricKeyParameter.class + ": " + param);
         }
         return (BouncyCastleAsymmetricKeyParameter) param;
     }
 
     private static BouncyCastleAsymmetricCipherKeyPair castOrThrow(AsymmetricCipherKeyPair pair) {
         if (!(pair instanceof BouncyCastleAsymmetricCipherKeyPair)) {
-            throw new IllegalArgumentException("pair must be of type " + BouncyCastleAsymmetricCipherKeyPair.class + ": " + pair);
+            throw new IllegalArgumentException(
+                    "pair must be of type " + BouncyCastleAsymmetricCipherKeyPair.class + ": " + pair);
         }
         return (BouncyCastleAsymmetricCipherKeyPair) pair;
     }
@@ -97,7 +99,8 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
 
     private static org.bouncycastle.crypto.AsymmetricCipherKeyPair deserializePrivateKeyBouncyCastle(
             KEM kem, byte[] privateKeyBytes, byte[] publicKeyBytes) {
-        // See https://github.com/bcgit/bc-java/blob/f1367f0b89962b29460eea381a12063fa7cd2428/core/src/main/java/org/bouncycastle/crypto/hpke/DHKEM.java#L204
+        // See https://github.com/bcgit/bc-java/blob/
+        // f1367f0b89962b29460eea381a12063fa7cd2428/core/src/main/java/org/bouncycastle/crypto/hpke/DHKEM.java#L204
         org.bouncycastle.crypto.params.AsymmetricKeyParameter publicKey =
                 deserializePublicKeyBouncyCastle(kem, publicKeyBytes);
         switch (kem) {
@@ -125,7 +128,8 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
 
     private static org.bouncycastle.crypto.params.AsymmetricKeyParameter deserializePublicKeyBouncyCastle(
             KEM kem, byte[] publicKeyBytes) {
-        // See https://github.com/bcgit/bc-java/blob/f1367f0b89962b29460eea381a12063fa7cd2428/core/src/main/java/org/bouncycastle/crypto/hpke/DHKEM.java#L186
+        // See https://github.com/bcgit/bc-java/blob/
+        // f1367f0b89962b29460eea381a12063fa7cd2428/core/src/main/java/org/bouncycastle/crypto/hpke/DHKEM.java#L186
         switch (kem) {
             case P256_SHA256:
             case P384_SHA348:
@@ -142,40 +146,53 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
         }
     }
 
-    // See https://github.com/bcgit/bc-java/blob/f1367f0b89962b29460eea381a12063fa7cd2428/core/src/main/java/org/bouncycastle/crypto/hpke/DHKEM.java#L59
+    // See https://github.com/bcgit/bc-java/blob/
+    // f1367f0b89962b29460eea381a12063fa7cd2428/core/src/main/java/org/bouncycastle/crypto/hpke/DHKEM.java#L59
     private static ECDomainParameters ecDomainParameters(KEM kem) {
         switch (kem) {
             case P256_SHA256:
                 SecP256R1Curve p256R1Curve = new SecP256R1Curve();
+                byte[] p256R1Magnitude1 =
+                        Hex.decode("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296");
+                byte[] p256R1Magnitude2 =
+                        Hex.decode("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5");
+                byte[] p256R1Seed = Hex.decode("c49d360886e704936a6678e1139d26b7819f7e90");
                 return new ECDomainParameters(
                         p256R1Curve,
                         p256R1Curve.createPoint(
-                                new BigInteger(1, Hex.decode("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296")),
-                                new BigInteger(1, Hex.decode("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"))
+                                new BigInteger(1, p256R1Magnitude1),
+                                new BigInteger(1, p256R1Magnitude2)
                         ),
                         p256R1Curve.getOrder(),
                         p256R1Curve.getCofactor(),
-                        Hex.decode("c49d360886e704936a6678e1139d26b7819f7e90")
+                        p256R1Seed
                 );
             case P384_SHA348:
                 SecP384R1Curve p384R1Curve = new SecP384R1Curve();
+                byte[] p384R1Magnitude1 = Hex.decode("aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e" +
+                        "082542a385502f25dbf55296c3a545e3872760ab7");
+                byte[] p384R1Magnitude2 = Hex.decode("3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da311" +
+                        "3b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f");
+                byte[] p384R11Seed = Hex.decode("a335926aa319a27a1d00896a6773a4827acdac73");
                 return new ECDomainParameters(
                         p384R1Curve,
                         p384R1Curve.createPoint(
-                                new BigInteger(1, Hex.decode("aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7")),
-                                new BigInteger(1, Hex.decode("3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f"))
+                                new BigInteger(1, p384R1Magnitude1),
+                                new BigInteger(1, p384R1Magnitude2)
                         ),
                         p384R1Curve.getOrder(),
                         p384R1Curve.getCofactor(),
-                        Hex.decode("a335926aa319a27a1d00896a6773a4827acdac73")
+                        p384R11Seed
                 );
             case P521_SHA512:
                 SecP521R1Curve p521R1Curve = new SecP521R1Curve();
                 return new ECDomainParameters(
                         p521R1Curve,
                         p521R1Curve.createPoint(
-                                new BigInteger("c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66", 16),
-                                new BigInteger("11839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650", 16)
+                                new BigInteger("c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d" +
+                                        "3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66", 16),
+                                new BigInteger("11839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273" +
+                                        "e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650", 16)
                         ),
                         p521R1Curve.getOrder(),
                         p521R1Curve.getCofactor(),

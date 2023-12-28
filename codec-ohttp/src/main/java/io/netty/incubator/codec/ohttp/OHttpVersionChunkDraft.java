@@ -31,7 +31,8 @@ import java.util.List;
 import static io.netty.incubator.codec.ohttp.OHttpConstants.MAX_CHUNK_SIZE;
 
 /**
- *  Implementation of <a href="https://www.ietf.org/archive/id/draft-ohai-chunked-ohttp-00.html">Chunked Oblivious HTTP Messages</a>.
+ * Implementation of
+ * <a href="https://www.ietf.org/archive/id/draft-ohai-chunked-ohttp-00.html">Chunked Oblivious HTTP Messages</a>.
  *
  * <pre>
  * Chunked Chunks {
@@ -54,8 +55,10 @@ public final class OHttpVersionChunkDraft implements OHttpVersion {
 
     public static final OHttpVersion INSTANCE = new OHttpVersionChunkDraft();
 
-    private static final byte[] CHUNKED_REQUEST_EXPORT_CONTEXT = "message/bhttp chunked request".getBytes(StandardCharsets.US_ASCII);
-    private static final byte[] CHUNKED_RESPONSE_EXPORT_CONTEXT = "message/bhttp chunked response".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] CHUNKED_REQUEST_EXPORT_CONTEXT =
+            "message/bhttp chunked request".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] CHUNKED_RESPONSE_EXPORT_CONTEXT =
+            "message/bhttp chunked response".getBytes(StandardCharsets.US_ASCII);
 
     private OHttpVersionChunkDraft() {
     }
@@ -149,7 +152,8 @@ public final class OHttpVersionChunkDraft implements OHttpVersion {
     }
 
     @Override
-    public void parse(ByteBuf in, boolean completeBodyReceived, Decoder decoder, List<Object> out) throws CryptoException {
+    public void parse(ByteBuf in, boolean completeBodyReceived, Decoder decoder, List<Object> out)
+            throws CryptoException {
         if (decoder.isPrefixNeeded()) {
             if (!decoder.decodePrefix(in)) {
                 if (completeBodyReceived) {

@@ -78,7 +78,6 @@ public interface OHttpCryptoProvider {
      */
     AsymmetricKeyParameter deserializePublicKey(KEM kem, byte[] publicKeyBytes);
 
-
     /**
      * Generate a random private key. Please note that this might not be possible for all of the {@link KEM} and so
      * this method might throw an {@link UnsupportedOperationException}.

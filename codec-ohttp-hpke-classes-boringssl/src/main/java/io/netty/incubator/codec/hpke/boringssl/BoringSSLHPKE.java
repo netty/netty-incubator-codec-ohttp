@@ -65,4 +65,6 @@ public final class BoringSSLHPKE {
     public static Throwable unavailabilityCause() {
         return UNAVAILABILITY_CAUSE;
     }
+
+    private BoringSSLHPKE() { }
 }

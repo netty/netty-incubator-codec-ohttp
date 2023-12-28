@@ -53,11 +53,15 @@ public class OHttpCryptoTest {
         @Override
         public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
             List<Arguments> arguments = new ArrayList<>();
-            arguments.add(Arguments.of(BouncyCastleOHttpCryptoProvider.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
+            arguments.add(Arguments.of(BouncyCastleOHttpCryptoProvider.INSTANCE,
+                    BouncyCastleOHttpCryptoProvider.INSTANCE));
             if (BoringSSLHPKE.isAvailable()) {
-                arguments.add(Arguments.of(BoringSSLOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
-                arguments.add(Arguments.of(BouncyCastleOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE));
-                arguments.add(Arguments.of(BoringSSLOHttpCryptoProvider.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(BoringSSLOHttpCryptoProvider.INSTANCE,
+                        BoringSSLOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(BouncyCastleOHttpCryptoProvider.INSTANCE,
+                        BoringSSLOHttpCryptoProvider.INSTANCE));
+                arguments.add(Arguments.of(BoringSSLOHttpCryptoProvider.INSTANCE,
+                        BouncyCastleOHttpCryptoProvider.INSTANCE));
             }
             return arguments.stream();
         }
@@ -72,14 +76,18 @@ public class OHttpCryptoTest {
     }
 
     /*
-     * Use values from https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#name-complete-example-of-a-reque
+     * Use values from
+     * https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#name-complete-example-of-a-reque
      */
     @ParameterizedTest
     @ArgumentsSource(value = OHttpCryptoProviderArgumentsProvider.class)
-    public void testCryptoVectors(OHttpCryptoProvider senderProvider, OHttpCryptoProvider receiverProvider) throws DecoderException, CryptoException {
+    public void testCryptoVectors(OHttpCryptoProvider senderProvider, OHttpCryptoProvider receiverProvider)
+            throws DecoderException, CryptoException {
         byte keyId = 1;
-        AsymmetricCipherKeyPair kpR = createX25519KeyPair(receiverProvider, "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
-        AsymmetricCipherKeyPair kpE = createX25519KeyPair(senderProvider, "bc51d5e930bda26589890ac7032f70ad12e4ecb37abb1b65b1256c9c48999c73");
+        AsymmetricCipherKeyPair kpR = createX25519KeyPair(
+                receiverProvider, "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+        AsymmetricCipherKeyPair kpE = createX25519KeyPair(
+                senderProvider, "bc51d5e930bda26589890ac7032f70ad12e4ecb37abb1b65b1256c9c48999c73");
         byte[] request = ByteBufUtil.decodeHexDump("00034745540568747470730b6578616d706c652e636f6d012f");
         byte[] response = ByteBufUtil.decodeHexDump("0140c8");
 
@@ -97,7 +105,8 @@ public class OHttpCryptoTest {
         ByteBuf encodedKeyConfiguration = Unpooled.buffer();
         try {
             serverKeys.encodePublicKeys(encodedKeyConfiguration);
-            assertEquals("01002031e1f05a740102115220e9af918f738674aec95f54db6e04eb705aae8e79815500080001000100010003", ByteBufUtil.hexDump(encodedKeyConfiguration));
+            assertEquals("01002031e1f05a740102115220e9af918f738674aec95f54db6e04eb705aae8e79815500080001000100010003"
+                    , ByteBufUtil.hexDump(encodedKeyConfiguration));
 
             // Key configuration decoding
 
@@ -144,8 +153,8 @@ public class OHttpCryptoTest {
                 encodedRequest.writeBytes(encrypted);
 
                 assertEquals(
-                        "010020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c208b4726374e469135906992"
-                                + "e1268c594d2a10c695d858c40a026e7965e7d86b83dd440b2c0185204b4d63525",
+                        "010020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c208b4726374e4691359" +
+                                "06992e1268c594d2a10c695d858c40a026e7965e7d86b83dd440b2c0185204b4d63525",
                         ByteBufUtil.hexDump(encodedRequest));
                 // Receiver decodes request
 
@@ -171,7 +180,8 @@ public class OHttpCryptoTest {
                     receiver.encrypt(responseBuffer, response.length, true, enc);
                     receiver.writeResponseNonce(encodedResponse);
                     encodedResponse.writeBytes(enc);
-                    assertEquals("c789e7151fcba46158ca84b04464910d86f9013e404feea014e7be4a441f234f857fbd", ByteBufUtil.hexDump(encodedResponse));
+                    assertEquals("c789e7151fcba46158ca84b04464910d86f9013e404feea014e7be4a441f234f857fbd",
+                            ByteBufUtil.hexDump(encodedResponse));
 
                     // Sender decodes response
 
