@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
@@ -148,7 +149,8 @@ public class OHttpCryptoTest {
             ByteBuf encodedResponse = Unpooled.buffer();
             ByteBuf decodedResponse = Unpooled.buffer();
             try {
-                sender.encrypt(Unpooled.wrappedBuffer(request), request.length, true, encrypted);
+                sender.encrypt(UnpooledByteBufAllocator.DEFAULT, Unpooled.wrappedBuffer(request),
+                        request.length, true, encrypted);
                 sender.writeHeader(encodedRequest);
                 encodedRequest.writeBytes(encrypted);
 
@@ -172,12 +174,13 @@ public class OHttpCryptoTest {
                         .setForcedResponseNonce(ByteBufUtil.decodeHexDump("c789e7151fcba46158ca84b04464910d"))
                         .build()) {
 
-                    receiver.decrypt(encodedRequest, encodedRequest.readableBytes(), true, decodedRequest);
+                    receiver.decrypt(UnpooledByteBufAllocator.DEFAULT, encodedRequest, encodedRequest.readableBytes(),
+                            true, decodedRequest);
                     assertEquals(requestBuffer, decodedRequest);
 
                     // Receiver encodes response
 
-                    receiver.encrypt(responseBuffer, response.length, true, enc);
+                    receiver.encrypt(UnpooledByteBufAllocator.DEFAULT, responseBuffer, response.length, true, enc);
                     receiver.writeResponseNonce(encodedResponse);
                     encodedResponse.writeBytes(enc);
                     assertEquals("c789e7151fcba46158ca84b04464910d86f9013e404feea014e7be4a441f234f857fbd",
@@ -188,7 +191,8 @@ public class OHttpCryptoTest {
                     encodedResponse.readerIndex(0);
                     sender.readResponseNonce(encodedResponse);
 
-                    sender.decrypt(encodedResponse, encodedResponse.readableBytes(), true, decodedResponse);
+                    sender.decrypt(UnpooledByteBufAllocator.DEFAULT, encodedResponse, encodedResponse.readableBytes(),
+                            true, decodedResponse);
                     assertEquals(responseBuffer.readerIndex(0), decodedResponse);
                 }
             } finally {

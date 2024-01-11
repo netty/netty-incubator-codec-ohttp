@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
@@ -57,14 +58,16 @@ public abstract class OHttpCrypto implements AutoCloseable {
     /**
      * Encrypt a message of a given length and write the encrypted data to a buffer.
      *
+     * @param alloc             {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param message           the message
      * @param messageLength     the length of the message
      * @param isFinal           {@code true} if this is the final message.
      * @param out               {@link ByteBuf} into which the encrypted data is written.
      * @throws CryptoException  thrown when an error happens.
      */
-    public final void encrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
-        encryptCrypto().seal(aad(isFinal && useFinalAad(), encryptCrypto().isDirectBufferPreferred()),
+    public final void encrypt(ByteBufAllocator alloc, ByteBuf message, int messageLength, boolean isFinal, ByteBuf out)
+            throws CryptoException {
+        encryptCrypto().seal(alloc, aad(isFinal && useFinalAad(), encryptCrypto().isDirectBufferPreferred()),
                 message.slice(message.readerIndex(), messageLength), out);
         message.skipBytes(messageLength);
     }
@@ -72,15 +75,16 @@ public abstract class OHttpCrypto implements AutoCloseable {
     /**
      * Decrypt a message of a given length and write the decrypted data to a buffer.
      *
+     * @param alloc             {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param message           the message
      * @param messageLength     the length of the message
      * @param isFinal           {@code true} if this is the final message.
      * @param out               {@link ByteBuf} into which the decrypted data is written.
      * @throws CryptoException  thrown when an error happens.
      */
-    public final void decrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
-        decryptCrypto().open(
-                aad(isFinal && useFinalAad(), decryptCrypto().isDirectBufferPreferred()),
+    public final void decrypt(ByteBufAllocator alloc, ByteBuf message, int messageLength, boolean isFinal, ByteBuf out)
+            throws CryptoException {
+        decryptCrypto().open(alloc, aad(isFinal && useFinalAad(), decryptCrypto().isDirectBufferPreferred()),
                 message.slice(message.readerIndex(), messageLength), out);
         message.skipBytes(messageLength);
     }

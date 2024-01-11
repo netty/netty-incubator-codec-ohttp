@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.hpke;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 
 /**
  * {@link CryptoContext} that can be used for decryption.
@@ -26,12 +27,13 @@ public interface CryptoDecryptContext extends CryptoContext {
      * Authenticate and decrypt data. The {@link ByteBuf#readerIndex()} will be increased by the amount of
      * data read and {@link ByteBuf#writerIndex()} by the bytes written.
      *
+     * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param aad   the AAD buffer
      * @param ct    the data to decrypt
      * @param out   the buffer for writing into.
      * @throws      CryptoException in case of an error.
      */
-    void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException;
+    void open(ByteBufAllocator alloc, ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException;
 
     /**
      * Returns {@code true} if {@link ByteBuf}s that are direct should be used to avoid extra memory copies,

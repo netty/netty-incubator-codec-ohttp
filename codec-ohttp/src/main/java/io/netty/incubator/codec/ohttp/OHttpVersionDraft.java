@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.CorruptedFrameException;
@@ -66,24 +67,25 @@ public final class OHttpVersionDraft implements OHttpVersion {
     }
 
     @Override
-    public void parse(ByteBuf in, boolean completeBodyReceived, Decoder decoder, List<Object> out)
-            throws CryptoException {
+    public void parse(ByteBufAllocator alloc, ByteBuf in, boolean completeBodyReceived,
+                      Decoder decoder, List<Object> out) throws CryptoException {
         if (completeBodyReceived) {
-            if (decoder.isPrefixNeeded() && !decoder.decodePrefix(in)) {
+            if (decoder.isPrefixNeeded() && !decoder.decodePrefix(alloc, in)) {
                 throw new CorruptedFrameException("Prefix is truncated");
             }
-            decoder.decodeChunk(in, in.readableBytes(), true, out);
+            decoder.decodeChunk(alloc, in, in.readableBytes(), true, out);
         }
     }
 
     @Override
-    public void serialize(HttpObject msg, Encoder<HttpObject> encoder, ByteBuf out) throws CryptoException {
+    public void serialize(ByteBufAllocator alloc, HttpObject msg, Encoder<HttpObject> encoder, ByteBuf out)
+            throws CryptoException {
         if (!(msg instanceof LastHttpContent)) {
             throw new EncoderException("OHTTP version only supports FullHttpMessage");
         }
         if (encoder.isPrefixNeeded()) {
-            encoder.encodePrefix(out);
+            encoder.encodePrefix(alloc, out);
         }
-        encoder.encodeChunk(msg, out);
+        encoder.encodeChunk(alloc, msg, out);
     }
 }

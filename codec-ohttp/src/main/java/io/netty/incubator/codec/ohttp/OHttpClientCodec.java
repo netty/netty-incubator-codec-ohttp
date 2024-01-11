@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.codec.MessageToMessageCodec;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 import io.netty.incubator.codec.hpke.CryptoException;
@@ -220,8 +221,8 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
             if (ohttpContext != null) {
                 if (msg instanceof HttpContent) {
                     ByteBuf content = ((HttpContent) msg).content();
-                    cumulationBuffer = MERGE_CUMULATOR.cumulate(content.alloc(), cumulationBuffer, content.retain());
-                    ohttpContext.parse(cumulationBuffer, isLast, out);
+                    cumulationBuffer = MERGE_CUMULATOR.cumulate(ctx.alloc(), cumulationBuffer, content.retain());
+                    ohttpContext.parse(ctx.alloc(), cumulationBuffer, isLast, out);
                 }
             } else {
                 out.add(ReferenceCountUtil.retain(msg));
@@ -269,7 +270,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 ByteBuf contentBytes = ctx.alloc().buffer();
                 try {
                     boolean isLast = msg instanceof LastHttpContent;
-                    contentHandler.serialize(msg, contentBytes);
+                    contentHandler.serialize(ctx.alloc(), msg, contentBytes);
                     // Use the correct version of HttpContent depending on if it was the last or not.
                     HttpContent content = isLast ? new DefaultLastHttpContent(contentBytes) :
                             new DefaultHttpContent(contentBytes);
@@ -322,25 +323,25 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
         }
 
         @Override
-        public boolean decodePrefix(ByteBuf in) {
+        public boolean decodePrefix(ByteBufAllocator alloc, ByteBuf in) {
             return sender.readResponseNonce(in);
         }
 
         @Override
-        protected void decryptChunk(ByteBuf chunk, int chunkLength, boolean isFinal, ByteBuf out)
-                throws CryptoException {
-            sender.decrypt(chunk, chunkLength, isFinal, out);
+        protected void decryptChunk(ByteBufAllocator alloc, ByteBuf chunk, int chunkLength,
+                                    boolean isFinal, ByteBuf out) throws CryptoException {
+            sender.decrypt(alloc, chunk, chunkLength, isFinal, out);
         }
 
         @Override
-        public void encodePrefix(ByteBuf out) {
+        public void encodePrefix(ByteBufAllocator alloc, ByteBuf out) {
             sender.writeHeader(out);
         }
 
         @Override
-        protected void encryptChunk(ByteBuf chunk, int chunkLength, boolean isFinal, ByteBuf out)
-                throws CryptoException {
-            sender.encrypt(chunk, chunkLength, isFinal, out);
+        protected void encryptChunk(ByteBufAllocator alloc, ByteBuf chunk, int chunkLength,
+                                    boolean isFinal, ByteBuf out) throws CryptoException {
+            sender.encrypt(alloc, chunk, chunkLength, isFinal, out);
         }
 
         @Override

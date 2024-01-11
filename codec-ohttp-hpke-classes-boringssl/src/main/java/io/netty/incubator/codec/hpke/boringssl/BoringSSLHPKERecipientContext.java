@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.hpke.boringssl;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 
@@ -31,7 +32,7 @@ final class BoringSSLHPKERecipientContext extends BoringSSLHPKEContext implement
         }
 
         @Override
-        int execute(long ctx, long ad, int adLen, long in, int inLen, long out, int outLen) {
+        int execute(long ctx, ByteBufAllocator alloc,  long ad, int adLen, long in, int inLen, long out, int outLen) {
             return BoringSSL.EVP_HPKE_CTX_open(ctx, out, outLen, in, inLen, ad, adLen);
         }
     };
@@ -41,8 +42,8 @@ final class BoringSSLHPKERecipientContext extends BoringSSLHPKEContext implement
     }
 
     @Override
-    public void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException {
-        if (!OPEN.execute(checkClosedAndReturnCtx(), aad, ct, out)) {
+    public void open(ByteBufAllocator alloc, ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException {
+        if (!OPEN.execute(checkClosedAndReturnCtx(), alloc, aad, ct, out)) {
             throw new CryptoException("open(...) failed");
         }
     }

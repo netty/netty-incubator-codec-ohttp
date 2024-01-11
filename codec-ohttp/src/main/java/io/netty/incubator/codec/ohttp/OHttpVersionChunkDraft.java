@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.incubator.codec.bhttp.VarIntCodecUtils;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.buffer.ByteBuf;
@@ -152,10 +153,10 @@ public final class OHttpVersionChunkDraft implements OHttpVersion {
     }
 
     @Override
-    public void parse(ByteBuf in, boolean completeBodyReceived, Decoder decoder, List<Object> out)
-            throws CryptoException {
+    public void parse(ByteBufAllocator alloc, ByteBuf in, boolean completeBodyReceived,
+                      Decoder decoder, List<Object> out) throws CryptoException {
         if (decoder.isPrefixNeeded()) {
-            if (!decoder.decodePrefix(in)) {
+            if (!decoder.decodePrefix(alloc, in)) {
                 if (completeBodyReceived) {
                     throw new CorruptedFrameException("Prefix is truncated");
                 }
@@ -167,20 +168,21 @@ public final class OHttpVersionChunkDraft implements OHttpVersion {
             if (chunkInfo == null) {
                 break;
             }
-            decoder.decodeChunk(in, chunkInfo.length, chunkInfo.isFinal, out);
+            decoder.decodeChunk(alloc, in, chunkInfo.length, chunkInfo.isFinal, out);
         }
     }
 
     @Override
-    public void serialize(HttpObject msg, Encoder<HttpObject> encoder, ByteBuf out) throws CryptoException {
+    public void serialize(ByteBufAllocator alloc, HttpObject msg, Encoder<HttpObject> encoder, ByteBuf out)
+            throws CryptoException {
         if (encoder.isPrefixNeeded()) {
-            encoder.encodePrefix(out);
+            encoder.encodePrefix(alloc, out);
         }
         boolean isFinal = msg instanceof LastHttpContent;
 
-        ByteBuf encryptedBytes = out.alloc().buffer();
+        ByteBuf encryptedBytes = alloc.buffer();
         try {
-            encoder.encodeChunk(msg, encryptedBytes);
+            encoder.encodeChunk(alloc, msg, encryptedBytes);
             serializeChunk(encryptedBytes, isFinal, out);
         } finally {
             encryptedBytes.release();
