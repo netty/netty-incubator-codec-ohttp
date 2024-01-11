@@ -63,6 +63,11 @@ final class BouncyCastleAEADCryptoContext implements AEADContext {
     }
 
     @Override
+    public boolean isDirectBufferPreferred() {
+        return false;
+    }
+
+    @Override
     public void close() {
         closed = true;
     }

@@ -45,4 +45,9 @@ final class BouncyCastleHPKESenderContext extends BouncyCastleHPKEContext implem
         checkClosed();
         seal.execute(aad, pt, out);
     }
+
+    @Override
+    public boolean isDirectBufferPreferred() {
+        return false;
+    }
 }

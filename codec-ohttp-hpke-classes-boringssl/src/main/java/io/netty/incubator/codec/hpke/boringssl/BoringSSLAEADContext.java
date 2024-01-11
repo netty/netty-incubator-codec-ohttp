@@ -88,6 +88,11 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         }
     }
 
+    @Override
+    public boolean isDirectBufferPreferred() {
+        return true;
+    }
+
     private static final class Nonce {
         private final ByteBuf nonce;
         private final long nonceAddress;

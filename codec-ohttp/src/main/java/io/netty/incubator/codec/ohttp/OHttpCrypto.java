@@ -20,7 +20,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.incubator.codec.hpke.CryptoException;
-import io.netty.incubator.codec.hpke.CryptoContext;
 
 import java.nio.charset.StandardCharsets;
 
@@ -29,14 +28,24 @@ import java.nio.charset.StandardCharsets;
  */
 public abstract class OHttpCrypto implements AutoCloseable {
 
-    private static final byte[] AAD_FINAL = "final".getBytes(StandardCharsets.US_ASCII);
+    private static final ByteBuf EMPTY_HEAP = Unpooled.unreleasableBuffer(
+            Unpooled.wrappedBuffer(new byte[0]).asReadOnly());
+    private static final ByteBuf EMPTY_DIRECT = Unpooled.unreleasableBuffer(
+            Unpooled.directBuffer().asReadOnly());
+    private static final ByteBuf AAD_FINAL_HEAP = Unpooled.unreleasableBuffer(
+            Unpooled.wrappedBuffer("final".getBytes(StandardCharsets.US_ASCII)).asReadOnly());
+    private static final ByteBuf AAD_FINAL_DIRECT = Unpooled.unreleasableBuffer(
+            Unpooled.directBuffer(5).writeBytes("final".getBytes(StandardCharsets.US_ASCII)).asReadOnly());
 
     // Package-private
     OHttpCrypto() { }
 
-    private static ByteBuf aad(boolean isFinal) {
-        // The caller might update the position of the ByteBuffer, so we create a new one each time.
-        return isFinal ? Unpooled.wrappedBuffer(AAD_FINAL) : Unpooled.EMPTY_BUFFER;
+    private static ByteBuf aad(boolean isFinal, boolean preferDirect) {
+        // The caller might update the position of the ByteBuf, duplicate it.
+        if (isFinal) {
+            return preferDirect ? AAD_FINAL_DIRECT.duplicate() : AAD_FINAL_HEAP.duplicate();
+        }
+        return preferDirect ? EMPTY_DIRECT.duplicate() : EMPTY_HEAP.duplicate();
     }
 
     protected abstract CryptoEncryptContext encryptCrypto();
@@ -55,7 +64,7 @@ public abstract class OHttpCrypto implements AutoCloseable {
      * @throws CryptoException  thrown when an error happens.
      */
     public final void encrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
-        encryptCrypto().seal(aad(isFinal && useFinalAad()),
+        encryptCrypto().seal(aad(isFinal && useFinalAad(), encryptCrypto().isDirectBufferPreferred()),
                 message.slice(message.readerIndex(), messageLength), out);
         message.skipBytes(messageLength);
     }
@@ -71,7 +80,7 @@ public abstract class OHttpCrypto implements AutoCloseable {
      */
     public final void decrypt(ByteBuf message, int messageLength, boolean isFinal, ByteBuf out) throws CryptoException {
         decryptCrypto().open(
-                aad(isFinal && useFinalAad()),
+                aad(isFinal && useFinalAad(), decryptCrypto().isDirectBufferPreferred()),
                 message.slice(message.readerIndex(), messageLength), out);
         message.skipBytes(messageLength);
     }

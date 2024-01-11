@@ -32,4 +32,12 @@ public interface CryptoEncryptContext extends CryptoContext {
      * @throws      CryptoException in case of an error.
      */
     void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException;
+
+    /**
+     * Returns {@code true} if {@link ByteBuf}s that are direct should be used to avoid extra memory copies,
+     * {@code false} otherwise.
+     *
+     * @return if direct buffer is preferred.
+     */
+    boolean isDirectBufferPreferred();
 }
