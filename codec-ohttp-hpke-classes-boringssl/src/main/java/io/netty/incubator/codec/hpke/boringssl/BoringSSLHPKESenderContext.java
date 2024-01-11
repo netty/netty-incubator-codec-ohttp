@@ -57,4 +57,9 @@ final class BoringSSLHPKESenderContext extends BoringSSLHPKEContext
             throw new CryptoException("seal(...) failed");
         }
     }
+
+    @Override
+    public boolean isDirectBufferPreferred() {
+        return true;
+    }
 }

@@ -46,4 +46,9 @@ final class BoringSSLHPKERecipientContext extends BoringSSLHPKEContext implement
             throw new CryptoException("open(...) failed");
         }
     }
+
+    @Override
+    public boolean isDirectBufferPreferred() {
+        return true;
+    }
 }
