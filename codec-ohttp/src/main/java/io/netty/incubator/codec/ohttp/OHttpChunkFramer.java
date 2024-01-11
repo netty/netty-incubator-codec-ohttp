@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.buffer.ByteBuf;
 
@@ -31,13 +32,15 @@ public interface OHttpChunkFramer<T> {
     /**
      * Parse a buffer that contains bytes of HTTP content that are encoded using Oblivious HTTP.
      *
+     * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param in {@link ByteBuf} with HTTP content. Bytes that are consumed are removed.
      * @param completeBodyReceived true if no more input bytes are expected.
      * @param decoder {@link Decoder} that handles the decoding of the prefix and chunks.
      * @param out {@link List} of {@link Object}s that are produced from the input.
      * @throws CryptoException if the prefix is invalid or a chunk cannot be decrypted.
      */
-    void parse(ByteBuf in, boolean completeBodyReceived, Decoder decoder, List<Object> out) throws CryptoException;
+    void parse(ByteBufAllocator alloc, ByteBuf in, boolean completeBodyReceived, Decoder decoder, List<Object> out)
+            throws CryptoException;
 
     /**
      * {@link Decoder} handles decryption when parsing HTTP content.
@@ -45,10 +48,11 @@ public interface OHttpChunkFramer<T> {
     interface Decoder {
         /**
          * Decode the initial bytes of the HTTP content.
+         * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
          * @return true on success, on false if more bytes are needed.
          * @throws CryptoException if the prefix cannot be decoded.
          */
-        boolean decodePrefix(ByteBuf in) throws CryptoException;
+        boolean decodePrefix(ByteBufAllocator alloc, ByteBuf in) throws CryptoException;
 
         /**
          * @return true if the prefix has not been decoded yet.
@@ -58,25 +62,28 @@ public interface OHttpChunkFramer<T> {
         /**
          * Decode an encrypted chunk.
          *
+         * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
          * @param chunk {@link ByteBuf} with encrypted chunk.
          * @param chunkLength Length of the encrypted chunk.
          * @param completeBodyReceived true if no more input bytes are expected.
          * @param out {@link List} of {@link Object}s that are produced from the chunk.
          * @throws CryptoException if the chunk cannot be decrypted.
          */
-        void decodeChunk(ByteBuf chunk, int chunkLength, boolean completeBodyReceived, List<Object> out)
-                throws CryptoException;
+
+        void decodeChunk(ByteBufAllocator alloc, ByteBuf chunk, int chunkLength,
+                         boolean completeBodyReceived, List<Object> out) throws CryptoException;
     }
 
     /**
      * Serialize an object into HTTP content bytes that are encoded using Oblivious HTTP.
      *
+     * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param msg Object to serialize.
      * @param encoder {@link Encoder} that handles the encoding of prefix and chunks.
      * @param out {@link ByteBuf} that produced HTTP content bytes are appended to.
      * @throws CryptoException if the chunk cannot be encrypted.
      */
-    void serialize(T msg, Encoder<T> encoder, ByteBuf out) throws CryptoException;
+    void serialize(ByteBufAllocator alloc, T msg, Encoder<T> encoder, ByteBuf out) throws CryptoException;
 
     /**
      * {@link Encoder} handles encryption when serializing objects into HTTP content.
@@ -84,10 +91,12 @@ public interface OHttpChunkFramer<T> {
     interface Encoder<T> {
         /**
          * Encode the beginning of the HTTP content body.
+         *
+         * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
          * @param out buffer to write the bytes.
          * @throws CryptoException if the prefix cannot be encoded.
          */
-        void encodePrefix(ByteBuf out) throws CryptoException;
+        void encodePrefix(ByteBufAllocator alloc, ByteBuf out) throws CryptoException;
 
         /**
          * @return true if the prefix has not been encoded yet.
@@ -97,10 +106,11 @@ public interface OHttpChunkFramer<T> {
         /**
          * Encode an object into a chunk.
          *
+         * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
          * @param msg object to encode.
          * @param out the {@link ByteBuf} into which the chunk is encoded.
          * @throws CryptoException if the chunk cannot be encrypted.
          */
-        void encodeChunk(T msg, ByteBuf out) throws CryptoException;
+        void encodeChunk(ByteBufAllocator alloc, T msg, ByteBuf out) throws CryptoException;
     }
 }

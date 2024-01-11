@@ -14,6 +14,7 @@
  * under the License.
  */package io.netty.incubator.codec.ohttp;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.codec.MessageToMessageCodec;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.buffer.ByteBuf;
@@ -148,8 +149,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                     try {
                         ByteBuf content = ((HttpContent) msg).content();
                         cumulationBuffer = MERGE_CUMULATOR.cumulate(
-                                content.alloc(), cumulationBuffer, content.retain());
-                        oHttpContext.parse(cumulationBuffer, isLast, out);
+                                ctx.alloc(), cumulationBuffer, content.retain());
+                        oHttpContext.parse(ctx.alloc(), cumulationBuffer, isLast, out);
                     } finally {
                         if (isLast && oHttpContext.receivedLastHttpContent()) {
                             destroyContext();
@@ -203,7 +204,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 boolean isLast = msg instanceof LastHttpContent;
                 try {
                     ByteBuf contentBytes = ctx.alloc().buffer();
-                    oHttpContext.serialize(msg, contentBytes);
+                    oHttpContext.serialize(ctx.alloc(), msg, contentBytes);
                     // Use the correct version of HttpContent depending on if it was the last or not.
                     HttpContent content = isLast ? new DefaultLastHttpContent(contentBytes) :
                             new DefaultHttpContent(contentBytes);
@@ -269,7 +270,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         }
 
         @Override
-        public boolean decodePrefix(ByteBuf in) {
+        public boolean decodePrefix(ByteBufAllocator alloc, ByteBuf in) {
             final int initialReaderIndex = in.readerIndex();
             final OHttpCiphersuite ciphersuite = OHttpCiphersuite.decode(in);
             if (ciphersuite == null) {
@@ -293,23 +294,23 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         }
 
         @Override
-        protected void decryptChunk(ByteBuf chunk, int chunkSize, boolean isFinal, ByteBuf out)
+        protected void decryptChunk(ByteBufAllocator alloc, ByteBuf chunk, int chunkSize, boolean isFinal, ByteBuf out)
                 throws CryptoException {
             checkPrefixDecoded();
-            receiver.decrypt(chunk, chunkSize, isFinal, out);
+            receiver.decrypt(alloc, chunk, chunkSize, isFinal, out);
         }
 
         @Override
-        public void encodePrefix(ByteBuf out) throws CryptoException {
+        public void encodePrefix(ByteBufAllocator alloc, ByteBuf out) throws CryptoException {
             checkPrefixDecoded();
             receiver.writeResponseNonce(out);
         }
 
         @Override
-        protected void encryptChunk(ByteBuf chunk, int chunkLength, boolean isFinal, ByteBuf out)
-                throws CryptoException {
+        protected void encryptChunk(ByteBufAllocator alloc, ByteBuf chunk, int chunkLength,
+                                    boolean isFinal, ByteBuf out) throws CryptoException {
             checkPrefixDecoded();
-            receiver.encrypt(chunk, chunkLength, isFinal, out);
+            receiver.encrypt(alloc, chunk, chunkLength, isFinal, out);
         }
 
         /**

@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.CorruptedFrameException;
 import io.netty.handler.codec.http.HttpContent;
@@ -48,30 +49,33 @@ abstract class OHttpRequestResponseContext {
 
     /**
      * Serialize a {@link HttpObject} into a {@link ByteBuf}.
+     * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param msg {@link HttpObject} to serialize.
      * @param out {@link ByteBuf} that serialized bytes are appended to.
      */
-    final void serialize(HttpObject msg, ByteBuf out) throws CryptoException {
-        version.serialize(msg, contentEncoder, out);
+    final void serialize(ByteBufAllocator alloc, HttpObject msg, ByteBuf out) throws CryptoException {
+        version.serialize(alloc, msg, contentEncoder, out);
     }
 
     /**
      * Encrypt a chunk.
+     * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param chunk {@link ByteBuf} to encrypt. The function increases the reader index by chunkLength.
      * @param chunkLength length of chunk.
      * @param isFinal true if this is the last chunk.
      * @param out {@link ByteBuf} into which the encrypted bytes are written.
      * @throws CryptoException if the encryption fails.
      */
-    protected abstract void encryptChunk(ByteBuf chunk, int chunkLength, boolean isFinal, ByteBuf out)
-            throws CryptoException;
+    protected abstract void encryptChunk(ByteBufAllocator alloc, ByteBuf chunk, int chunkLength,
+                                         boolean isFinal, ByteBuf out) throws CryptoException;
 
     /**
      * Encode the beginning of the HTTP content body.
+     * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param out buffer to write the bytes.
      * @throws CryptoException if the prefix cannot be encoded.
      */
-    protected abstract void encodePrefix(ByteBuf out) throws CryptoException;
+    protected abstract void encodePrefix(ByteBufAllocator alloc, ByteBuf out) throws CryptoException;
 
     private final class ContentEncoder implements OHttpChunkFramer.Encoder<HttpObject> {
 
@@ -85,23 +89,23 @@ abstract class OHttpRequestResponseContext {
         }
 
         @Override
-        public void encodeChunk(HttpObject msg, ByteBuf out) throws CryptoException {
-            ByteBuf binaryHttpBytes = out.alloc().buffer();
+        public void encodeChunk(ByteBufAllocator alloc, HttpObject msg, ByteBuf out) throws CryptoException {
+            ByteBuf binaryHttpBytes = alloc.buffer();
             try {
                 boolean isFinal = msg instanceof LastHttpContent;
                 binaryHttpSerializer.serialize(msg, binaryHttpBytes);
-                encryptChunk(binaryHttpBytes, binaryHttpBytes.readableBytes(), isFinal, out);
+                encryptChunk(alloc, binaryHttpBytes, binaryHttpBytes.readableBytes(), isFinal, out);
             } finally {
                 binaryHttpBytes.release();
             }
         }
 
         @Override
-        public void encodePrefix(ByteBuf out) throws CryptoException {
+        public void encodePrefix(ByteBufAllocator alloc, ByteBuf out) throws CryptoException {
             if (encodedPrefix) {
                 throw new IllegalStateException("Prefix already encoded");
             }
-            OHttpRequestResponseContext.this.encodePrefix(out);
+            OHttpRequestResponseContext.this.encodePrefix(alloc, out);
             encodedPrefix = true;
         }
     }
@@ -112,16 +116,18 @@ abstract class OHttpRequestResponseContext {
      * If the input is coming from {@link HttpContent}, the caller is responsible for maintaining
      * a cumulation buffer since this function might not consume all the bytes from the input.
      * <br>
+     * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param in HTTP content bytes. Consumed bytes are removed from the {@link ByteBuf}.
      * @param completeBodyReceived true if there are no more bytes following in.
      * @param out List that produced {@link HttpObject} are appended to.
      */
-    final void parse(ByteBuf in, boolean completeBodyReceived, List<Object> out) throws CryptoException {
+    final void parse(ByteBufAllocator alloc, ByteBuf in, boolean completeBodyReceived, List<Object> out)
+            throws CryptoException {
         if (decoder == null) {
             throw new IllegalStateException("Already destroyed");
         }
 
-        version.parse(in, completeBodyReceived, decoder, out);
+        version.parse(alloc, in, completeBodyReceived, decoder, out);
 
         if (completeBodyReceived && in.isReadable()) {
             throw new CorruptedFrameException("OHTTP stream has extra bytes");
@@ -130,20 +136,22 @@ abstract class OHttpRequestResponseContext {
 
     /**
      * Decode the initial bytes of the HTTP content.
+     * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
      * @return true on success, on false if more bytes are needed.
      */
-    protected abstract boolean decodePrefix(ByteBuf in) throws CryptoException;
+    protected abstract boolean decodePrefix(ByteBufAllocator alloc, ByteBuf in) throws CryptoException;
 
     /**
      * Decrypt a chunk.
+     * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param chunk {@link ByteBuf} to decrypt. The function increases the reader index by chunkLength.
      * @param chunkLength length of chunk.
      * @param isFinal true if this is the last chunk.
      * @param out the {@link ByteBuf} into which the decrypted bytes are written.
      * @throws CryptoException if the decryption fails.
      */
-    protected abstract void decryptChunk(ByteBuf chunk, int chunkLength, boolean isFinal, ByteBuf out)
-            throws CryptoException;
+    protected abstract void decryptChunk(ByteBufAllocator alloc, ByteBuf chunk, int chunkLength,
+                                         boolean isFinal, ByteBuf out) throws CryptoException;
 
     /**
      * Must be called once the {@link OHttpRequestResponseContext} will not be used anymore.
@@ -174,11 +182,11 @@ abstract class OHttpRequestResponseContext {
         }
 
         @Override
-        public boolean decodePrefix(ByteBuf in) throws CryptoException {
+        public boolean decodePrefix(ByteBufAllocator alloc, ByteBuf in) throws CryptoException {
             if (decodedPrefix) {
                 throw new IllegalStateException("Prefix already decoded");
             }
-            if (OHttpRequestResponseContext.this.decodePrefix(in)) {
+            if (OHttpRequestResponseContext.this.decodePrefix(alloc, in)) {
                 decodedPrefix = true;
                 return true;
             }
@@ -186,11 +194,11 @@ abstract class OHttpRequestResponseContext {
         }
 
         @Override
-        public void decodeChunk(ByteBuf chunk, int chunkLength, boolean completeBodyReceived, List<Object> out)
-                throws CryptoException {
-            ByteBuf decryptedChunk = chunk.alloc().buffer();
-            decryptChunk(chunk, chunkLength, completeBodyReceived, decryptedChunk);
-            binaryHttpCumulation = MERGE_CUMULATOR.cumulate(chunk.alloc(), binaryHttpCumulation, decryptedChunk);
+        public void decodeChunk(ByteBufAllocator alloc, ByteBuf chunk, int chunkLength,
+                                boolean completeBodyReceived, List<Object> out) throws CryptoException {
+            ByteBuf decryptedChunk = alloc.buffer();
+            decryptChunk(alloc, chunk, chunkLength, completeBodyReceived, decryptedChunk);
+            binaryHttpCumulation = MERGE_CUMULATOR.cumulate(alloc, binaryHttpCumulation, decryptedChunk);
             for (;;) {
                 HttpObject msg = binaryHttpParser.parse(binaryHttpCumulation, completeBodyReceived);
                 if (msg == null) {

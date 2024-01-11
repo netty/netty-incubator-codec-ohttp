@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.hpke.bouncycastle;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.CryptoException;
 import org.bouncycastle.crypto.InvalidCipherTextException;
@@ -45,13 +46,13 @@ final class BouncyCastleAEADCryptoContext implements AEADContext {
     }
 
     @Override
-    public void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
+    public void seal(ByteBufAllocator alloc, ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
         checkClosed();
         seal.execute(aad, pt, out);
     }
 
     @Override
-    public void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException {
+    public void open(ByteBufAllocator alloc, ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException {
         checkClosed();
         open.execute(aad, ct, out);
     }

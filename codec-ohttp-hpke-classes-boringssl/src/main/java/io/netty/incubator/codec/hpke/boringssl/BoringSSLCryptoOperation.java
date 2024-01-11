@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.hpke.boringssl;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 
 /**
  * Abstract base class to perform native crypto operations via BoringSSL.
@@ -28,21 +29,22 @@ abstract class BoringSSLCryptoOperation {
      * accordingly.
      *
      * @param ctx   the native {@code *_CTX} pointer.
+     * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param aad   the AAD buffer.
      * @param in    the input data.
      * @param out   the buffer for writing into.
      * @return      {@code true} if successful, {@code false} otherwise.
      */
-    final boolean execute(long ctx, ByteBuf aad, ByteBuf in, ByteBuf out) {
+    final boolean execute(long ctx, ByteBufAllocator alloc, ByteBuf aad, ByteBuf in, ByteBuf out) {
         ByteBuf directAad = null;
         ByteBuf directIn = null;
         ByteBuf directOut = null;
         try {
-            directAad = directReadable(aad);
-            directIn = directReadable(in);
+            directAad = directReadable(alloc, aad);
+            directIn = directReadable(alloc, in);
 
             int maxOutLen = maxOutLen(ctx, in.readableBytes());
-            directOut = directWritable(out, maxOutLen);
+            directOut = directWritable(alloc, out, maxOutLen);
 
             long directAadAddress = BoringSSL.memory_address(directAad) + directAad.readerIndex();
             int directAddReadableBytes = directAad.readableBytes();
@@ -50,7 +52,7 @@ abstract class BoringSSLCryptoOperation {
             int directInReadableBytes = directIn.readableBytes();
             long directOutAddress = BoringSSL.memory_address(directOut) + directOut.writerIndex();
             int directOutWritableBytes = directOut.writableBytes();
-            int result = execute(ctx, directAadAddress, directAddReadableBytes,
+            int result = execute(ctx, alloc, directAadAddress, directAddReadableBytes,
                     directInAddress, directInReadableBytes,
                     directOutAddress, directOutWritableBytes);
             if (result < 0) {
@@ -75,23 +77,24 @@ abstract class BoringSSLCryptoOperation {
 
     abstract int maxOutLen(long ctx, int inReadable);
 
-    abstract int execute(long ctx, long ad, int adLen, long in, int inLen, long out, int outLen);
+    abstract int execute(long ctx, ByteBufAllocator alloc,
+                         long ad, int adLen, long in, int inLen, long out, int outLen);
 
-    private static ByteBuf directReadable(ByteBuf in) {
+    private static ByteBuf directReadable(ByteBufAllocator alloc, ByteBuf in) {
         if (in.isDirect()) {
             return in;
         }
-        ByteBuf directIn = in.alloc().directBuffer(in.readableBytes());
+        ByteBuf directIn = alloc.directBuffer(in.readableBytes());
         directIn.writeBytes(in, in.readerIndex(), in.readableBytes());
         return directIn;
     }
 
-    private static ByteBuf directWritable(ByteBuf out, int minWritable) {
+    private static ByteBuf directWritable(ByteBufAllocator alloc, ByteBuf out, int minWritable) {
         if (out.isDirect()) {
             out.ensureWritable(minWritable);
             return out;
         }
-        return out.alloc().directBuffer(minWritable);
+        return alloc.directBuffer(minWritable);
     }
 
     private static void releaseIfNotTheSameInstance(ByteBuf buf, ByteBuf maybeOther) {

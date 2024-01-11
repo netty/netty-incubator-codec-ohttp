@@ -16,7 +16,7 @@
 package io.netty.incubator.codec.hpke.boringssl;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.CryptoException;
 
@@ -24,7 +24,6 @@ import io.netty.incubator.codec.hpke.CryptoException;
  * BoringSSL based implementation of an {@link AEADContext}.
  */
 final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADContext {
-
     private final Nonce nonce;
     private final int aeadMaxOverhead;
 
@@ -35,9 +34,9 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         }
 
         @Override
-        int execute(long ctx, long ad, int adLen, long in, int inLen, long out, int outLen) {
+        int execute(long ctx, ByteBufAllocator alloc, long ad, int adLen, long in, int inLen, long out, int outLen) {
             int result = BoringSSL.EVP_AEAD_CTX_seal(
-                    ctx, out, outLen, nonce.computeNext(), nonce.length(), in, inLen, ad, adLen);
+                    ctx, out, outLen, nonce.computeNext(alloc), nonce.length(), in, inLen, ad, adLen);
             if (result >= 0) {
                 nonce.incrementSequence();
             }
@@ -52,9 +51,9 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         }
 
         @Override
-        int execute(long ctx, long ad, int adLen, long in, int inLen, long out, int outLen) {
+        int execute(long ctx, ByteBufAllocator alloc, long ad, int adLen, long in, int inLen, long out, int outLen) {
             int result = BoringSSL.EVP_AEAD_CTX_open(
-                    ctx, out, outLen, nonce.computeNext(), nonce.length(), in, inLen, ad, adLen);
+                    ctx, out, outLen, nonce.computeNext(alloc), nonce.length(), in, inLen, ad, adLen);
             if (result >= 0) {
                 nonce.incrementSequence();
             }
@@ -75,15 +74,15 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
     }
 
     @Override
-    public void open(ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException {
-        if (!open.execute(checkClosedAndReturnCtx(), aad, ct, out)) {
+    public void open(ByteBufAllocator alloc, ByteBuf aad, ByteBuf ct, ByteBuf out) throws CryptoException {
+        if (!open.execute(checkClosedAndReturnCtx(), alloc, aad, ct, out)) {
             throw new CryptoException("open(...) failed");
         }
     }
 
     @Override
-    public void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
-        if (!seal.execute(checkClosedAndReturnCtx(), aad, pt, out)) {
+    public void seal(ByteBufAllocator alloc, ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
+        if (!seal.execute(checkClosedAndReturnCtx(), alloc, aad, pt, out)) {
             throw new CryptoException("seal(...) failed");
         }
     }
@@ -94,19 +93,16 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
     }
 
     private static final class Nonce {
-        private final ByteBuf nonce;
-        private final long nonceAddress;
         private final int nonceLen;
         private final byte[] baseNonce;
 
+        private ByteBuf nonce;
+        private long nonceAddress;
         private int seq;
 
         Nonce(byte[] baseNonce) {
             this.baseNonce = baseNonce.clone();
-
-            nonce = Unpooled.directBuffer(baseNonce.length).writeBytes(baseNonce);
-            this.nonceAddress = BoringSSL.memory_address(nonce);
-            this.nonceLen = nonce.readableBytes();
+            this.nonceLen = baseNonce.length;
         }
 
         int length() {
@@ -121,7 +117,12 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
          * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#section-5.2">Compute the nonce to use</a>
          * @return memory address of the nonce buffer.
          */
-        long computeNext() {
+        long computeNext(ByteBufAllocator alloc) {
+            if (nonce == null) {
+                nonce = alloc.directBuffer(baseNonce.length).writeBytes(baseNonce);
+                nonceAddress = BoringSSL.memory_address(nonce);
+            }
+
             for (int idx = 0, idx2 = baseNonce.length - 8 ; idx < 8; ++idx, ++idx2) {
                 nonce.setByte(idx2, baseNonce[idx2] ^ bigEndianByteAt(idx, seq));
             }
@@ -129,7 +130,10 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         }
 
         void destroy() {
-            nonce.release();
+            if (nonce != null) {
+                nonce.release();
+                nonce = null;
+            }
         }
 
         private static byte bigEndianByteAt(int idx, long value) {

@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.hpke.bouncycastle;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.HPKESenderContext;
 import org.bouncycastle.crypto.InvalidCipherTextException;
@@ -41,7 +42,7 @@ final class BouncyCastleHPKESenderContext extends BouncyCastleHPKEContext implem
     }
 
     @Override
-    public void seal(ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
+    public void seal(ByteBufAllocator alloc, ByteBuf aad, ByteBuf pt, ByteBuf out) throws CryptoException {
         checkClosed();
         seal.execute(aad, pt, out);
     }
