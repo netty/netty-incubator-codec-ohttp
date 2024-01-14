@@ -56,7 +56,7 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
             return this;
         }
 
-        public Builder setSenderPrivateKey(AsymmetricCipherKeyPair privateKey) {
+        public Builder setPrivateKey(AsymmetricCipherKeyPair privateKey) {
             this.privateKey = privateKey;
             return this;
         }

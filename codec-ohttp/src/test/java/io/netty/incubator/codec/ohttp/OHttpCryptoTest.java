@@ -168,7 +168,7 @@ public class OHttpCryptoTest {
                 try (OHttpCryptoReceiver receiver = OHttpCryptoReceiver.newBuilder()
                         .setOHttpCryptoProvider(receiverProvider)
                         .setConfiguration(OHttpVersionDraft.INSTANCE)
-                        .setSenderPrivateKey(serverKeys.getKeyPair(ciphersuite))
+                        .setPrivateKey(serverKeys.getKeyPair(ciphersuite))
                         .setCiphersuite(receiverCiphersuite)
                         .setEncapsulatedKey(receiverEncapsulatedKey)
                         .setForcedResponseNonce(ByteBufUtil.decodeHexDump("c789e7151fcba46158ca84b04464910d"))
