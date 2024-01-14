@@ -286,7 +286,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             receiver = OHttpCryptoReceiver.newBuilder()
                     .setOHttpCryptoProvider(provider)
                     .setConfiguration(version())
-                    .setSenderPrivateKey(keys.getKeyPair(ciphersuite))
+                    .setPrivateKey(keys.getKeyPair(ciphersuite))
                     .setCiphersuite(ciphersuite)
                     .setEncapsulatedKey(encapsulatedKey)
                     .build();
