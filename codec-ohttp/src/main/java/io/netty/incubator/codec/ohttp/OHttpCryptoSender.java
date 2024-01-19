@@ -94,7 +94,7 @@ public final class OHttpCryptoSender extends OHttpCrypto {
         AsymmetricCipherKeyPair forcedEphemeralKeyPair = builder.forcedEphemeralKeyPair;
         this.context = this.provider.setupHPKEBaseS(ciphersuite.kem(),
                 ciphersuite.kdf(), ciphersuite.aead(), pkR,
-                ciphersuite.createInfo(configuration.requestExportContext()), forcedEphemeralKeyPair);
+                createInfo(ciphersuite, configuration.requestExportContext()), forcedEphemeralKeyPair);
     }
 
     /**
@@ -129,8 +129,9 @@ public final class OHttpCryptoSender extends OHttpCrypto {
         }
         byte[] responseNonce = new byte[ciphersuite().responseNonceLength()];
         in.readBytes(responseNonce);
-        this.aead = ciphersuite.createResponseAEAD(
-                provider, context, context.encapsulation(), responseNonce, configuration.responseExportContext());
+        this.aead = createResponseAEAD(
+                provider, context, ciphersuite().aead(), context.encapsulation(), responseNonce,
+                configuration.responseExportContext());
         return true;
     }
 

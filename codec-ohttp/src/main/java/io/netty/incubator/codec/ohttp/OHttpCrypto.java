@@ -18,9 +18,13 @@ package io.netty.incubator.codec.ohttp;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import io.netty.incubator.codec.hpke.AEAD;
+import io.netty.incubator.codec.hpke.AEADContext;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.incubator.codec.hpke.CryptoException;
+import io.netty.incubator.codec.hpke.HPKEContext;
+import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
 import java.nio.charset.StandardCharsets;
 
@@ -47,6 +51,42 @@ public abstract class OHttpCrypto implements AutoCloseable {
             return preferDirect ? AAD_FINAL_DIRECT.duplicate() : AAD_FINAL_HEAP.duplicate();
         }
         return preferDirect ? EMPTY_DIRECT.duplicate() : EMPTY_HEAP.duplicate();
+    }
+
+    private static final byte[] KEY_INFO  = "key".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] NONCE_INFO  = "nonce".getBytes(StandardCharsets.US_ASCII);
+
+    /*
+     * See https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#name-encapsulation-of-responses
+     */
+    static AEADContext createResponseAEAD(OHttpCryptoProvider provider, HPKEContext context, AEAD aead, byte[] enc,
+                                   byte[] responseNonce, byte[] responseExportContext) {
+        int secretLength = Math.max(aead.nk(), aead.nn());
+        byte[] secret = context.export(responseExportContext, secretLength);
+        byte[] salt = new byte[enc.length + responseNonce.length];
+        System.arraycopy(enc, 0, salt, 0, enc.length);
+        System.arraycopy(responseNonce, 0, salt, enc.length, responseNonce.length);
+        byte[] prk = context.extract(salt, secret);
+        byte[] aeadKey = context.expand(prk, KEY_INFO, aead.nk());
+        byte[] aeadNonce = context.expand(prk, NONCE_INFO, aead.nn());
+        return provider.setupAEAD(aead, aeadKey, aeadNonce);
+    }
+
+    /*
+     * See https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#section-4.3
+     */
+    static byte[] createInfo(OHttpCiphersuite ciphersuite, byte[] requestExportContext) {
+        byte[] ret = new byte[requestExportContext.length + 1 + OHttpCiphersuite.ENCODED_LENGTH];
+        ByteBuf buf = Unpooled.wrappedBuffer(ret);
+        try {
+            buf.writerIndex(0)
+                    .writeBytes(requestExportContext)
+                    .writeByte(0);
+            ciphersuite.encode(buf);
+            return ret;
+        } finally {
+            buf.release();
+        }
     }
 
     protected abstract CryptoEncryptContext encryptCrypto();
