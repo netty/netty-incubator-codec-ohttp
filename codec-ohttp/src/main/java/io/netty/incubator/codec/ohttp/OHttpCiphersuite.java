@@ -16,24 +16,16 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.incubator.codec.hpke.AEAD;
-import io.netty.incubator.codec.hpke.AEADContext;
-import io.netty.incubator.codec.hpke.HPKEContext;
 import io.netty.incubator.codec.hpke.KDF;
 import io.netty.incubator.codec.hpke.KEM;
-import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
-
-import java.nio.charset.StandardCharsets;
 
 import static java.util.Objects.requireNonNull;
 
 public final class OHttpCiphersuite {
 
-    private static final int ENCODED_LENGTH = 7;
-    private static final byte[] KEY_INFO  = "key".getBytes(StandardCharsets.US_ASCII);
-    private static final byte[] NONCE_INFO  = "nonce".getBytes(StandardCharsets.US_ASCII);
+    static final int ENCODED_LENGTH = 7;
 
     public OHttpCiphersuite(byte keyId, KEM kem, KDF kdf,
                             AEAD aead) {
@@ -79,23 +71,6 @@ public final class OHttpCiphersuite {
         out.writeShort(aead.id());
     }
 
-    /*
-     * See https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#section-4.3
-     */
-    byte[] createInfo(byte[] requestExportContext) {
-        byte[] ret = new byte[requestExportContext.length + 1 + ENCODED_LENGTH];
-        ByteBuf buf = Unpooled.wrappedBuffer(ret);
-        try {
-            buf.writerIndex(0)
-                    .writeBytes(requestExportContext)
-                    .writeByte(0);
-            encode(buf);
-            return ret;
-        } finally {
-            buf.release();
-        }
-    }
-
     static OHttpCiphersuite decode(ByteBuf in) {
         if (in.readableBytes() < ENCODED_LENGTH) {
             return null;
@@ -113,22 +88,6 @@ public final class OHttpCiphersuite {
         } catch (Exception e) {
             throw new DecoderException("invalid ciphersuite", e);
         }
-    }
-
-    /*
-     * See https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#name-encapsulation-of-responses
-     */
-    AEADContext createResponseAEAD(OHttpCryptoProvider provider, HPKEContext context, byte[] enc,
-                                   byte[] responseNonce, byte[] responseExportContext) {
-        int secretLength = Math.max(aead.nk(), aead.nn());
-        byte[] secret = context.export(responseExportContext, secretLength);
-        byte[] salt = new byte[enc.length + responseNonce.length];
-        System.arraycopy(enc, 0, salt, 0, enc.length);
-        System.arraycopy(responseNonce, 0, salt, enc.length, responseNonce.length);
-        byte[] prk = context.extract(salt, secret);
-        byte[] aeadKey = context.expand(prk, KEY_INFO, aead.nk());
-        byte[] aeadNonce = context.expand(prk, NONCE_INFO, aead.nn());
-        return provider.setupAEAD(aead, aeadKey, aeadNonce);
     }
 
     @Override

@@ -106,9 +106,9 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
             this.responseNonce = builder.forcedResponseNonce;
         }
         this.context = provider.setupHPKEBaseR(ciphersuite.kem(), ciphersuite.kdf(), ciphersuite.aead(),
-                encapsulatedKey, keyPair, ciphersuite.createInfo(configuration.requestExportContext()));
+                encapsulatedKey, keyPair, createInfo(ciphersuite, configuration.requestExportContext()));
         try {
-            this.aead = ciphersuite.createResponseAEAD(provider, context, encapsulatedKey,
+            this.aead = createResponseAEAD(provider, context, ciphersuite.aead(), encapsulatedKey,
                     this.responseNonce, configuration.responseExportContext());
         } catch (Throwable cause) {
             // Close context before rethrowing as otherwise we might leak resources.
