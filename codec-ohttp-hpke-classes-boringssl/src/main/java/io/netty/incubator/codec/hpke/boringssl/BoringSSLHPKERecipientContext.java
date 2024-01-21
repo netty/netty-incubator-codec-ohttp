@@ -17,6 +17,7 @@ package io.netty.incubator.codec.hpke.boringssl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 
@@ -37,8 +38,13 @@ final class BoringSSLHPKERecipientContext extends BoringSSLHPKEContext implement
         }
     };
 
-    BoringSSLHPKERecipientContext(long hpkeCtx) {
-        super(hpkeCtx);
+    // Store a reference to the keyPair here so we are sure it will only be GCed once the context is collected as well.
+    final AsymmetricCipherKeyPair keyPair;
+
+    BoringSSLHPKERecipientContext(BoringSSLOHttpCryptoProvider cryptoProvider, long hpkeCtx,
+                                  AsymmetricCipherKeyPair keyPair) {
+        super(cryptoProvider, hpkeCtx);
+        this.keyPair = keyPair;
     }
 
     @Override
