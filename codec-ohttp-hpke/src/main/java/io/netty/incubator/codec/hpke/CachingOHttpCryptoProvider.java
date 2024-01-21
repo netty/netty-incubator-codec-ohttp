@@ -32,6 +32,9 @@ import static java.util.Objects.requireNonNull;
 /**
  * {@link OHttpCryptoProvider} implementation which will re-use existing {@link HPKERecipientContext} and
  * {@link HPKESenderContext} instances if possible to reduce overhead.
+ * <strong>Important:</strong> As the {@link HPKESenderContext} contains an ephemeral key, so this has security
+ * implications which you should be aware of.
+ *
  * <p>
  * Be aware only {@link FastThreadLocalThread}s will use a cache.
  */
