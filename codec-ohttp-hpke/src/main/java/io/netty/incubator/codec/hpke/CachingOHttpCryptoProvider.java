@@ -134,14 +134,19 @@ public final class CachingOHttpCryptoProvider implements OHttpCryptoProvider {
             CachedHPKESenderContextHolder[] array, int idx, KEM kem, KDF kdf, AEAD aead,
             AsymmetricKeyParameter pkR, byte[] info, AsymmetricCipherKeyPair kpE) {
         HPKESenderContext ctx = provider.setupHPKEBaseS(kem, kdf, aead, pkR, info, kpE);
-        CachedHPKESenderContextHolder h = new CachedHPKESenderContextHolder(ctx,
-                kem, kdf, aead, pkR, info, kpE);
 
         CachedHPKESenderContextHolder old = array[idx];
-        array[idx] = h;
-        old.release();
-        h.retain();
-        return h.ctx;
+        if (old == null || old.refCnt() <= 10) {
+            CachedHPKESenderContextHolder h = new CachedHPKESenderContextHolder(ctx,
+                    kem, kdf, aead, pkR, info, kpE);
+            array[idx] = h;
+            if (old != null) {
+                old.release();
+            }
+            h.retain();
+            return h.ctx;
+        }
+        return ctx;
     }
 
     @Override
@@ -158,7 +163,7 @@ public final class CachingOHttpCryptoProvider implements OHttpCryptoProvider {
             }
         }
         if (array.length != 0) {
-            // Just replace something that was cached randomly.
+            // Just replace something that was cached randomly
             return createNewCachedHPKERecipientContext(array,
                     ThreadLocalRandom.current().nextInt(0, array.length), kem, kdf, aead, enc, skR, info);
         }
@@ -169,14 +174,19 @@ public final class CachingOHttpCryptoProvider implements OHttpCryptoProvider {
             CachedHPKERecipientContextHolder[] array, int idx, KEM kem, KDF kdf, AEAD aead, byte[] enc,
             AsymmetricCipherKeyPair skR, byte[] info) {
         HPKERecipientContext ctx = provider.setupHPKEBaseR(kem, kdf, aead, enc, skR, info);
-        CachedHPKERecipientContextHolder h = new CachedHPKERecipientContextHolder(ctx,
-                kem, kdf, aead, enc, skR, info);
 
         CachedHPKERecipientContextHolder old = array[idx];
-        array[idx] = h;
-        old.release();
-        h.retain();
-        return h.ctx;
+        if (old == null || old.refCnt() <= 10) {
+            CachedHPKERecipientContextHolder h = new CachedHPKERecipientContextHolder(ctx,
+                    kem, kdf, aead, enc, skR, info);
+            array[idx] = h;
+            if (old != null) {
+                old.release();
+            }
+            h.retain();
+            return h.ctx;
+        }
+        return ctx;
     }
 
     @Override
