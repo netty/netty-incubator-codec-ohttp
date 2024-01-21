@@ -121,7 +121,7 @@ public final class OHttpCryptoSender extends OHttpCrypto {
      * are readable it will return {@code false}.
      *
      * @param in    the buffer from which we read.
-     * @return      {@code true} if there were enough bytes to read the nounce, {@code false} otherwise.
+     * @return      {@code true} if there were enough bytes to read the nonce, {@code false} otherwise.
      */
     public boolean readResponseNonce(ByteBuf in) {
         if (in.readableBytes() < ciphersuite().responseNonceLength()) {
