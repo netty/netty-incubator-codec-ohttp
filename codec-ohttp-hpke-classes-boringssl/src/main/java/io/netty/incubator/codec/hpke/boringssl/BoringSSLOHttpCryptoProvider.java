@@ -187,7 +187,9 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
                 throw new IllegalStateException("Unable to setup EVP_HPKE_CTX");
             }
 
-            BoringSSLHPKERecipientContext hpkeCtx = new BoringSSLHPKERecipientContext(this, ctx);
+            // Store a reference to the keyPair so we are sure it will only be GCed once the context is collected as
+            // well. This ensures the key is not added to the reference queue before the context is destroyed as well.
+            BoringSSLHPKERecipientContext hpkeCtx = new BoringSSLHPKERecipientContext(this, ctx, skR);
             ctx = -1;
             return hpkeCtx;
         } finally {
