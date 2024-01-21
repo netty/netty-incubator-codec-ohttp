@@ -22,8 +22,8 @@ import io.netty.incubator.codec.hpke.HPKEContext;
  */
 class BoringSSLHPKEContext extends BoringSSLCryptoContext implements HPKEContext {
 
-    BoringSSLHPKEContext(long hpkeCtx) {
-        super(hpkeCtx);
+    BoringSSLHPKEContext(BoringSSLOHttpCryptoProvider cryptoProvider, long hpkeCtx) {
+        super(cryptoProvider, hpkeCtx);
     }
 
     @Override

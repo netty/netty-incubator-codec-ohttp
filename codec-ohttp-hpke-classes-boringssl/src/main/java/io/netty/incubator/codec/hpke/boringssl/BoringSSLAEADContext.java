@@ -61,8 +61,8 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         }
     };
 
-    BoringSSLAEADContext(long ctx, int aeadMaxOverhead, byte[] baseNonce) {
-        super(ctx);
+    BoringSSLAEADContext(BoringSSLOHttpCryptoProvider cryptoProvider, long ctx, int aeadMaxOverhead, byte[] baseNonce) {
+        super(cryptoProvider, ctx);
         this.nonce = new Nonce(baseNonce);
         this.aeadMaxOverhead = aeadMaxOverhead;
     }

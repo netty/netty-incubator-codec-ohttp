@@ -26,6 +26,8 @@ import io.netty.incubator.codec.hpke.KDF;
 import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
+import java.lang.ref.PhantomReference;
+import java.lang.ref.ReferenceQueue;
 import java.util.Arrays;
 
 /**
@@ -34,6 +36,16 @@ import java.util.Arrays;
  * the native library can be loaded on the used platform.
  */
 public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
+
+    private final ReferenceQueue<BoringSSLAsymmetricCipherKeyPair> keyPairRefQueue = new ReferenceQueue<>();
+    private static final class EVP_HPKE_KEY_PhantomRef extends PhantomReference<BoringSSLAsymmetricCipherKeyPair> {
+        private final long key;
+        EVP_HPKE_KEY_PhantomRef(BoringSSLAsymmetricCipherKeyPair referent,
+                                       ReferenceQueue<BoringSSLAsymmetricCipherKeyPair> q) {
+            super(referent, q);
+            this.key = referent.key;
+        }
+    }
 
     /**
      * {@link BoringSSLOHttpCryptoProvider} instance.
@@ -58,7 +70,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
         int maxOverhead = BoringSSL.EVP_AEAD_max_overhead(boringSSLAead);
         long ctx = BoringSSL.EVP_AEAD_CTX_new_or_throw(boringSSLAead, key, BoringSSL.EVP_AEAD_DEFAULT_TAG_LENGTH);
         try {
-            BoringSSLAEADContext aeadCtx = new BoringSSLAEADContext(ctx, maxOverhead, baseNonce);
+            BoringSSLAEADContext aeadCtx = new BoringSSLAEADContext(this, ctx, maxOverhead, baseNonce);
             ctx = -1;
             return aeadCtx;
         } finally {
@@ -132,7 +144,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
                 throw new IllegalStateException("Unable to setup EVP_HPKE_CTX");
             }
             BoringSSLHPKESenderContext hpkeCtx =
-                    new BoringSSLHPKESenderContext(ctx, encapsulation);
+                    new BoringSSLHPKESenderContext(this, ctx, encapsulation);
             ctx = -1;
             return hpkeCtx;
         } finally {
@@ -160,19 +172,28 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
 
         long ctx = -1;
         long key = -1;
+        boolean freeKey = true;
         try {
-            byte[] privateKeyBytes = encodedAsymmetricKeyParameter(skR.privateParameters());
-            key = BoringSSL.EVP_HPKE_KEY_new_and_init_or_throw(boringSSLKem, privateKeyBytes);
+            if (skR instanceof BoringSSLAsymmetricCipherKeyPair) {
+                key = ((BoringSSLAsymmetricCipherKeyPair) skR).key;
+                freeKey = false;
+            } else {
+                byte[] privateKeyBytes = encodedAsymmetricKeyParameter(skR.privateParameters());
+                key = BoringSSL.EVP_HPKE_KEY_new_and_init_or_throw(boringSSLKem, privateKeyBytes);
+            }
+
             ctx = BoringSSL.EVP_HPKE_CTX_new_or_throw();
             if (BoringSSL.EVP_HPKE_CTX_setup_recipient(ctx, key, boringSSLKdf, boringSSLAead, enc, info) != 1) {
                 throw new IllegalStateException("Unable to setup EVP_HPKE_CTX");
             }
 
-            BoringSSLHPKERecipientContext hpkeCtx = new BoringSSLHPKERecipientContext(ctx);
+            BoringSSLHPKERecipientContext hpkeCtx = new BoringSSLHPKERecipientContext(this, ctx);
             ctx = -1;
             return hpkeCtx;
         } finally {
-            BoringSSL.EVP_HPKE_KEY_cleanup_and_free(key);
+            if (freeKey && key != -1) {
+                BoringSSL.EVP_HPKE_KEY_cleanup_and_free(key);
+            }
             if (ctx != -1) {
                 BoringSSL.EVP_HPKE_CTX_cleanup_and_free(ctx);
             }
@@ -193,9 +214,15 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
                         "publicKeyBytes does not contain a valid public key: " + Arrays.toString(publicKeyBytes));
             }
             // No need to clone extractedPublicKey as it was returned by our native call.
-            return new BoringSSLAsymmetricCipherKeyPair(privateKeyBytes.clone(), extractedPublicKey);
+            BoringSSLAsymmetricCipherKeyPair pair =
+                    new BoringSSLAsymmetricCipherKeyPair(key, privateKeyBytes.clone(), extractedPublicKey);
+            new EVP_HPKE_KEY_PhantomRef(pair, keyPairRefQueue);
+            key = -1;
+            return pair;
         } finally {
-            BoringSSL.EVP_HPKE_KEY_cleanup_and_free(key);
+            if (key != -1) {
+                BoringSSL.EVP_HPKE_KEY_cleanup_and_free(key);
+            }
         }
     }
 
@@ -223,7 +250,10 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
             if (privateKeyBytes == null || publicKeyBytes == null) {
                 throw new IllegalStateException("Unable to generate random key");
             }
-            return new BoringSSLAsymmetricCipherKeyPair(privateKeyBytes, publicKeyBytes);
+            BoringSSLAsymmetricCipherKeyPair pair =
+                    new BoringSSLAsymmetricCipherKeyPair(key, privateKeyBytes, publicKeyBytes);
+            key = -1;
+            return pair;
         } finally {
             BoringSSL.EVP_HPKE_KEY_cleanup_and_free(key);
         }
@@ -252,6 +282,19 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
     @Override
     public boolean isSupported(KDF kdf) {
         return kdf == KDF.HKDF_SHA256;
+    }
+
+    /**
+     * Try to free enqueued {@code EVP_HPKE_KEY}s.
+     */
+    void free_EVP_HPKE_KEYS() {
+        for (;;) {
+            EVP_HPKE_KEY_PhantomRef ref = (EVP_HPKE_KEY_PhantomRef) keyPairRefQueue.poll();
+            if (ref == null) {
+                return;
+            }
+            BoringSSL.EVP_HPKE_KEY_cleanup_and_free(ref.key);
+        }
     }
 }
 
