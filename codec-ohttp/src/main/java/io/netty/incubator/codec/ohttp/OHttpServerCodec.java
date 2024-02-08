@@ -12,7 +12,8 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
  * License for the specific language governing permissions and limitations
  * under the License.
- */package io.netty.incubator.codec.ohttp;
+ */
+package io.netty.incubator.codec.ohttp;
 
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.codec.MessageToMessageCodec;
@@ -158,7 +159,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                     }
                 }
             } else {
-                out.add(ReferenceCountUtil.retain(msg));
+                // Just drop it on the floor. MessageToMessageCodec will take care of releasing it.
             }
         } catch (Exception e) {
             throw new OHttpServerDecoderException("failed to decode bytes", e);
