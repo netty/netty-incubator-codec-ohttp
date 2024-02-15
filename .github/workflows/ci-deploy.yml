@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # Caching of maven dependencies
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         continue-on-error: true
         with:
           path: ~/.m2/repository
@@ -54,7 +54,7 @@ jobs:
           restore-keys: |
             stage-snapshot-${{ matrix.setup }}-maven-cache-
 
-      - uses: s4u/maven-settings-action@v2.8.0
+      - uses: s4u/maven-settings-action@v3.0.0
         with:
           servers: |
             [{
@@ -87,13 +87,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: 8
 
       # Caching of maven dependencies
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         continue-on-error: true
         with:
           path: ~/.m2/repository
@@ -109,13 +109,13 @@ jobs:
       # Hardcode the staging artifacts that need to be downloaded.
       # These must match the matrix setups and windows build. There is currently no way to pull this out of the config.
       - name: Download linux-aarch64 staging directory
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: linux-aarch64-local-staging
           path: ~/linux-aarch64-local-staging
 
       - name: Download linux-x86_64 staging directory
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: linux-x86_64-local-staging
           path: ~/linux-x86_64-local-staging
@@ -123,7 +123,7 @@ jobs:
       - name: Merge staging repositories
         run: bash ./.github/scripts/merge_local_staging.sh ~/local-staging ~/linux-aarch64-local-staging ~/linux-x86_64-local-staging
 
-      - uses: s4u/maven-settings-action@v2.8.0
+      - uses: s4u/maven-settings-action@v3.0.0
         with:
           servers: |
             [{
