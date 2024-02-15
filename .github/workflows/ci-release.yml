@@ -113,7 +113,7 @@ jobs:
           known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
 
       # Caching of maven dependencies
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         continue-on-error: true
         with:
           path: ~/.m2/repository
