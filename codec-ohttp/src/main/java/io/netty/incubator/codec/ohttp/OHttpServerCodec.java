@@ -338,7 +338,11 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
         @Override
         void destroyCrypto() {
-            receiver.close();
+            // check for null as the receiver might not have been created yet if we destroy
+            // before decoding the prefix.
+            if (receiver != null) {
+                receiver.close();
+            }
         }
     }
 }
