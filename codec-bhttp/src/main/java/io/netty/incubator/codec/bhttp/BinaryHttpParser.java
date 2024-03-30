@@ -492,6 +492,8 @@ public final class BinaryHttpParser {
         if (!in.isReadable()) {
             return -1;
         }
+        // Start with the name which can never be length of 0.
+        boolean name = true;
         for (int sumBytes = 0; sumBytes < in.readableBytes();) {
             int idx = in.readerIndex() + sumBytes;
             int possibleTerminatorBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(idx));
@@ -504,9 +506,14 @@ public final class BinaryHttpParser {
             if (in.readableBytes() < sumBytes) {
                 return -1;
             }
-            if (possibleTerminator == 0) {
+            if (name && possibleTerminator == 0) {
+                // If we are currently parsing the name length and found 0 we know that it must be the terminator
+                // as a name cane never be length of 0.
                 return sumBytes - possibleTerminatorBytes;
             }
+            // We flip between name and not name parsing, as after a name must always follow a value even if its
+            // length of 0.
+            name = !name;
         }
         return -1;
     }

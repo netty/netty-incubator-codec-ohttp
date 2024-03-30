@@ -49,4 +49,10 @@ public class BinaryHttpHeadersTest {
         HttpHeaders headers = BinaryHttpHeaders.newTrailers(true);
         assertThrows(IllegalArgumentException.class, () -> headers.set(":custom", "x"));
     }
+
+    @Test
+    public void emptyHeaderValue() {
+        HttpHeaders headers = BinaryHttpHeaders.newHeaders(true);
+        headers.set("name", "");
+    }
 }
