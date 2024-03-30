@@ -565,6 +565,38 @@ public abstract class BinaryHttpMessageEndToEndTest<M extends HttpMessage, F ext
         assertFalse(reader.finishAndReleaseAll());
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void testMessageWithEmptyHeader(boolean fragmented) {
+        EmbeddedChannel writer = newWriter();
+        EmbeddedChannel reader = newReader();
+
+        M message = newHttpMessage();
+        message.headers().set("x-test-header", "");
+        message.headers().set("x-test-header2", "test-value2");
+        assertTrue(writer.writeOutbound(message));
+
+        LastHttpContent content = new DefaultLastHttpContent();
+        assertTrue(writer.writeOutbound(content));
+
+        transfer(writer, reader, fragmented);
+
+        M readMessage = reader.readInbound();
+        assertHttpMessage(readMessage);
+
+        HttpHeaders readHeaders = readMessage.headers();
+        assertEquals(2, readHeaders.size());
+        assertEquals("", readHeaders.get("x-test-header"));
+        assertEquals("test-value2", readHeaders.get("x-test-header2"));
+
+        LastHttpContent readLastContent = reader.readInbound();
+        assertEquals(0, readLastContent.content().readableBytes());
+        HttpHeaders readLastHeaders = readLastContent.trailingHeaders();
+        assertEquals(0, readLastHeaders.size());
+        readLastContent.release();
+        assertFalse(reader.finishAndReleaseAll());
+    }
+
     private static void assertContentWithoutTrailers(EmbeddedChannel reader, byte[] expectedContent)
             throws IOException {
         try (ByteArrayOutputStream contentWriter = new ByteArrayOutputStream()) {
