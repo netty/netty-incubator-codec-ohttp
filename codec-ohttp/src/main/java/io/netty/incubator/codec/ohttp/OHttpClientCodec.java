@@ -233,7 +233,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 h.destroy();
             }
         } catch (CryptoException e) {
-            throw new DecoderException("failed to decrypt bytes", e);
+            throw new OHttpDecoderException("failed to decrypt bytes", e);
         }
     }
 
@@ -286,7 +286,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 out.add(ReferenceCountUtil.retain(msg));
             }
         } catch (CryptoException e) {
-            throw new EncoderException("failed to encrypt bytes", e);
+            throw new OHttpEncoderException("failed to encrypt bytes", e);
         }
     }
 
