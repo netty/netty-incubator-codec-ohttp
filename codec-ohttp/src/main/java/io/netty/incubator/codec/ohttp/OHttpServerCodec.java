@@ -16,6 +16,7 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.MessageToMessageCodec;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.buffer.ByteBuf;
@@ -179,8 +180,19 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             HttpUtil.setKeepAlive(response, false);
             onResponse(request, response);
 
-            write(ctx, response, ctx.newPromise().addListener(ChannelFutureListener.CLOSE));
-            flush(ctx);
+            ChannelPromise promise = ctx.newPromise().addListener(ChannelFutureListener.CLOSE);
+            // we should send the response without encapsulation (plain text) if the error is because of
+            // removing encapsulation, otherwise we should encapsulate it
+            //
+            if (cause.getCause() instanceof CryptoException) {
+                // If here was an error during removing the encapsulation we need to send the
+                // response back without encapsulate it first.
+                ctx.writeAndFlush(response, promise);
+            } else {
+                // Send back the error by first enapsulate it.
+                write(ctx, response, promise);
+                flush(ctx);
+            }
         } else {
             ctx.close();
         }
@@ -271,9 +283,14 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         }
 
         @Override
-        public boolean decodePrefix(ByteBufAllocator alloc, ByteBuf in) {
+        public boolean decodePrefix(ByteBufAllocator alloc, ByteBuf in) throws CryptoException {
             final int initialReaderIndex = in.readerIndex();
-            final OHttpCiphersuite ciphersuite = OHttpCiphersuite.decode(in);
+            final OHttpCiphersuite ciphersuite;
+            try {
+                ciphersuite = OHttpCiphersuite.decode(in);
+            } catch (IllegalArgumentException e) {
+                throw new CryptoException(e);
+            }
             if (ciphersuite == null) {
                 return false;
             }

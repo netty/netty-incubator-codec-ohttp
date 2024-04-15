@@ -81,7 +81,7 @@ public class OHttpServerCodecTest {
 
         HttpContent lastContent = new DefaultLastHttpContent(Unpooled.buffer().writeZero(8));
         assertFalse(channel.writeInbound(lastContent));
-        assertEquals(0, content.refCnt());
+        assertEquals(0, lastContent.refCnt());
 
         delayingWriteHandler.writeAndFlushNow();
 
@@ -90,6 +90,46 @@ public class OHttpServerCodecTest {
         assertTrue(response.release());
 
         assertFalse(channel.finish());
+    }
+
+    @Test
+    public void testCryptoErrorProduceBadRequest() throws Exception {
+        AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(BouncyCastleOHttpCryptoProvider.INSTANCE,
+                "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+        byte keyId = 0x66;
+
+        OHttpServerKeys serverKeys = new OHttpServerKeys(
+                OHttpKey.newPrivateKey(
+                        keyId,
+                        KEM.X25519_SHA256,
+                        Arrays.asList(
+                                OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.AES_GCM128),
+                                OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.CHACHA20_POLY1305)),
+                        kpR));
+
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new OHttpServerCodec(BouncyCastleOHttpCryptoProvider.INSTANCE, serverKeys) {
+                    @Override
+                    protected OHttpVersion selectVersion(String contentTypeValue) {
+                        return OHttpVersionDraft.INSTANCE;
+                    }
+                });
+
+        assertFalse(channel.writeInbound(new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/test")));
+
+        // There should be no outbound message yet as we did not try to parse the prefix so far.
+        assertNull(channel.readOutbound());
+
+        // Write some invalid prefix so it will fail.
+        HttpContent lastContent = new DefaultLastHttpContent(Unpooled.buffer().writeZero(8));
+        assertFalse(channel.writeInbound(lastContent));
+
+        FullHttpResponse response = channel.readOutbound();
+        assertEquals(HttpResponseStatus.BAD_REQUEST, response.status());
+        assertTrue(response.release());
+
+        assertFalse(channel.finish());
+        assertEquals(0, lastContent.refCnt());
     }
 
     private static final class DelayingWriteHandler extends ChannelOutboundHandlerAdapter {
