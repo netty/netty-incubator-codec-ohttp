@@ -19,7 +19,6 @@ import io.netty.incubator.codec.hpke.AEAD;
 import io.netty.incubator.codec.hpke.KDF;
 import io.netty.incubator.codec.hpke.KEM;
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.DecoderException;
 
 import static java.util.Objects.requireNonNull;
 
@@ -75,19 +74,15 @@ public final class OHttpCiphersuite {
         if (in.readableBytes() < ENCODED_LENGTH) {
             return null;
         }
-        try {
-            byte keyId = in.readByte();
-            short kemId = in.readShort();
-            short kdfId = in.readShort();
-            short aeadId = in.readShort();
-            return new OHttpCiphersuite(
-                    keyId,
-                    KEM.forId(kemId),
-                    KDF.forId(kdfId),
-                    AEAD.forId(aeadId));
-        } catch (Exception e) {
-            throw new DecoderException("invalid ciphersuite", e);
-        }
+        byte keyId = in.readByte();
+        short kemId = in.readShort();
+        short kdfId = in.readShort();
+        short aeadId = in.readShort();
+        return new OHttpCiphersuite(
+                keyId,
+                KEM.forId(kemId),
+                KDF.forId(kdfId),
+                AEAD.forId(aeadId));
     }
 
     @Override
