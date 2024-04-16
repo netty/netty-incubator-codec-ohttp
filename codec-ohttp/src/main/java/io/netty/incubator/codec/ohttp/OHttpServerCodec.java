@@ -181,15 +181,19 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             onResponse(request, response);
 
             ChannelPromise promise = ctx.newPromise().addListener(ChannelFutureListener.CLOSE);
-            // we should send the response without encapsulation (plain text) if the error is because of
-            // removing encapsulation, otherwise we should encapsulate it
+            // we should send the response without encapsulation if the error is because of
+            // removing encapsulation, otherwise we should encapsulate it.
+            //
+            // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-10.html#section-5.2:
+            // Errors detected by the Oblivious Relay Resource and errors detected by the Oblivious Gateway Resource
+            // before removing protection (including being unable to remove encapsulation for any reason) result in the
+            // status code being sent without protection in response to the POST request made to that resource.
             //
             if (cause.getCause() instanceof CryptoException) {
-                // If here was an error during removing the encapsulation we need to send the
-                // response back without encapsulate it first.
+                // Not able to remove protection, sent without protection.
                 ctx.writeAndFlush(response, promise);
             } else {
-                // Send back the error by first enapsulate it.
+                // Encapsulate and sent with protection.
                 write(ctx, response, promise);
                 flush(ctx);
             }
