@@ -127,7 +127,14 @@ abstract class OHttpRequestResponseContext {
             throw new IllegalStateException("Already destroyed");
         }
 
-        version.parse(alloc, in, completeBodyReceived, decoder, out);
+        try {
+            version.parse(alloc, in, completeBodyReceived, decoder, out);
+        } catch (RuntimeException e) {
+            if (decoder.isPrefixNeeded()) {
+                throw new CryptoException("Unable to parse prefix", e);
+            }
+            throw e;
+        }
 
         if (completeBodyReceived && in.isReadable()) {
             throw new CorruptedFrameException("OHTTP stream has extra bytes");
