@@ -35,6 +35,8 @@ import io.netty.incubator.codec.hpke.KDF;
 import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.bouncycastle.BouncyCastleOHttpCryptoProvider;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
 
@@ -92,8 +94,9 @@ public class OHttpServerCodecTest {
         assertFalse(channel.finish());
     }
 
-    @Test
-    public void testCryptoErrorProduceBadRequest() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    public void testCryptoErrorProduceBadRequest(boolean incompletePrefix) throws Exception {
         AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(BouncyCastleOHttpCryptoProvider.INSTANCE,
                 "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
         byte keyId = 0x66;
@@ -121,7 +124,7 @@ public class OHttpServerCodecTest {
         assertNull(channel.readOutbound());
 
         // Write some invalid prefix so it will fail.
-        HttpContent lastContent = new DefaultLastHttpContent(Unpooled.buffer().writeZero(8));
+        HttpContent lastContent = new DefaultLastHttpContent(Unpooled.buffer().writeZero(incompletePrefix ? 1 : 8));
         assertFalse(channel.writeInbound(lastContent));
 
         FullHttpResponse response = channel.readOutbound();
