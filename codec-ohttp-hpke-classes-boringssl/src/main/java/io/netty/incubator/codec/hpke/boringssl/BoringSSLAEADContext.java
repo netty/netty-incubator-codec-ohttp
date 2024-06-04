@@ -34,7 +34,8 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         }
 
         @Override
-        int execute(long ctx, ByteBufAllocator alloc, long ad, int adLen, long in, int inLen, long out, int outLen) {
+        int execute(long ctx, ByteBufAllocator alloc, long ad, int adLen, long in, int inLen, long out, int outLen)
+                throws CryptoException {
             int result = BoringSSL.EVP_AEAD_CTX_seal(
                     ctx, out, outLen, nonce.computeNext(alloc), nonce.length(), in, inLen, ad, adLen);
             if (result >= 0) {
@@ -51,7 +52,8 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         }
 
         @Override
-        int execute(long ctx, ByteBufAllocator alloc, long ad, int adLen, long in, int inLen, long out, int outLen) {
+        int execute(long ctx, ByteBufAllocator alloc, long ad, int adLen, long in, int inLen, long out, int outLen)
+                throws CryptoException {
             int result = BoringSSL.EVP_AEAD_CTX_open(
                     ctx, out, outLen, nonce.computeNext(alloc), nonce.length(), in, inLen, ad, adLen);
             if (result >= 0) {
@@ -95,22 +97,32 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
     private static final class Nonce {
         private final int nonceLen;
         private final byte[] baseNonce;
+        private final long maxNonce;
 
         private ByteBuf nonce;
         private long nonceAddress;
-        private int seq;
+        private long seq;
 
         Nonce(byte[] baseNonce) {
             this.baseNonce = baseNonce.clone();
             this.nonceLen = baseNonce.length;
+            this.maxNonce = nonceLen >= Long.BYTES ? Long.MAX_VALUE : (1L << (8 * nonceLen)) - 1L;
         }
 
         int length() {
             return nonceLen;
         }
 
-        void incrementSequence() {
+        void incrementSequence() throws CryptoException {
+            if (seq >= maxNonce) {
+                throw new CryptoException("Message limit reached");
+            }
             seq++;
+            if (seq == 0) {
+                // decrement so we will throw the exception again on next call
+                seq--;
+                throw new CryptoException("Nonce overflow");
+            }
         }
 
         /**

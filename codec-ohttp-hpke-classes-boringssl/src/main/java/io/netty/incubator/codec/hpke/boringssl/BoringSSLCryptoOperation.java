@@ -17,6 +17,7 @@ package io.netty.incubator.codec.hpke.boringssl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.incubator.codec.hpke.CryptoException;
 
 /**
  * Abstract base class to perform native crypto operations via BoringSSL.
@@ -35,7 +36,8 @@ abstract class BoringSSLCryptoOperation {
      * @param out   the buffer for writing into.
      * @return      {@code true} if successful, {@code false} otherwise.
      */
-    final boolean execute(long ctx, ByteBufAllocator alloc, ByteBuf aad, ByteBuf in, ByteBuf out) {
+    final boolean execute(long ctx, ByteBufAllocator alloc, ByteBuf aad, ByteBuf in, ByteBuf out)
+            throws CryptoException {
         ByteBuf directAad = null;
         ByteBuf directIn = null;
         ByteBuf directOut = null;
@@ -78,7 +80,7 @@ abstract class BoringSSLCryptoOperation {
     abstract int maxOutLen(long ctx, int inReadable);
 
     abstract int execute(long ctx, ByteBufAllocator alloc,
-                         long ad, int adLen, long in, int inLen, long out, int outLen);
+                         long ad, int adLen, long in, int inLen, long out, int outLen) throws CryptoException;
 
     private static ByteBuf directReadable(ByteBufAllocator alloc, ByteBuf in) {
         if (in.isDirect()) {
