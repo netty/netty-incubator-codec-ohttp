@@ -86,7 +86,11 @@ static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_DEFAULT_TAG_LENG
 }
 
 static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_new(JNIEnv* env, jclass clazz) {
-    return (jlong) EVP_HPKE_CTX_new();
+    EVP_HPKE_CTX *ctx = EVP_HPKE_CTX_new();
+    if (ctx == NULL) {
+        return -1;
+    }
+    return (jlong) ctx;
 }
 
 static void netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_cleanup(JNIEnv* env, jclass clazz, jlong ctx) {
@@ -273,7 +277,11 @@ static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_max_overhead
 }
 
 static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_new(JNIEnv* env, jclass clazz) {
-    return (jlong) EVP_HPKE_KEY_new();
+    EVP_HPKE_KEY *key = EVP_HPKE_KEY_new();
+    if (key == NULL) {
+        return -1;
+    }
+    return (jlong) key;
 }
 
 static void netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_free(JNIEnv* env, jclass clazz, jlong key) {
