@@ -31,6 +31,12 @@ final class BoringSSLAsymmetricCipherKeyPair implements AsymmetricCipherKeyPair 
         publicKey = new BoringSSLAsymmetricKeyParameter(publicKeyBytes, false);
     }
 
+    BoringSSLAsymmetricCipherKeyPair(byte[] privateKeyBytes, byte[] publicKeyBytes) {
+        this.key = -1;
+        privateKey = new BoringSSLAsymmetricKeyParameter(privateKeyBytes, true);
+        publicKey = new BoringSSLAsymmetricKeyParameter(publicKeyBytes, false);
+    }
+
     @Override
     public BoringSSLAsymmetricKeyParameter publicParameters() {
         return publicKey;

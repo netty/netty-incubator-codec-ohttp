@@ -177,9 +177,11 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
             if (skR instanceof BoringSSLAsymmetricCipherKeyPair) {
                 key = ((BoringSSLAsymmetricCipherKeyPair) skR).key;
                 freeKey = false;
-            } else {
+            }
+            if (key == -1) {
                 byte[] privateKeyBytes = encodedAsymmetricKeyParameter(skR.privateParameters());
                 key = BoringSSL.EVP_HPKE_KEY_new_and_init_or_throw(boringSSLKem, privateKeyBytes);
+                freeKey = true;
             }
 
             ctx = BoringSSL.EVP_HPKE_CTX_new_or_throw();
@@ -252,10 +254,7 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
             if (privateKeyBytes == null || publicKeyBytes == null) {
                 throw new IllegalStateException("Unable to generate random key");
             }
-            BoringSSLAsymmetricCipherKeyPair pair =
-                    new BoringSSLAsymmetricCipherKeyPair(key, privateKeyBytes, publicKeyBytes);
-            key = -1;
-            return pair;
+            return new BoringSSLAsymmetricCipherKeyPair(privateKeyBytes, publicKeyBytes);
         } finally {
             BoringSSL.EVP_HPKE_KEY_cleanup_and_free(key);
         }
