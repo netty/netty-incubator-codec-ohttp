@@ -40,6 +40,9 @@ static char const* staticPackagePrefix = NULL;
 static jbyteArray to_byte_array(JNIEnv* env, int result, const uint8_t* data, size_t out_len) {
     if (result == 1) {
         jbyteArray array = (*env)->NewByteArray(env, out_len);
+        if (array == NULL) {
+            return NULL;
+        }
         (*env)->SetByteArrayRegion (env, array, 0, out_len, (jbyte *) data);
         return array;
     }
@@ -99,21 +102,33 @@ static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_setup_
         jbyteArray peer_public_key_bytes, jbyteArray info_bytes) {
     uint8_t out_enc[EVP_HPKE_MAX_ENC_LENGTH];
     size_t out_enc_len;
+    const uint8_t *peer_public_key = NULL;
+    const uint8_t *info = NULL;
+    jbyteArray result = NULL;
 
     size_t peer_public_key_len = (size_t) (*env)->GetArrayLength(env, peer_public_key_bytes);
-    const uint8_t *peer_public_key = (const uint8_t*) (*env)->GetByteArrayElements(env, peer_public_key_bytes, 0);
-
+    peer_public_key = (const uint8_t*) (*env)->GetByteArrayElements(env, peer_public_key_bytes, 0);
+    if (peer_public_key == NULL) {
+        goto cleanup;
+    }
     size_t info_len = (size_t) (*env)->GetArrayLength(env, info_bytes);
-    const uint8_t *info = (const uint8_t*) (*env)->GetByteArrayElements(env, info_bytes, 0);
-
-    int result = EVP_HPKE_CTX_setup_sender((EVP_HPKE_CTX *) ctx, (uint8_t *) out_enc, &out_enc_len, EVP_HPKE_MAX_ENC_LENGTH,
+    info = (const uint8_t*) (*env)->GetByteArrayElements(env, info_bytes, 0);
+    if (info == NULL) {
+        goto cleanup;
+    }
+    int res = EVP_HPKE_CTX_setup_sender((EVP_HPKE_CTX *) ctx, (uint8_t *) out_enc, &out_enc_len, EVP_HPKE_MAX_ENC_LENGTH,
                                            (const EVP_HPKE_KEM *) kem, (const EVP_HPKE_KDF *) kdf,  (const EVP_HPKE_AEAD *) aead,
                                            peer_public_key, peer_public_key_len, info, info_len);
+    result = to_byte_array(env, res, (const uint8_t *) out_enc, out_enc_len);
 
-    (*env)->ReleaseByteArrayElements(env, peer_public_key_bytes, (jbyte *) peer_public_key, JNI_ABORT);
-    (*env)->ReleaseByteArrayElements(env, info_bytes, (jbyte *) info, JNI_ABORT);
-
-    return to_byte_array(env, result, (const uint8_t *) out_enc, out_enc_len);
+cleanup:
+    if (peer_public_key != NULL) {
+        (*env)->ReleaseByteArrayElements(env, peer_public_key_bytes, (jbyte *) peer_public_key, JNI_ABORT);
+    }
+    if (info != NULL) {
+        (*env)->ReleaseByteArrayElements(env, info_bytes, (jbyte *) info, JNI_ABORT);
+    }
+    return  result;
 }
 
 static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_setup_sender_with_seed_for_testing(
@@ -121,43 +136,72 @@ static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_setup_
         jbyteArray peer_public_key_bytes, jbyteArray info_bytes, jbyteArray seed_bytes) {
     uint8_t out_enc[EVP_HPKE_MAX_ENC_LENGTH];
     size_t out_enc_len;
+    const uint8_t *peer_public_key = NULL;
+    const uint8_t *info = NULL;
+    const uint8_t *seed = NULL;
+    jbyteArray result = NULL;
 
     size_t peer_public_key_len = (size_t) (*env)->GetArrayLength(env, peer_public_key_bytes);
-    const uint8_t *peer_public_key = (const uint8_t*) (*env)->GetByteArrayElements(env, peer_public_key_bytes, 0);
-
+    peer_public_key = (const uint8_t*) (*env)->GetByteArrayElements(env, peer_public_key_bytes, 0);
+    if (peer_public_key == NULL) {
+        goto cleanup;
+    }
     size_t info_len = (size_t) (*env)->GetArrayLength(env, info_bytes);
-    const uint8_t *info = (const uint8_t*) (*env)->GetByteArrayElements(env, info_bytes, 0);
-
+    info = (const uint8_t*) (*env)->GetByteArrayElements(env, info_bytes, 0);
+    if (info == NULL) {
+        goto cleanup;
+    }
     size_t seed_len = (size_t) (*env)->GetArrayLength(env, seed_bytes);
-    const uint8_t *seed = (const uint8_t*) (*env)->GetByteArrayElements(env, seed_bytes, 0);
-
-    int result = EVP_HPKE_CTX_setup_sender_with_seed_for_testing((EVP_HPKE_CTX *) ctx,  (uint8_t *) out_enc, &out_enc_len, EVP_HPKE_MAX_ENC_LENGTH,
+    seed = (const uint8_t*) (*env)->GetByteArrayElements(env, seed_bytes, 0);
+    if (seed == NULL) {
+        goto cleanup;
+    }
+    int res = EVP_HPKE_CTX_setup_sender_with_seed_for_testing((EVP_HPKE_CTX *) ctx,  (uint8_t *) out_enc, &out_enc_len, EVP_HPKE_MAX_ENC_LENGTH,
                                            (const EVP_HPKE_KEM *) kem, (const EVP_HPKE_KDF *) kdf,  (const EVP_HPKE_AEAD *) aead,
                                            (const uint8_t *) peer_public_key, (size_t) peer_public_key_len, (const uint8_t *) info, (size_t) info_len,
                                            (const uint8_t *) seed, (size_t) seed_len);
+    result = to_byte_array(env, res, (const uint8_t *) out_enc, out_enc_len);
 
-    (*env)->ReleaseByteArrayElements(env, peer_public_key_bytes, (jbyte *) peer_public_key, JNI_ABORT);
-    (*env)->ReleaseByteArrayElements(env, info_bytes, (jbyte *) info, JNI_ABORT);
-    (*env)->ReleaseByteArrayElements(env, seed_bytes, (jbyte *) seed, JNI_ABORT);
-
-    return to_byte_array(env, result, (const uint8_t *) out_enc, out_enc_len);
+cleanup:
+    if (peer_public_key != NULL) {
+        (*env)->ReleaseByteArrayElements(env, peer_public_key_bytes, (jbyte *) peer_public_key, JNI_ABORT);
+    }
+    if (info != NULL) {
+        (*env)->ReleaseByteArrayElements(env, info_bytes, (jbyte *) info, JNI_ABORT);
+    }
+    if (seed != NULL) {
+        (*env)->ReleaseByteArrayElements(env, seed_bytes, (jbyte *) seed, JNI_ABORT);
+    }
+    return result;
 }
 
 static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_setup_recipient(
         JNIEnv* env, jclass clazz, jlong ctx, jlong key, jlong kdf,
                                                     jlong aead, jbyteArray enc_bytes,
                                                     jbyteArray info_bytes) {
+    const uint8_t *enc = NULL;
+    const uint8_t* info = NULL;
+    int result = -1;
     size_t enc_len = (size_t) (*env)->GetArrayLength(env, enc_bytes);
-    const uint8_t *enc = (const uint8_t*) (*env)->GetByteArrayElements(env, enc_bytes, 0);
+    enc = (const uint8_t*) (*env)->GetByteArrayElements(env, enc_bytes, 0);
+    if (enc == NULL) {
+        goto cleanup;
+    }
     size_t info_len = (size_t) (*env)->GetArrayLength(env, info_bytes);
-    const uint8_t *info = (const uint8_t*) (*env)->GetByteArrayElements(env, info_bytes, 0);
-
-    int result = EVP_HPKE_CTX_setup_recipient((EVP_HPKE_CTX *) ctx, (const EVP_HPKE_KEY *) key, (const EVP_HPKE_KDF *)kdf,
+    info = (const uint8_t*) (*env)->GetByteArrayElements(env, info_bytes, 0);
+    if (info == NULL) {
+        goto cleanup;
+    }
+    result = EVP_HPKE_CTX_setup_recipient((EVP_HPKE_CTX *) ctx, (const EVP_HPKE_KEY *) key, (const EVP_HPKE_KDF *)kdf,
                                                (const EVP_HPKE_AEAD *) aead, enc, enc_len, info, info_len);
 
-    (*env)->ReleaseByteArrayElements(env, enc_bytes, (jbyte *) enc, JNI_ABORT);
-    (*env)->ReleaseByteArrayElements(env, info_bytes, (jbyte *) info, JNI_ABORT);
-
+cleanup:
+    if (enc != NULL) {
+        (*env)->ReleaseByteArrayElements(env, enc_bytes, (jbyte *) enc, JNI_ABORT);
+    }
+    if (info != NULL) {
+        (*env)->ReleaseByteArrayElements(env, info_bytes, (jbyte *) info, JNI_ABORT);
+    }
     return result;
 }
 
@@ -186,23 +230,37 @@ static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_export
         JNIEnv* env, jclass clazz, jlong ctx,
         jint secret_len, jbyteArray context_array) {
     size_t context_len = (size_t) (*env)->GetArrayLength(env, context_array);
-    const uint8_t *context = (const uint8_t*) (*env)->GetByteArrayElements(env, context_array, 0);
-    jbyteArray out_array = (*env)->NewByteArray(env, secret_len);
-    uint8_t* out = (uint8_t*) (*env)->GetByteArrayElements(env, out_array, NULL);
-
-    int result = EVP_HPKE_CTX_export((const EVP_HPKE_CTX *) ctx, out, (size_t) secret_len, context, context_len);
-
-    (*env)->ReleaseByteArrayElements(env, context_array, (jbyte *) context, JNI_ABORT);
-
-    if (result == 1) {
-        // Copy back changes
-        (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, 0);
-        return out_array;
-    } else {
-        // No need to copy back changes.
-        (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, JNI_ABORT);
-        return NULL;
+    const uint8_t *context = NULL;
+    uint8_t* out = NULL;
+    jbyteArray out_array = NULL;
+    int res = 0;
+    context = (const uint8_t*) (*env)->GetByteArrayElements(env, context_array, 0);
+    if (context == NULL) {
+        goto cleanup;
     }
+    out_array = (*env)->NewByteArray(env, secret_len);
+    if (out_array == NULL) {
+        goto cleanup;
+    }
+    out = (uint8_t*) (*env)->GetByteArrayElements(env, out_array, NULL);
+    if (out == NULL) {
+        goto cleanup;
+    }
+    res = EVP_HPKE_CTX_export((const EVP_HPKE_CTX *) ctx, out, (size_t) secret_len, context, context_len);
+
+cleanup:
+    if (context != NULL) {
+        (*env)->ReleaseByteArrayElements(env, context_array, (jbyte *) context, JNI_ABORT);
+    }
+    if (out_array != NULL) {
+        int mode = JNI_ABORT;
+        if (res == 1) {
+            // Copy back changes
+            mode = 0;
+        }
+        (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, mode);
+    }
+    return out_array;
 }
 
 static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_kdf(JNIEnv* env, jclass clazz, jlong ctx) {
@@ -232,11 +290,19 @@ static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_generate(JNI
 
 static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_init(JNIEnv* env, jclass clazz, jlong key, jlong kem, jbyteArray priv_key_array) {
     size_t priv_key_len = (size_t)(*env)->GetArrayLength(env, priv_key_array);
-    const uint8_t *priv_key = (const uint8_t*) (*env)->GetByteArrayElements(env, priv_key_array, 0);
+    const uint8_t *priv_key = NULL;
+    int result = -1;
 
-    int result = EVP_HPKE_KEY_init((EVP_HPKE_KEY *) key, (const EVP_HPKE_KEM *) kem, priv_key, priv_key_len);
+    priv_key = (const uint8_t*) (*env)->GetByteArrayElements(env, priv_key_array, 0);
+    if (priv_key == NULL) {
+        goto cleanup;
+    }
+    result = EVP_HPKE_KEY_init((EVP_HPKE_KEY *) key, (const EVP_HPKE_KEM *) kem, priv_key, priv_key_len);
 
-    (*env)->ReleaseByteArrayElements(env, priv_key_array, (jbyte *) priv_key, JNI_ABORT);
+cleanup:
+    if (priv_key != NULL) {
+        (*env)->ReleaseByteArrayElements(env, priv_key_array, (jbyte *) priv_key, JNI_ABORT);
+    }
     return (jint) result;
 }
 
@@ -278,10 +344,19 @@ static jint netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_max_overhead(JNI
 
 static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_AEAD_CTX_new(JNIEnv* env, jclass clazz, jlong aead, jbyteArray key_array, jint tag_len) {
     size_t key_len = (size_t)(*env)->GetArrayLength(env, key_array);
-    const uint8_t *key = (const uint8_t*) (*env)->GetByteArrayElements(env, key_array, 0);
+    const uint8_t *key = NULL;
+    EVP_AEAD_CTX* ctx = NULL;
 
-    EVP_AEAD_CTX* ctx = EVP_AEAD_CTX_new((const EVP_AEAD *) aead, key, key_len, (size_t) tag_len);
-    (*env)->ReleaseByteArrayElements(env, key_array, (jbyte *) key, JNI_ABORT);
+    key = (const uint8_t*) (*env)->GetByteArrayElements(env, key_array, 0);
+    if (key == NULL) {
+        goto cleanup;
+    }
+    ctx = EVP_AEAD_CTX_new((const EVP_AEAD *) aead, key, key_len, (size_t) tag_len);
+
+cleanup:
+    if (key != NULL) {
+        (*env)->ReleaseByteArrayElements(env, key_array, (jbyte *) key, JNI_ABORT);
+    }
     if (ctx == NULL) {
         return -1;
     }
@@ -329,42 +404,75 @@ static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KDF_hkdf_md(JNI
 static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_HKDF_extract(JNIEnv* env, jclass clazz, jlong digest, jbyteArray secret_array, jbyteArray salt_array) {
     uint8_t out_key[EVP_MAX_MD_SIZE];
     size_t out_len;
+    const uint8_t *secret = NULL;
+    const uint8_t *salt = NULL;
+    jbyteArray result = NULL;
 
     size_t secret_len = (size_t)(*env)->GetArrayLength(env, secret_array);
-    const uint8_t *secret = (const uint8_t*) (*env)->GetByteArrayElements(env, secret_array, 0);
+    secret = (const uint8_t*) (*env)->GetByteArrayElements(env, secret_array, 0);
+    if (secret == NULL) {
+        goto cleanup;
+    }
     size_t salt_len = (size_t)(*env)->GetArrayLength(env, salt_array);
-    const uint8_t *salt = (const uint8_t*) (*env)->GetByteArrayElements(env, salt_array, 0);
+    salt = (const uint8_t*) (*env)->GetByteArrayElements(env, salt_array, 0);
+    if (salt == NULL) {
+        goto cleanup;
+    }
+    int res = HKDF_extract(out_key, &out_len, (const EVP_MD *) digest, secret, secret_len, salt, salt_len);
+    result = to_byte_array(env, res, (const uint8_t *) out_key, out_len);
 
-    int result = HKDF_extract(out_key, &out_len, (const EVP_MD *) digest, secret, secret_len, salt, salt_len);
-
-    (*env)->ReleaseByteArrayElements(env, secret_array, (jbyte *) secret, JNI_ABORT);
-    (*env)->ReleaseByteArrayElements(env, salt_array, (jbyte *) salt, JNI_ABORT);
-
-    return to_byte_array(env, result, (const uint8_t *) out_key, out_len);
+cleanup:
+    if (secret != NULL) {
+        (*env)->ReleaseByteArrayElements(env, secret_array, (jbyte *) secret, JNI_ABORT);
+    }
+    if (salt != NULL) {
+        (*env)->ReleaseByteArrayElements(env, salt_array, (jbyte *) salt, JNI_ABORT);
+    }
+    return result;
 }
 
 static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_HKDF_expand(JNIEnv* env, jclass clazz, jlong digest, jint out_len, jbyteArray prk_array, jbyteArray info_array) {
     size_t prk_len = (size_t) (*env)->GetArrayLength(env, prk_array);
-    const uint8_t *prk = (const uint8_t*) (*env)->GetByteArrayElements(env, prk_array, 0);
-    size_t info_len = (size_t) (*env)->GetArrayLength(env, info_array);
-    const uint8_t *info = (const uint8_t*) (*env)->GetByteArrayElements(env, info_array, 0);
-    jbyteArray out_array = (*env)->NewByteArray(env, out_len);
-    uint8_t* out = (uint8_t*) (*env)->GetByteArrayElements(env, out_array, NULL);
-
-    int result = HKDF_expand(out, out_len, (const EVP_MD *) digest, prk, prk_len, info, info_len);
-
-    (*env)->ReleaseByteArrayElements(env, prk_array, (jbyte *) prk, JNI_ABORT);
-    (*env)->ReleaseByteArrayElements(env, info_array, (jbyte *) info, JNI_ABORT);
-
-    if (result == 1) {
-        // Copy back changes
-        (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, 0);
-        return out_array;
-    } else {
-        // No need to copy back changes.
-        (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, JNI_ABORT);
-        return NULL;
+    const uint8_t *prk = NULL;
+    const uint8_t *info = NULL;
+    jbyteArray out_array  = NULL;
+    uint8_t* out = NULL;
+    int result = 0;
+    prk = (const uint8_t*) (*env)->GetByteArrayElements(env, prk_array, 0);
+    if (prk == NULL) {
+        goto cleanup;
     }
+    size_t info_len = (size_t) (*env)->GetArrayLength(env, info_array);
+    info = (const uint8_t*) (*env)->GetByteArrayElements(env, info_array, 0);
+    if (info == NULL) {
+        goto cleanup;
+    }
+    out_array = (*env)->NewByteArray(env, out_len);
+    if (out_array == NULL) {
+        goto cleanup;
+    }
+    out = (uint8_t*) (*env)->GetByteArrayElements(env, out_array, NULL);
+    if (out == NULL) {
+        goto cleanup;
+    }
+    result = HKDF_expand(out, out_len, (const EVP_MD *) digest, prk, prk_len, info, info_len);
+
+cleanup:
+    if (prk != NULL) {
+        (*env)->ReleaseByteArrayElements(env, prk_array, (jbyte *) prk, JNI_ABORT);
+    }
+    if (info != NULL) {
+        (*env)->ReleaseByteArrayElements(env, info_array, (jbyte *) info, JNI_ABORT);
+    }
+    if (out_array != NULL) {
+        int mode = JNI_ABORT;
+        if (result == 1) {
+            // Copy back changes
+            mode = 0;
+        }
+        (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, mode);
+    }
+    return out_array;
 }
 // JNI Registered Methods End
 
