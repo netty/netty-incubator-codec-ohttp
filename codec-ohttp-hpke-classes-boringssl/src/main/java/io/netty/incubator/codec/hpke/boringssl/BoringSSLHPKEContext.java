@@ -22,8 +22,11 @@ import io.netty.incubator.codec.hpke.HPKEContext;
  */
 class BoringSSLHPKEContext extends BoringSSLCryptoContext implements HPKEContext {
 
+    private final long digest;
+
     BoringSSLHPKEContext(BoringSSLOHttpCryptoProvider cryptoProvider, long hpkeCtx) {
         super(cryptoProvider, hpkeCtx);
+        digest = BoringSSL.EVP_HPKE_KDF_hkdf_md(BoringSSL.EVP_HPKE_CTX_kdf(hpkeCtx));
     }
 
     @Override
@@ -34,20 +37,12 @@ class BoringSSLHPKEContext extends BoringSSLCryptoContext implements HPKEContext
 
     @Override
     public final byte[] extract(byte[] salt, byte[] ikm) {
-        long digest = boringSSLDigest();
         return BoringSSL.HKDF_extract(digest, ikm, salt);
     }
 
     @Override
     public final byte[] expand(byte[] prk, byte[] info, int length) {
-        long digest = boringSSLDigest();
         return BoringSSL.HKDF_expand(digest, length, prk, info);
-    }
-
-    private long boringSSLDigest() {
-        long ctx = checkClosedAndReturnCtx();
-        long kdf = BoringSSL.EVP_HPKE_CTX_kdf(ctx);
-        return BoringSSL.EVP_HPKE_KDF_hkdf_md(kdf);
     }
 
     @Override
