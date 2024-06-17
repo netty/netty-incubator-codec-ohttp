@@ -24,6 +24,7 @@ import io.netty.incubator.codec.hpke.HPKESenderContext;
 import io.netty.incubator.codec.hpke.KDF;
 import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
+import org.bouncycastle.asn1.nist.NISTNamedCurves;
 import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
@@ -32,18 +33,17 @@ import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
 import org.bouncycastle.crypto.params.X448PrivateKeyParameters;
 import org.bouncycastle.crypto.params.X448PublicKeyParameters;
 import org.bouncycastle.math.ec.ECPoint;
-import org.bouncycastle.math.ec.custom.sec.SecP256R1Curve;
-import org.bouncycastle.math.ec.custom.sec.SecP384R1Curve;
-import org.bouncycastle.math.ec.custom.sec.SecP521R1Curve;
-import org.bouncycastle.util.encoders.Hex;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
 
 public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvider {
     public static final BouncyCastleOHttpCryptoProvider INSTANCE = new BouncyCastleOHttpCryptoProvider();
-    private final SecureRandom random = new SecureRandom();
     private static final byte MODE_BASE = (byte) 0x00;
+    private static final ECDomainParameters P256_PARAMS = new ECDomainParameters(NISTNamedCurves.getByName("P-256"));
+    private static final ECDomainParameters P384_PARAMS = new ECDomainParameters(NISTNamedCurves.getByName("P-384"));
+    private static final ECDomainParameters P521_PARAMS = new ECDomainParameters(NISTNamedCurves.getByName("P-521"));
+    private final SecureRandom random = new SecureRandom();
 
     private BouncyCastleOHttpCryptoProvider() { }
 
@@ -146,58 +146,14 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
         }
     }
 
-    // See https://github.com/bcgit/bc-java/blob/
-    // f1367f0b89962b29460eea381a12063fa7cd2428/core/src/main/java/org/bouncycastle/crypto/hpke/DHKEM.java#L59
     private static ECDomainParameters ecDomainParameters(KEM kem) {
         switch (kem) {
             case P256_SHA256:
-                SecP256R1Curve p256R1Curve = new SecP256R1Curve();
-                byte[] p256R1Magnitude1 =
-                        Hex.decode("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296");
-                byte[] p256R1Magnitude2 =
-                        Hex.decode("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5");
-                byte[] p256R1Seed = Hex.decode("c49d360886e704936a6678e1139d26b7819f7e90");
-                return new ECDomainParameters(
-                        p256R1Curve,
-                        p256R1Curve.createPoint(
-                                new BigInteger(1, p256R1Magnitude1),
-                                new BigInteger(1, p256R1Magnitude2)
-                        ),
-                        p256R1Curve.getOrder(),
-                        p256R1Curve.getCofactor(),
-                        p256R1Seed
-                );
+                return P256_PARAMS;
             case P384_SHA348:
-                SecP384R1Curve p384R1Curve = new SecP384R1Curve();
-                byte[] p384R1Magnitude1 = Hex.decode("aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e" +
-                        "082542a385502f25dbf55296c3a545e3872760ab7");
-                byte[] p384R1Magnitude2 = Hex.decode("3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da311" +
-                        "3b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f");
-                byte[] p384R11Seed = Hex.decode("a335926aa319a27a1d00896a6773a4827acdac73");
-                return new ECDomainParameters(
-                        p384R1Curve,
-                        p384R1Curve.createPoint(
-                                new BigInteger(1, p384R1Magnitude1),
-                                new BigInteger(1, p384R1Magnitude2)
-                        ),
-                        p384R1Curve.getOrder(),
-                        p384R1Curve.getCofactor(),
-                        p384R11Seed
-                );
+                return P384_PARAMS;
             case P521_SHA512:
-                SecP521R1Curve p521R1Curve = new SecP521R1Curve();
-                return new ECDomainParameters(
-                        p521R1Curve,
-                        p521R1Curve.createPoint(
-                                new BigInteger("c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d" +
-                                        "3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66", 16),
-                                new BigInteger("11839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273" +
-                                        "e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650", 16)
-                        ),
-                        p521R1Curve.getOrder(),
-                        p521R1Curve.getCofactor(),
-                        Hex.decode("d09e8800291cb85396cc6717393284aaa0da64ba")
-                );
+                return P521_PARAMS;
             default:
                 throw new IllegalArgumentException("invalid kem: " + kem);
         }
