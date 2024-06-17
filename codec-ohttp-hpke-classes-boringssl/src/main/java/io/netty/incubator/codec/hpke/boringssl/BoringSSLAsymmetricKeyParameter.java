@@ -17,6 +17,7 @@ package io.netty.incubator.codec.hpke.boringssl;
 
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 
+import java.security.MessageDigest;
 import java.util.Arrays;
 
 final class BoringSSLAsymmetricKeyParameter implements AsymmetricKeyParameter {
@@ -51,6 +52,10 @@ final class BoringSSLAsymmetricKeyParameter implements AsymmetricKeyParameter {
         BoringSSLAsymmetricKeyParameter that = (BoringSSLAsymmetricKeyParameter) o;
         if (isPrivate != that.isPrivate) {
             return false;
+        }
+        if (isPrivate) {
+            // Use constant-time equals implementation for private / secret data.
+            return MessageDigest.isEqual(bytes, that.bytes);
         }
         return Arrays.equals(bytes, that.bytes);
     }
