@@ -20,6 +20,8 @@ import io.netty.incubator.codec.hpke.KDF;
 import io.netty.incubator.codec.hpke.KEM;
 import io.netty.buffer.ByteBuf;
 
+import java.util.Objects;
+
 import static java.util.Objects.requireNonNull;
 
 public final class OHttpCiphersuite {
@@ -83,6 +85,23 @@ public final class OHttpCiphersuite {
                 KEM.forId(kemId),
                 KDF.forId(kdfId),
                 AEAD.forId(aeadId));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        OHttpCiphersuite that = (OHttpCiphersuite) o;
+        return keyId == that.keyId && kem == that.kem && kdf == that.kdf && aead == that.aead;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(keyId, kem, kdf, aead);
     }
 
     @Override

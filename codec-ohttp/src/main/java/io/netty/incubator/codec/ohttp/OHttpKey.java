@@ -20,8 +20,10 @@ import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.AEAD;
 import io.netty.incubator.codec.hpke.KDF;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import io.netty.incubator.codec.hpke.KEM;
@@ -57,6 +59,23 @@ public abstract class OHttpKey {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        OHttpKey oHttpKey = (OHttpKey) o;
+        return id == oHttpKey.id && kem == oHttpKey.kem && Objects.equals(ciphers, oHttpKey.ciphers);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, kem, ciphers);
+    }
+
     public static final class Cipher {
         private final KDF kdf;
         private final AEAD aead;
@@ -67,6 +86,23 @@ public abstract class OHttpKey {
 
         public AEAD aead() {
             return this.aead;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Cipher cipher = (Cipher) o;
+            return kdf == cipher.kdf && aead == cipher.aead;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(kdf, aead);
         }
 
         private Cipher(
@@ -84,6 +120,26 @@ public abstract class OHttpKey {
             return pkEncoded.clone();
         }
 
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            if (!super.equals(o)) {
+                return false;
+            }
+            PublicKey publicKey = (PublicKey) o;
+            return Arrays.equals(pkEncoded, publicKey.pkEncoded);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), Arrays.hashCode(pkEncoded));
+        }
+
         private PublicKey(byte id, KEM kem, List<Cipher> ciphers, byte[] pkEncoded) throws CryptoException {
             super(id, kem, ciphers);
             this.pkEncoded = requireNonNull(pkEncoded, "pkEncoded").clone();
@@ -99,6 +155,26 @@ public abstract class OHttpKey {
 
         public AsymmetricCipherKeyPair keyPair() {
             return this.keyPair;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            if (!super.equals(o)) {
+                return false;
+            }
+            PrivateKey that = (PrivateKey) o;
+            return Objects.equals(keyPair, that.keyPair);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), keyPair);
         }
 
         private PrivateKey(
