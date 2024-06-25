@@ -6,7 +6,7 @@ services:
     image: netty-codec-ohttp-centos7:centos-7-17
     build:
       args:
-        java_version : "17.0.10-zulu"
+        java_version : "17.0.11-zulu"
 
   build:
     image: netty-codec-ohttp-centos7:centos-7-17
