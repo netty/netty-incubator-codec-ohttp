@@ -84,29 +84,65 @@ public final class OHttpServerKeys {
         return keyMap.hashCode();
     }
 
-    /*
-     * Encode {@link ServerKeys} into bytes that represent {@link ServerPublicKeys}, using the format
-     * described at https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#section-3.1
+    /**
+     * Encode {@link OHttpServerKeys} into bytes that represent {@link OHttpServerPublicKeys}.
+     *
+     * @param output    the {@link ByteBuf} into which the configuration is written.
+     * @deprecated      use {@link #encodeKeyConfigurationMediaType(ByteBuf)} as this implementation does not correctly
+     *                  follow the RFC9458.
      */
+    @Deprecated
     public void encodePublicKeys(ByteBuf output) {
         for (Map.Entry<Byte, OHttpKey.PrivateKey> key : keyMap.entrySet()) {
-            KEM kem = key.getValue().kem();
-            AsymmetricCipherKeyPair kp = key.getValue().keyPair();
-            output.writeByte(key.getKey());
-            output.writeShort(kem.id());
+            encodeKeyConfiguration(key.getKey(), key.getValue(), output);
+        }
+    }
 
-            byte[] encoded = kp.publicParameters().encoded();
-            if (encoded == null) {
-                throw new EncoderException("Unable to encode public keys.");
-            }
-            output.writeBytes(encoded);
+    /**
+     * Encode a key configuration into bytes, using the format
+     * described in <a href="https://www.rfc-editor.org/rfc/rfc9458.html#section-3.1">RFC 9458 Section 3.1</a>.
+     *
+     * @param id        the id of the key.
+     * @param key       the {@link OHttpKey.PrivateKey}.
+     * @param output    the {@link ByteBuf} into which the configuration is written.
+     */
+    private static void encodeKeyConfiguration(Byte id, OHttpKey.PrivateKey key, ByteBuf output) {
+        KEM kem = key.kem();
+        AsymmetricCipherKeyPair kp = key.keyPair();
+        output.writeByte(id);
+        output.writeShort(kem.id());
 
-            // Multiple by 4 as for each cipher we will write 2 short values.
-            output.writeShort(key.getValue().ciphers().size() * 4);
-            for (OHttpKey.Cipher cipher : key.getValue().ciphers()) {
-                output.writeShort(cipher.kdf().id());
-                output.writeShort(cipher.aead().id());
-            }
+        byte[] encoded = kp.publicParameters().encoded();
+        if (encoded == null) {
+            throw new EncoderException("Unable to encode public keys.");
+        }
+        output.writeBytes(encoded);
+
+        // Multiple by 4 as for each cipher we will write 2 short values.
+        output.writeShort(key.ciphers().size() * 4);
+        for (OHttpKey.Cipher cipher : key.ciphers()) {
+            output.writeShort(cipher.kdf().id());
+            output.writeShort(cipher.aead().id());
+        }
+    }
+
+    /**
+     * Encode the key configurations into bytes, using the format described in
+     * <a href="https://www.rfc-editor.org/rfc/rfc9458.html#section-3.2">RFC 9458 Section 3.2</a>.
+     *
+     * @param output    the {@link ByteBuf} into which the configuration is written.
+     */
+    public void encodeKeyConfigurationMediaType(ByteBuf output) {
+        for (Map.Entry<Byte, OHttpKey.PrivateKey> key : keyMap.entrySet()) {
+            int writerIndex = output.writerIndex();
+            // Skip the first two bytes as we will use these later to set the actual len that was used.
+            output.ensureWritable(2);
+            output.writerIndex(writerIndex + 2);
+            encodeKeyConfiguration(key.getKey(), key.getValue(), output);
+            int written = output.writerIndex() - writerIndex - 2;
+            // The length needs to be added in front:
+            // See https://www.rfc-editor.org/rfc/rfc9458.html#section-3.2
+            output.setShort(writerIndex, written);
         }
     }
 }

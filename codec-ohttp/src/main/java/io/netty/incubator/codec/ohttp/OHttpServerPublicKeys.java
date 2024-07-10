@@ -81,12 +81,41 @@ public final class OHttpServerPublicKeys implements Iterable<Map.Entry<Byte, OHt
                 .collect(Collectors.joining(", ", "[", "]"));
     }
 
-    /*
-     * Decode a serialized {@link ServerPublicKeys} on the client.
+    /**
+     * Decode a serialized {@link OHttpServerPublicKeys} on the client.
+     *
+     *
+     * @param       input the {@link ByteBuf} that is decoded
+     * @return      the {@link OHttpServerPublicKeys} that were decoded.
+     * @throws      {@link CryptoException} in case of a decoding failure
+     * @deprecated  use {@link #decodeKeyConfigurationMediaType(ByteBuf)} as this implementation does not correctly
+     *              follow the RFC9458.
      */
+    @Deprecated
     public static OHttpServerPublicKeys decode(ByteBuf input) throws CryptoException {
+        return decode0(input, false);
+    }
+
+    /**
+     * Decode a key configuration on the client from bytes, using the format
+     * described in <a href="https://www.rfc-editor.org/rfc/rfc9458.html#section-3.1">RFC 9458 Section 3.2</a>.
+     *
+     * @param   input the {@link ByteBuf} that is decoded
+     * @return  the {@link OHttpServerPublicKeys} that were decoded.
+     * @throws  {@link CryptoException} in case of a decoding failure
+     */
+    public static OHttpServerPublicKeys decodeKeyConfigurationMediaType(ByteBuf input) throws CryptoException {
+        return decode0(input, true);
+    }
+
+    private static OHttpServerPublicKeys decode0(ByteBuf input, boolean rfc9458Mode) throws CryptoException {
         Map<Byte, OHttpKey.PublicKey> keys = new HashMap<>();
         while (input.isReadable()) {
+            short length = -1;
+            if (rfc9458Mode) {
+                length = input.readShort();
+            }
+            int readerIndex = input.readerIndex();
             byte keyId = input.readByte();
             KEM kem = KEM.forId(input.readShort());
             byte[] publicKeyBytes = new byte[kem.npk()];
@@ -98,6 +127,9 @@ public final class OHttpServerPublicKeys implements Iterable<Map.Entry<Byte, OHt
                 KDF kdf = KDF.forId(ecInput.readShort());
                 AEAD aead = AEAD.forId(ecInput.readShort());
                 ciphers.add(OHttpKey.newCipher(kdf, aead));
+            }
+            if (rfc9458Mode && input.readerIndex() - readerIndex != length) {
+                throw new CryptoException("Unable to decode key configuration media type");
             }
             OHttpKey.PublicKey publicKey = OHttpKey.newPublicKey(keyId, kem, ciphers, publicKeyBytes);
             keys.put(keyId, publicKey);

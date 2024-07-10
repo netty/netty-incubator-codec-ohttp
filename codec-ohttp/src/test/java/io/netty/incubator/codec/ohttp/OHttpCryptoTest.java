@@ -105,13 +105,15 @@ public class OHttpCryptoTest {
 
         ByteBuf encodedKeyConfiguration = Unpooled.buffer();
         try {
-            serverKeys.encodePublicKeys(encodedKeyConfiguration);
-            assertEquals("01002031e1f05a740102115220e9af918f738674aec95f54db6e04eb705aae8e79815500080001000100010003"
-                    , ByteBufUtil.hexDump(encodedKeyConfiguration));
+            serverKeys.encodeKeyConfigurationMediaType(encodedKeyConfiguration);
+            assertEquals(
+                    "002d01002031e1f05a740102115220e9af918f738674aec95f54db6e04eb705aae8e79815500080001000100010003",
+                    ByteBufUtil.hexDump(encodedKeyConfiguration));
 
             // Key configuration decoding
 
-            OHttpServerPublicKeys clientKeys = OHttpServerPublicKeys.decode(encodedKeyConfiguration);
+            OHttpServerPublicKeys clientKeys =
+                    OHttpServerPublicKeys.decodeKeyConfigurationMediaType(encodedKeyConfiguration);
             assertEquals(1, clientKeys.keys().size());
             OHttpKey.PublicKey key = clientKeys.key(keyId);
             assertNotNull(key);
