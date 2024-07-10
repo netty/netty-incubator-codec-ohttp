@@ -20,14 +20,12 @@ import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.ObjectUtil;
 
-import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
 import io.netty.incubator.codec.hpke.KEM;
-import io.netty.util.internal.PlatformDependent;
 
 /**
  * Set of key pairs and cipher suites for a OHTTP server.
@@ -87,14 +85,17 @@ public final class OHttpServerKeys {
     }
 
     /**
-     * Encode {@link OHttpServerKeys} into bytes that represent {@link OHttpServerPublicKeys}, using the format
-     * described at https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#section-3.1
+     * Encode {@link OHttpServerKeys} into bytes that represent {@link OHttpServerPublicKeys}.
      *
-     * @deprecated use {@link #encodeKeyConfigurationMediaType(ByteBuf)}
+     * @param output    the {@link ByteBuf} into which the configuration is written.
+     * @deprecated      use {@link #encodeKeyConfigurationMediaType(ByteBuf)} as this implementation does not correctly
+     *                  follow the RFC9458.
      */
     @Deprecated
     public void encodePublicKeys(ByteBuf output) {
-        encodeKeyConfigurationMediaType(output);
+        for (Map.Entry<Byte, OHttpKey.PrivateKey> key : keyMap.entrySet()) {
+            encodeKeyConfiguration(key.getKey(), key.getValue(), output);
+        }
     }
 
     /**
