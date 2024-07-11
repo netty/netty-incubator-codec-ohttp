@@ -49,6 +49,7 @@ public interface OHttpChunkFramer<T> {
         /**
          * Decode the initial bytes of the HTTP content.
          * @param alloc {@link ByteBufAllocator} which might be used to do extra allocations.
+         * @param in {@link ByteBuf} with HTTP content.
          * @return true on success, on false if more bytes are needed.
          * @throws CryptoException if the prefix cannot be decoded.
          */

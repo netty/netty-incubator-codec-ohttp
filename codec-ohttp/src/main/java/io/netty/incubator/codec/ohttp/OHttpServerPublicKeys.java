@@ -87,22 +87,21 @@ public final class OHttpServerPublicKeys implements Iterable<Map.Entry<Byte, OHt
      *
      * @param       input the {@link ByteBuf} that is decoded
      * @return      the {@link OHttpServerPublicKeys} that were decoded.
-     * @throws      {@link CryptoException} in case of a decoding failure
      * @deprecated  use {@link #decodeKeyConfigurationMediaType(ByteBuf)} as this implementation does not correctly
      *              follow the RFC9458.
+     * @throws      CryptoException in case of a decoding failure
      */
     @Deprecated
     public static OHttpServerPublicKeys decode(ByteBuf input) throws CryptoException {
         return decode0(input, false);
     }
-
     /**
      * Decode a key configuration on the client from bytes, using the format
      * described in <a href="https://www.rfc-editor.org/rfc/rfc9458.html#section-3.1">RFC 9458 Section 3.2</a>.
      *
      * @param   input the {@link ByteBuf} that is decoded
      * @return  the {@link OHttpServerPublicKeys} that were decoded.
-     * @throws  {@link CryptoException} in case of a decoding failure
+     * @throws  CryptoException in case of a decoding failure
      */
     public static OHttpServerPublicKeys decodeKeyConfigurationMediaType(ByteBuf input) throws CryptoException {
         return decode0(input, true);
