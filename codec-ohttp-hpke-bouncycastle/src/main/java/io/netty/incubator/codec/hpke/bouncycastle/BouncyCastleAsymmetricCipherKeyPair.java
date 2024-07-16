@@ -21,9 +21,11 @@ import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 final class BouncyCastleAsymmetricCipherKeyPair implements AsymmetricCipherKeyPair {
 
     final org.bouncycastle.crypto.AsymmetricCipherKeyPair pair;
+
     BouncyCastleAsymmetricCipherKeyPair(org.bouncycastle.crypto.AsymmetricCipherKeyPair pair) {
         this.pair = pair;
     }
+
     @Override
     public AsymmetricKeyParameter publicParameters() {
         return new BouncyCastleAsymmetricKeyParameter(pair.getPublic());

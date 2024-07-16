@@ -19,8 +19,6 @@ import io.netty.handler.codec.DefaultHeaders;
 import io.netty.handler.codec.UnsupportedValueConverter;
 import io.netty.util.AsciiString;
 
-import static io.netty.util.AsciiString.CASE_SENSITIVE_HASHER;
-
 /**
  * HTTP/2 (and HTTP/3) pseudo-headers names.
  */

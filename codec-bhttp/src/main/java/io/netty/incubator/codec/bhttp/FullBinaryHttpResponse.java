@@ -16,10 +16,15 @@
 package io.netty.incubator.codec.bhttp;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 
+/**
+ * {@link FullHttpResponse} for
+ * <a href="https://www.rfc-editor.org/rfc/rfc9292.html">Binary Representation of HTTP Messages</a>.
+ */
 public interface FullBinaryHttpResponse extends FullHttpResponse, BinaryHttpResponse {
     @Override
     FullBinaryHttpResponse copy();
