@@ -41,8 +41,8 @@ final class BoringSSLHPKESenderContext extends BoringSSLHPKEContext
 
     private final byte[] encapsulation;
 
-    BoringSSLHPKESenderContext(BoringSSLOHttpCryptoProvider cryptoProvider, long hpkeCtx, byte[] encapsulation) {
-        super(cryptoProvider, hpkeCtx);
+    BoringSSLHPKESenderContext(long hpkeCtx, byte[] encapsulation) {
+        super(hpkeCtx);
         this.encapsulation = encapsulation;
     }
 

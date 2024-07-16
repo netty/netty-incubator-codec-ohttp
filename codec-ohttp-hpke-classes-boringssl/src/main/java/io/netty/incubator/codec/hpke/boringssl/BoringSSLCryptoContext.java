@@ -24,13 +24,10 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 abstract class BoringSSLCryptoContext implements CryptoContext {
 
-    private final BoringSSLOHttpCryptoProvider cryptoProvider;
-
     // We use an AtomicLong to reduce the possibility of crashing after the user called close().
     private final AtomicLong ctxRef;
 
-    BoringSSLCryptoContext(BoringSSLOHttpCryptoProvider cryptoProvider, long ctx) {
-        this.cryptoProvider = cryptoProvider;
+    BoringSSLCryptoContext(long ctx) {
         assert ctx != -1;
         this.ctxRef = new AtomicLong(ctx);
     }
@@ -54,7 +51,6 @@ abstract class BoringSSLCryptoContext implements CryptoContext {
        long ctx = ctxRef.getAndSet(-1);
        if (ctx != -1) {
            destroyCtx(ctx);
-           cryptoProvider.free_EVP_HPKE_KEYS();
        }
     }
 
