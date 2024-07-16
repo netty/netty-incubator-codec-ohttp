@@ -41,9 +41,9 @@ final class BoringSSLHPKERecipientContext extends BoringSSLHPKEContext implement
     // Store a reference to the keyPair here so we are sure it will only be GCed once the context is collected as well.
     final AsymmetricCipherKeyPair keyPair;
 
-    BoringSSLHPKERecipientContext(BoringSSLOHttpCryptoProvider cryptoProvider, long hpkeCtx,
+    BoringSSLHPKERecipientContext(long hpkeCtx,
                                   AsymmetricCipherKeyPair keyPair) {
-        super(cryptoProvider, hpkeCtx);
+        super(hpkeCtx);
         this.keyPair = keyPair;
     }
 

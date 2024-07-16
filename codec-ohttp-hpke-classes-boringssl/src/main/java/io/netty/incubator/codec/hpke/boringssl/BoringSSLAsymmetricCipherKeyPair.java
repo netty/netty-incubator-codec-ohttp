@@ -16,7 +16,6 @@
 package io.netty.incubator.codec.hpke.boringssl;
 
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
-import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 
 // TODO: Maybe expose sub-type which is ReferenceCounted and so allows to take ownership of EVP_HPKE_KEY.
 final class BoringSSLAsymmetricCipherKeyPair implements AsymmetricCipherKeyPair {
@@ -76,6 +75,17 @@ final class BoringSSLAsymmetricCipherKeyPair implements AsymmetricCipherKeyPair 
                 "privateKey=" + privateKey +
                 ", publicKey=" + publicKey +
                 '}';
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        try {
+            if (key != -1) {
+                BoringSSL.EVP_HPKE_KEY_cleanup_and_free(key);
+            }
+        } finally {
+            super.finalize();
+        }
     }
 }
 

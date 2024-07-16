@@ -24,8 +24,8 @@ class BoringSSLHPKEContext extends BoringSSLCryptoContext implements HPKEContext
 
     private final long digest;
 
-    BoringSSLHPKEContext(BoringSSLOHttpCryptoProvider cryptoProvider, long hpkeCtx) {
-        super(cryptoProvider, hpkeCtx);
+    BoringSSLHPKEContext(long hpkeCtx) {
+        super(hpkeCtx);
         digest = BoringSSL.EVP_HPKE_KDF_hkdf_md(BoringSSL.EVP_HPKE_CTX_kdf(hpkeCtx));
     }
 
