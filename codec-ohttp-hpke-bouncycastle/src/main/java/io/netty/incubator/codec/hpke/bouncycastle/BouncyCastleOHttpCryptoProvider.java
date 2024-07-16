@@ -37,6 +37,9 @@ import org.bouncycastle.math.ec.ECPoint;
 import java.math.BigInteger;
 import java.security.SecureRandom;
 
+/**
+ * {@link OHttpCryptoProvider} implementation based on BouncyCastle.
+ */
 public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvider {
     public static final BouncyCastleOHttpCryptoProvider INSTANCE = new BouncyCastleOHttpCryptoProvider();
     private static final byte MODE_BASE = (byte) 0x00;

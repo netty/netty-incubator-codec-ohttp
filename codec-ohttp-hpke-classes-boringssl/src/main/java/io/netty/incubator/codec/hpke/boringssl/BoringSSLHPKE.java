@@ -20,7 +20,6 @@ package io.netty.incubator.codec.hpke.boringssl;
  */
 public final class BoringSSLHPKE {
 
-    @SuppressWarnings("unchecked")
     private static final Throwable UNAVAILABILITY_CAUSE;
 
     static {

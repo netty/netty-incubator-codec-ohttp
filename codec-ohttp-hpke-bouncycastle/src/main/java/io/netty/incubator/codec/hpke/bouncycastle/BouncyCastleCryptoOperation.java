@@ -20,8 +20,6 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.incubator.codec.hpke.CryptoException;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 
-import java.nio.ByteBuffer;
-
 abstract class BouncyCastleCryptoOperation {
 
     final void execute(ByteBuf aad, ByteBuf in, ByteBuf out) throws CryptoException {
