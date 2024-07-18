@@ -73,12 +73,51 @@ public final class BinaryHttpParser {
         }
     }
 
+    private static final boolean[] ALLOWED_TOKEN;
+    private static final boolean[] ALLOWED_SCHEME;
+
+    static {
+        ALLOWED_TOKEN = new boolean[256];
+        for (byte b = Byte.MIN_VALUE; b < Byte.MAX_VALUE; b++) {
+            ALLOWED_TOKEN[128 + b] = !Character.isWhitespace(b);
+        }
+
+        // See https://www.rfc-editor.org/rfc/rfc3986.html
+        //    scheme        = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+        ALLOWED_SCHEME = new boolean[256];
+        for (byte b = Byte.MIN_VALUE; b < Byte.MAX_VALUE; b++) {
+            ALLOWED_SCHEME[128 + b] = Character.isAlphabetic(b) || Character.isDigit(b) ||
+                    b == (byte) '+' || b == (byte) '-' || b == (byte) '.';
+        }
+    }
+
+    // See https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.2
+    private static final ByteProcessor TOKEN_VALIDATOR = b -> {
+        // Is whitespace will match whitespaces and delimiters.
+        if (ALLOWED_TOKEN[b + 128]) {
+            return true;
+        }
+        throw new IllegalArgumentException(
+                "Invalid char in token received: '" + b + "' (0x" + Integer.toHexString(b) + ")");
+    };
+
+    // See https://www.rfc-editor.org/rfc/rfc3986.html
+    private static final ByteProcessor SCHEME_VALIDATOR = b -> {
+        // Is whitespace will match whitespaces and delimiters.
+        if (ALLOWED_SCHEME[b + 128]) {
+            return true;
+        }
+        throw new IllegalArgumentException(
+                "Invalid char in scheme received : '" + b + "' (0x" + Integer.toHexString(b) + ")");
+    };
+
     private static final ByteProcessor PADDING_VALIDATOR = b -> {
         // Let's validate that only 0 is used for padding. While this is not strictly required
         // it can't harm to enforce it.
         // See https://www.rfc-editor.org/rfc/rfc9292.html#section-3.8
         if (b != 0) {
-            throw new CorruptedFrameException("Invalid byte used for padding: " + b);
+            throw new CorruptedFrameException(
+                    "Invalid byte used for padding: '" + b + "' (0x" + Integer.toHexString(b) + ")");
         }
         return true;
     };
@@ -417,6 +456,14 @@ public final class BinaryHttpParser {
         }
         // Add the bytes of the field section as well.
         sumBytes += fieldSectionReadableBytes - fieldSectionSlice.readableBytes();
+
+        // Let's validate method, scheme, authority and path.
+        in.forEachByte(methodIdx, (int) methodLength, TOKEN_VALIDATOR);
+        in.forEachByte(schemeIdx, (int) schemeLength, SCHEME_VALIDATOR);
+
+        // We only do very limited validation for these to ensure there can nothing be injected.
+        in.forEachByte(authorityIdx, (int) authorityLength, TOKEN_VALIDATOR);
+        in.forEachByte(pathIdx, (int) pathLength, TOKEN_VALIDATOR);
 
         String method = in.toString(methodIdx, (int) methodLength, StandardCharsets.US_ASCII);
         String scheme = in.toString(schemeIdx, (int) schemeLength, StandardCharsets.US_ASCII);
