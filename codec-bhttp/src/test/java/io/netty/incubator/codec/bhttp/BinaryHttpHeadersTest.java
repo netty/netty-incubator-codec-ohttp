@@ -19,6 +19,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -54,5 +55,13 @@ public class BinaryHttpHeadersTest {
     public void emptyHeaderValue() {
         HttpHeaders headers = BinaryHttpHeaders.newHeaders(true);
         headers.set("name", "");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    public void uppercaseName(boolean trailers) {
+        HttpHeaders headers = trailers ? BinaryHttpHeaders.newTrailers(true) :
+                BinaryHttpHeaders.newHeaders(true);
+        assertThrows(IllegalArgumentException.class, () -> headers.set("UpperCase", "x"));
     }
 }
