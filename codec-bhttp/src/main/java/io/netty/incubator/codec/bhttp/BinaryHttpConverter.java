@@ -51,8 +51,10 @@ public final class BinaryHttpConverter {
             return convert((FullHttpRequest) request, scheme, authority);
         }
         BinaryHttpHeaders headers = copyAndSanitize(request.headers());
-        return new DefaultBinaryHttpRequest(request.protocolVersion(), request.method(), scheme, authority,
-                request.uri(), headers);
+        DefaultBinaryHttpRequest binaryHttpRequest = new DefaultBinaryHttpRequest(request.protocolVersion(),
+                request.method(), scheme, authority, request.uri(), headers);
+        binaryHttpRequest.setDecoderResult(request.decoderResult());
+        return binaryHttpRequest;
     }
 
     /**
@@ -72,6 +74,7 @@ public final class BinaryHttpConverter {
 
         FullBinaryHttpRequest binaryHttpRequest =  new DefaultFullBinaryHttpRequest(request.protocolVersion(),
                 request.method(), scheme, authority, request.uri(), request.content().retain(), headers, trailers);
+        binaryHttpRequest.setDecoderResult(request.decoderResult());
         request.release();
         return binaryHttpRequest;
     }
@@ -90,7 +93,10 @@ public final class BinaryHttpConverter {
             return convert((FullHttpResponse) response);
         }
         BinaryHttpHeaders headers = copyAndSanitize(response.headers());
-        return new DefaultBinaryHttpResponse(response.protocolVersion(), response.status(), headers);
+        BinaryHttpResponse binaryHttpResponse = new DefaultBinaryHttpResponse(
+                response.protocolVersion(), response.status(), headers);
+        binaryHttpResponse.setDecoderResult(response.decoderResult());
+        return binaryHttpResponse;
     }
 
     /**
@@ -108,6 +114,7 @@ public final class BinaryHttpConverter {
 
         FullBinaryHttpResponse binaryHttpResponse =  new DefaultFullBinaryHttpResponse(response.protocolVersion(),
                 response.status(), response.content().retain(), headers, trailers);
+        binaryHttpResponse.setDecoderResult(response.decoderResult());
         response.release();
         return binaryHttpResponse;
     }
