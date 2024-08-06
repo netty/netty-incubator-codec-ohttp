@@ -18,6 +18,7 @@ package io.netty.incubator.codec.bhttp;
 import io.netty.handler.codec.DefaultHeaders;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaderValidationUtil;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.util.AsciiString;
 import io.netty.util.ByteProcessor;
 
@@ -107,7 +108,17 @@ final class BinaryHttpHeaders extends DefaultHttpHeaders {
     private static final DefaultHeaders.NameValidator<CharSequence> BINARY_HTTP_TRAILERS_VALIDATOR =
             new BinaryHttpNameValidator(true);
 
+    private final boolean validate;
+    private final DefaultHeaders.NameValidator<CharSequence> validator;
+
     private BinaryHttpHeaders(boolean validate, DefaultHeaders.NameValidator<CharSequence> validator) {
         super(validate, validator);
+        this.validate = validate;
+        this.validator = validator;
+    }
+
+    @Override
+    public HttpHeaders copy() {
+        return (new BinaryHttpHeaders(validate, validator)).set(this);
     }
 }
