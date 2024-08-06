@@ -18,7 +18,6 @@ package io.netty.incubator.codec.bhttp;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 
@@ -86,11 +85,12 @@ public final class DefaultFullBinaryHttpRequest extends DefaultFullHttpRequest i
      * @param scheme            the scheme to use.
      * @param authority         the authority to use.
      * @param uri               the uri / path to use
-     * @param headers           the {@link HttpHeaders} of the request.
+     * @param headers           the {@link BinaryHttpHeaders} of the request.
      * @param trailingHeader    the trailers of the request.
      */
-    private DefaultFullBinaryHttpRequest(HttpVersion httpVersion, HttpMethod method, String scheme, String authority,
-                                        String uri, ByteBuf content, HttpHeaders headers, HttpHeaders trailingHeader) {
+    DefaultFullBinaryHttpRequest(HttpVersion httpVersion, HttpMethod method, String scheme, String authority,
+                                 String uri, ByteBuf content, BinaryHttpHeaders headers,
+                                 BinaryHttpHeaders trailingHeader) {
         super(httpVersion, method, uri, content, headers, trailingHeader);
         this.scheme = Objects.requireNonNull(scheme, "scheme");
         this.authority = authority;
@@ -155,7 +155,7 @@ public final class DefaultFullBinaryHttpRequest extends DefaultFullHttpRequest i
     public FullBinaryHttpRequest replace(ByteBuf content) {
         FullBinaryHttpRequest request = new DefaultFullBinaryHttpRequest(
                 protocolVersion(), method(), scheme(), authority(), uri(), content,
-                headers().copy(), trailingHeaders().copy());
+                (BinaryHttpHeaders) headers().copy(), (BinaryHttpHeaders) trailingHeaders().copy());
         request.setDecoderResult(this.decoderResult());
         return request;
     }

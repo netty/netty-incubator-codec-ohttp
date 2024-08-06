@@ -25,11 +25,11 @@ import io.netty.handler.codec.http.HttpVersion;
  */
 public final class DefaultBinaryHttpResponse extends DefaultHttpResponse implements BinaryHttpResponse {
     public DefaultBinaryHttpResponse(HttpVersion version, HttpResponseStatus status) {
-        super(version, status, BinaryHttpHeaders.newHeaders(true));
+        this(version, status, BinaryHttpHeaders.newHeaders(true));
     }
 
     public DefaultBinaryHttpResponse(HttpVersion version, HttpResponseStatus status, boolean validateHeaders) {
-        super(version, status, BinaryHttpHeaders.newHeaders(validateHeaders));
+        this(version, status, BinaryHttpHeaders.newHeaders(validateHeaders));
     }
 
     DefaultBinaryHttpResponse(HttpVersion version, HttpResponseStatus status, BinaryHttpHeaders headers) {

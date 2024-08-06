@@ -46,7 +46,7 @@ public final class DefaultFullBinaryHttpResponse extends DefaultFullHttpResponse
                 BinaryHttpHeaders.newTrailers(validateHeaders));
     }
 
-    private DefaultFullBinaryHttpResponse(HttpVersion version, HttpResponseStatus status, ByteBuf content,
+    DefaultFullBinaryHttpResponse(HttpVersion version, HttpResponseStatus status, ByteBuf content,
                                   HttpHeaders headers, HttpHeaders trailingHeaders) {
         super(version, status, content, headers, trailingHeaders);
     }
