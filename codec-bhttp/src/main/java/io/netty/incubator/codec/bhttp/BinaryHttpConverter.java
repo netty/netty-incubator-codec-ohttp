@@ -62,6 +62,7 @@ public final class BinaryHttpConverter {
      * All {@link HttpHeaders} names of the {@link FullHttpRequest} will be changed to lowercase to be in line with
      * the
      * <a href="https://www.rfc-editor.org/rfc/rfc9292.html">Binary Representation of HTTP Messages</a> specification.
+     * This method will take ownership of {@link FullBinaryHttpRequest} and so is responsible for releasing it.
      *
      * @param request   the request.
      * @param scheme    the scheme
@@ -104,6 +105,7 @@ public final class BinaryHttpConverter {
      * All {@link HttpHeaders} names of the {@link FullHttpResponse} will be changed to lowercase to be in line with
      * the
      * <a href="https://www.rfc-editor.org/rfc/rfc9292.html">Binary Representation of HTTP Messages</a> specification.
+     * This method will take ownership of {@link FullBinaryHttpResponse} and so is responsible for releasing it.
      *
      * @param response  the response.
      * @return          the created response.
@@ -124,7 +126,8 @@ public final class BinaryHttpConverter {
      * All {@link HttpHeaders} names of the {@link LastHttpContent} will be changed to lowercase to be in line with
      * the
      * <a href="https://www.rfc-editor.org/rfc/rfc9292.html">Binary Representation of HTTP Messages</a> specification.
-     *
+     * This method will take ownership of {@link LastHttpContent} and so is responsible for releasing it.
+
      * @param content   the last content..
      * @return          the created content.
      */
