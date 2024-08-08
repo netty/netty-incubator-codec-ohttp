@@ -47,9 +47,6 @@ public final class BinaryHttpConverter {
      * @return          the created request.
      */
     public static BinaryHttpRequest convert(HttpRequest request, String scheme, String authority) {
-        if (request instanceof FullBinaryHttpRequest) {
-            return convert((FullHttpRequest) request, scheme, authority);
-        }
         BinaryHttpHeaders headers = copyAndSanitize(request.headers());
         DefaultBinaryHttpRequest binaryHttpRequest = new DefaultBinaryHttpRequest(request.protocolVersion(),
                 request.method(), scheme, authority, request.uri(), headers);
@@ -90,9 +87,6 @@ public final class BinaryHttpConverter {
      * @return          the created response.
      */
     public static BinaryHttpResponse convert(HttpResponse response) {
-        if (response instanceof FullBinaryHttpRequest) {
-            return convert((FullHttpResponse) response);
-        }
         BinaryHttpHeaders headers = copyAndSanitize(response.headers());
         BinaryHttpResponse binaryHttpResponse = new DefaultBinaryHttpResponse(
                 response.protocolVersion(), response.status(), headers);
@@ -101,7 +95,7 @@ public final class BinaryHttpConverter {
     }
 
     /**
-     * Creates a {@link FullBinaryHttpResponse} from the given {@link FullHttpRequest}.
+     * Creates a {@link FullBinaryHttpResponse} from the given {@link FullHttpResponse}.
      * All {@link HttpHeaders} names of the {@link FullHttpResponse} will be changed to lowercase to be in line with
      * the
      * <a href="https://www.rfc-editor.org/rfc/rfc9292.html">Binary Representation of HTTP Messages</a> specification.
