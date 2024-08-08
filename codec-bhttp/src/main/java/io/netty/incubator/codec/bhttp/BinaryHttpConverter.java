@@ -26,6 +26,7 @@ import io.netty.util.AsciiString;
 
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Class which contains various methods to convert from regular HTTP1/x to
@@ -50,7 +51,9 @@ public final class BinaryHttpConverter {
         if (request instanceof FullBinaryHttpRequest) {
             return convert((FullHttpRequest) request, scheme, authority);
         }
-        BinaryHttpHeaders headers = copyAndSanitize(request.headers());
+        BinaryHttpHeaders headers = BinaryHttpHeaders.newHeaders(true);
+        copyAndSanitize(request.headers(), headers);
+
         DefaultBinaryHttpRequest binaryHttpRequest = new DefaultBinaryHttpRequest(request.protocolVersion(),
                 request.method(), scheme, authority, request.uri(), headers);
         binaryHttpRequest.setDecoderResult(request.decoderResult());
@@ -70,8 +73,11 @@ public final class BinaryHttpConverter {
      * @return          the created request.
      */
     public static FullBinaryHttpRequest convert(FullHttpRequest request, String scheme, String authority) {
-        BinaryHttpHeaders headers = copyAndSanitize(request.headers());
-        BinaryHttpHeaders trailers = copyAndSanitize(request.trailingHeaders());
+        BinaryHttpHeaders headers = BinaryHttpHeaders.newHeaders(true);
+        copyAndSanitize(request.headers(), headers);
+
+        BinaryHttpHeaders trailers = BinaryHttpHeaders.newTrailers(true);
+        copyAndSanitize(request.trailingHeaders(), trailers);
 
         FullBinaryHttpRequest binaryHttpRequest =  new DefaultFullBinaryHttpRequest(request.protocolVersion(),
                 request.method(), scheme, authority, request.uri(), request.content().retain(), headers, trailers);
@@ -93,7 +99,8 @@ public final class BinaryHttpConverter {
         if (response instanceof FullBinaryHttpRequest) {
             return convert((FullHttpResponse) response);
         }
-        BinaryHttpHeaders headers = copyAndSanitize(response.headers());
+        BinaryHttpHeaders headers = BinaryHttpHeaders.newHeaders(true);
+        copyAndSanitize(response.headers(), headers);
         BinaryHttpResponse binaryHttpResponse = new DefaultBinaryHttpResponse(
                 response.protocolVersion(), response.status(), headers);
         binaryHttpResponse.setDecoderResult(response.decoderResult());
@@ -111,8 +118,11 @@ public final class BinaryHttpConverter {
      * @return          the created response.
      */
     public static FullBinaryHttpResponse convert(FullHttpResponse response) {
-        BinaryHttpHeaders headers = copyAndSanitize(response.headers());
-        BinaryHttpHeaders trailers = copyAndSanitize(response.trailingHeaders());
+        BinaryHttpHeaders headers = BinaryHttpHeaders.newHeaders(true);
+        copyAndSanitize(response.headers(), headers);
+
+        BinaryHttpHeaders trailers = BinaryHttpHeaders.newTrailers(true);
+        copyAndSanitize(response.trailingHeaders(), trailers);
 
         FullBinaryHttpResponse binaryHttpResponse =  new DefaultFullBinaryHttpResponse(response.protocolVersion(),
                 response.status(), response.content().retain(), headers, trailers);
@@ -132,38 +142,47 @@ public final class BinaryHttpConverter {
      * @return          the created content.
      */
     public static LastHttpContent convert(LastHttpContent content) {
-        HttpHeaders trailers = copyAndSanitize(content.trailingHeaders());
+        BinaryHttpHeaders trailers = BinaryHttpHeaders.newTrailers(true);
+        copyAndSanitize(content.trailingHeaders(), trailers);
         LastHttpContent binaryContent =  new DefaultLastHttpContent(content.content().retain(), trailers);
         content.release();
         return binaryContent;
     }
 
-    private static BinaryHttpHeaders copyAndSanitize(HttpHeaders headers) {
-        BinaryHttpHeaders binaryHttpHeaders = BinaryHttpHeaders.newHeaders(true);
-        if (headers.isEmpty()) {
-            return binaryHttpHeaders;
-        }
-        for (Iterator<Map.Entry<CharSequence, CharSequence>> it = headers.iteratorCharSequence(); it.hasNext();) {
+    /**
+     * Copy the given {@link HttpHeaders} to another {@link HttpHeaders} instance that is compatible with
+     * OHTTP.
+     * All {@link HttpHeaders} names of the {@link HttpHeaders} will be changed to lowercase to be in line with
+     * the
+     * <a href="https://www.rfc-editor.org/rfc/rfc9292.html">Binary Representation of HTTP Messages</a> specification.
+     *
+     * @param in                the HTTP/1.x headers
+     * @param out               the BHTTP headers.
+     */
+    public static void copyAndSanitize(HttpHeaders in, HttpHeaders out) {
+        Objects.requireNonNull(in, "in");
+        Objects.requireNonNull(out, "out");
+
+        for (Iterator<Map.Entry<CharSequence, CharSequence>> it = in.iteratorCharSequence(); it.hasNext();) {
             final Map.Entry<CharSequence, CharSequence> entry = it.next();
             final CharSequence name = entry.getKey();
             if (name instanceof AsciiString) {
                 // Let's just convert to lowerCase() directly if needed, otherwise
                 // this will just return the same instance.
-                binaryHttpHeaders.add(((AsciiString) name).toLowerCase(), entry.getValue());
+                out.add(((AsciiString) name).toLowerCase(), entry.getValue());
             } else if (name instanceof String) {
                 // Let's just convert to lowerCase() directly if needed, otherwise
                 // this will just return the same instance.
-                binaryHttpHeaders.add(((String) name).toLowerCase(), entry.getValue());
+                out.add(((String) name).toLowerCase(), entry.getValue());
             } else if (isAnyUpperCase(name)) {
                 // Create a lowercase AsciiString, alternative we could also have a CharSequence that lowercase stuff
                 // on the fly.
-                binaryHttpHeaders.add(new AsciiString(name).toLowerCase(), entry.getValue());
+                out.add(new AsciiString(name).toLowerCase(), entry.getValue());
             } else {
                 // No need to convert it as it is lowercase already.
-                binaryHttpHeaders.add(name, entry.getValue());
+                out.add(name, entry.getValue());
             }
         }
-        return binaryHttpHeaders;
     }
 
     private static boolean isAnyUpperCase(CharSequence name) {
