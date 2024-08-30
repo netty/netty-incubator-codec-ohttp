@@ -18,6 +18,7 @@ package io.netty.incubator.codec.ohttp;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.MessageToMessageCodec;
+import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -303,12 +304,19 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 in.readerIndex(initialReaderIndex);
                 return false;
             }
+
+            AsymmetricCipherKeyPair pair = keys.getKeyPair(ciphersuite);
+            if (pair == null) {
+                throw new CryptoException("Unable to find private key for OHttpCiphersuite: " + ciphersuite);
+            }
+
             final byte[] encapsulatedKey = new byte[encapsulatedKeyLength];
             in.readBytes(encapsulatedKey);
+
             receiver = OHttpCryptoReceiver.newBuilder()
                     .setOHttpCryptoProvider(provider)
                     .setConfiguration(version())
-                    .setPrivateKey(keys.getKeyPair(ciphersuite))
+                    .setPrivateKey(pair)
                     .setCiphersuite(ciphersuite)
                     .setEncapsulatedKey(encapsulatedKey)
                     .build();
