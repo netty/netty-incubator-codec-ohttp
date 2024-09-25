@@ -16,7 +16,9 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.PendingWriteQueue;
@@ -39,6 +41,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -152,6 +155,50 @@ public class OHttpServerCodecTest {
         void writeAndFlushNow() {
             queue.removeAndWriteAll();
             ctx.flush();
+        }
+    }
+
+    @Test
+    public void testReadWhenNoAutoRead() throws Exception {
+        AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(BouncyCastleOHttpCryptoProvider.INSTANCE,
+                "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+        byte keyId = 0x66;
+
+        OHttpServerKeys serverKeys = new OHttpServerKeys(
+                OHttpKey.newPrivateKey(
+                        keyId,
+                        KEM.X25519_SHA256,
+                        Arrays.asList(
+                                OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.AES_GCM128),
+                                OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.CHACHA20_POLY1305)),
+                        kpR));
+
+        ReadCountHandler readCountHandler = new ReadCountHandler();
+        EmbeddedChannel channel = new EmbeddedChannel(
+                readCountHandler,
+                new OHttpServerCodec(BouncyCastleOHttpCryptoProvider.INSTANCE, serverKeys) {
+                    @Override
+                    protected OHttpVersion selectVersion(String contentTypeValue) {
+                        return OHttpVersionDraft.INSTANCE;
+                    }
+                });
+
+        channel.config().setOption(ChannelOption.AUTO_READ, false);
+
+        assertFalse(channel.writeInbound(new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/test")));
+
+        assertEquals(2, readCountHandler.readCount.get());
+
+        assertFalse(channel.finish());
+    }
+
+    private static final class ReadCountHandler extends ChannelDuplexHandler {
+        AtomicInteger readCount = new AtomicInteger();
+
+        @Override
+        public void read(ChannelHandlerContext ctx) throws Exception {
+            readCount.incrementAndGet();
+            super.read(ctx);
         }
     }
 }
