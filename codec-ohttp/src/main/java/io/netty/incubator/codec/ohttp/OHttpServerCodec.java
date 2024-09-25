@@ -169,7 +169,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         } catch (Exception e) {
             throw new OHttpServerDecoderException("failed to decode bytes", e);
         } finally {
-            producedMessage = !out.isEmpty();
+            producedMessage |= !out.isEmpty();
         }
     }
 

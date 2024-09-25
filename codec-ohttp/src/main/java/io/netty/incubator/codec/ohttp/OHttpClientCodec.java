@@ -201,6 +201,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
         if (destroyed) {
             throw new IllegalStateException("Already destroyed");
         }
+        decodeCalled = true;
         try {
             assert !contextHolders.isEmpty();
             OHttpRequestResponseContext ohttpContext = contextHolders.peekFirst().handler;
@@ -235,6 +236,8 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
             }
         } catch (CryptoException e) {
             throw new OHttpDecoderException("failed to decrypt bytes", e);
+        } finally {
+            producedMessage |= !out.isEmpty();
         }
     }
 
