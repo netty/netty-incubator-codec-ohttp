@@ -23,7 +23,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.EncoderException;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.DefaultHttpRequest;
@@ -83,6 +82,8 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
 
     private ByteBuf cumulationBuffer = Unpooled.EMPTY_BUFFER;
     private boolean destroyed;
+    private boolean decodeCalled;
+    private boolean producedMessage;
 
     /**
      * Creates a new instance
@@ -200,6 +201,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
         if (destroyed) {
             throw new IllegalStateException("Already destroyed");
         }
+        decodeCalled = true;
         try {
             assert !contextHolders.isEmpty();
             OHttpRequestResponseContext ohttpContext = contextHolders.peekFirst().handler;
@@ -234,7 +236,19 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
             }
         } catch (CryptoException e) {
             throw new OHttpDecoderException("failed to decrypt bytes", e);
+        } finally {
+            producedMessage |= !out.isEmpty();
         }
+    }
+
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        if (decodeCalled && !producedMessage && !ctx.channel().config().isAutoRead()) {
+            ctx.read();
+        }
+        decodeCalled = false;
+        producedMessage = false;
+        ctx.fireChannelReadComplete();
     }
 
     @Override

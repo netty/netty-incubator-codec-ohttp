@@ -66,6 +66,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
     private boolean sentResponse;
     private OHttpServerRequestResponseContext oHttpContext;
     private ByteBuf cumulationBuffer = Unpooled.EMPTY_BUFFER;
+    private boolean decodeCalled;
+    private boolean producedMessage;
     private boolean destroyed;
 
     public OHttpServerCodec(OHttpCryptoProvider provider, OHttpServerKeys serverKeys) {
@@ -110,6 +112,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         if (destroyed) {
             throw new IllegalStateException("Already destroyed");
         }
+        decodeCalled = true;
         try {
             if (msg instanceof HttpRequest) {
                 HttpRequest req = (HttpRequest) msg;
@@ -165,7 +168,19 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             }
         } catch (Exception e) {
             throw new OHttpServerDecoderException("failed to decode bytes", e);
+        } finally {
+            producedMessage |= !out.isEmpty();
         }
+    }
+
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        if (decodeCalled && !producedMessage && !ctx.channel().config().isAutoRead()) {
+            ctx.read();
+        }
+        decodeCalled = false;
+        producedMessage = false;
+        ctx.fireChannelReadComplete();
     }
 
     @Override
