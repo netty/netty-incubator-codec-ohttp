@@ -19,11 +19,11 @@
     <parent>
         <groupId>io.netty.incubator</groupId>
         <artifactId>netty-incubator-codec-parent-ohttp</artifactId>
-        <version>0.0.17.Final</version>
+        <version>0.0.18.Final-SNAPSHOT</version>
     </parent>
 
     <artifactId>netty-incubator-codec-ohttp-hpke-classes-boringssl</artifactId>
-    <version>0.0.17.Final</version>
+    <version>0.0.18.Final-SNAPSHOT</version>
     <name>Netty/Incubator/Codec/OHTTP/HPKE/Classes/BoringSSL</name>
 
     <packaging>jar</packaging>
