@@ -24,7 +24,7 @@
 
   <groupId>io.netty.incubator</groupId>
   <artifactId>netty-incubator-codec-parent-ohttp</artifactId>
-  <version>0.0.17.Final-SNAPSHOT</version>
+  <version>0.0.17.Final</version>
   <name>Netty/Incubator/Codec/Parent/OHTTP</name>
   <packaging>pom</packaging>
   <url>https://netty.io/</url>
@@ -51,7 +51,7 @@
     <url>https://github.com/netty/netty-incubator-codec-ohttp</url>
     <connection>scm:git:git://github.com/netty/netty-incubator-codec-ohttp.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/netty/netty-incubator-codec-ohttp.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>netty-incubator-codec-parent-ohttp-0.0.17.Final</tag>
   </scm>
 
   <developers>
