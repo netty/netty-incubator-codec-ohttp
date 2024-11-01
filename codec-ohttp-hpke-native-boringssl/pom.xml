@@ -47,8 +47,8 @@
         <boringsslHomeIncludeDir>${boringsslHomeDir}/include</boringsslHomeIncludeDir>
         <boringsslRepository>https://boringssl.googlesource.com/boringssl</boringsslRepository>
         <!-- Lets use what we use in netty-tcnative-boringssl-static -->
-        <boringsslBranch>chromium-stable</boringsslBranch>
-        <boringsslCommitSha>dd5219451c3ce26221762a15d867edf43b463bb2</boringsslCommitSha>
+        <boringsslBranch>master</boringsslBranch>
+        <boringsslCommitSha>b8c97f5b4bc5d4758612a0430e5c2792d0f9ca7f</boringsslCommitSha>
 
         <generatedSourcesDir>${project.build.directory}/generated-sources</generatedSourcesDir>
         <templateDir>${project.build.directory}/template</templateDir>
@@ -153,7 +153,7 @@
                 <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
                 <cmakeCxxFlags>${extraCxxflags} -Wno-error=maybe-uninitialized -Wno-error=shadow -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS</cmakeCxxFlags>
                 <libcrypto>libcrypto.a</libcrypto>
-                <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL -Wl,-lrt</extraLdflags>
+                <extraLdflags>-static-libstdc++ -l:libstdc++.a -Wl,--strip-debug -Wl,--exclude-libs,ALL -Wl,-lrt</extraLdflags>
                 <bundleNativeCode>META-INF/native/lib${jniLibName}.so;osname=linux;processor=${os.detected.arch}</bundleNativeCode>
             </properties>
         </profile>
@@ -168,7 +168,7 @@
                 <!-- We need to define __STDC_CONSTANT_MACROS and __STDC_FORMAT_MACROS when building boringssl on centos 6 -->
                 <cmakeCxxFlags>${extraCxxflags} -Wno-error=maybe-uninitialized -Wno-error=shadow -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS</cmakeCxxFlags>
                 <libcrypto>libcrypto.a</libcrypto>
-                <extraLdflags>-Wl,--strip-debug -Wl,--exclude-libs,ALL</extraLdflags>
+                <extraLdflags>-static-libstdc++ -l:libstdc++.a -Wl,--strip-debug -Wl,--exclude-libs,ALL</extraLdflags>
                 <bundleNativeCode>META-INF/native/lib${jniLibName}.so;osname=linux;processor=aarch64</bundleNativeCode>
                 <jniLibName>netty_incubator_codec_ohttp_hpke_boringssl_linux_aarch_64</jniLibName>
                 <jni.classifier>linux-aarch_64</jni.classifier>
