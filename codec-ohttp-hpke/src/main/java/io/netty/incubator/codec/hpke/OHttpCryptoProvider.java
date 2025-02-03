@@ -20,6 +20,37 @@ package io.netty.incubator.codec.hpke;
  * for oHTTP. Because of that the functionality is limited to what is needed for oHTTP.
  */
 public interface OHttpCryptoProvider {
+
+    /**
+     * Export the {@link AEADParameters} used.
+     *
+     * @param context           the {@link HPKESenderContext}.
+     * @param aead              the {@link AEAD} that was used.
+     * @param keyInfo           the key info.
+     * @param nounceInfo        the nounce info.
+     * @param exportContext     the export context.
+     * @param responseNonce     the response nounce.
+     * @return                  the {@link AEADParameters}.
+     * @throws CryptoException
+     */
+    static AEADParameters exportAEADParameters(HPKESenderContext context, AEAD aead,
+                                               byte[] keyInfo, byte[] nounceInfo, byte[] exportContext,
+                                               byte[] responseNonce) throws CryptoException {
+        int secretLength = Math.max(aead.nk(), aead.nn());
+        if (responseNonce.length != secretLength) {
+            throw new CryptoException("response nonce has unexpected length");
+        }
+        byte[] secret = context.export(exportContext, secretLength);
+        byte[] enc = context.encapsulation();
+        byte[] salt = new byte[enc.length + responseNonce.length];
+        System.arraycopy(enc, 0, salt, 0, enc.length);
+        System.arraycopy(responseNonce, 0, salt, enc.length, responseNonce.length);
+        byte[] prk = context.extract(salt, secret);
+        byte[] aeadKey = context.expand(prk, keyInfo, aead.nk());
+        byte[] aeadNonce = context.expand(prk, nounceInfo, aead.nn());
+        return new AEADParameters(aead, aeadKey, aeadNonce);
+    }
+
     /**
      * Creates a new {@link AEADContext} instance implementation of
      * <a href="https://datatracker.ietf.org/doc/html/rfc5116">An AEAD encryption algorithm [RFC5116]</a>.
