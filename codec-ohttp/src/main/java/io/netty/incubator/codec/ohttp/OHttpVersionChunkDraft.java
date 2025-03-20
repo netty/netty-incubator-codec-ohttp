@@ -25,6 +25,7 @@ import io.netty.handler.codec.TooLongFrameException;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AsciiString;
+import io.netty.util.internal.ObjectUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -54,14 +55,22 @@ import static io.netty.incubator.codec.ohttp.OHttpConstants.MAX_CHUNK_SIZE;
  */
 public final class OHttpVersionChunkDraft implements OHttpVersion {
 
-    public static final OHttpVersion INSTANCE = new OHttpVersionChunkDraft();
+    public static final OHttpVersion INSTANCE = new OHttpVersionChunkDraft(MAX_CHUNK_SIZE);
 
     private static final byte[] CHUNKED_REQUEST_EXPORT_CONTEXT =
             "message/bhttp chunked request".getBytes(StandardCharsets.US_ASCII);
     private static final byte[] CHUNKED_RESPONSE_EXPORT_CONTEXT =
             "message/bhttp chunked response".getBytes(StandardCharsets.US_ASCII);
 
-    private OHttpVersionChunkDraft() {
+    private final int maxChunkSize;
+
+    /**
+     * Create a new instance.
+     *
+     * @param maxChunkSize      the maximum chunk size that is supported by this implementation.
+     */
+    public OHttpVersionChunkDraft(int maxChunkSize) {
+        this.maxChunkSize = ObjectUtil.checkPositive(maxChunkSize, "maxChunkSize");
     }
 
     @Override
@@ -99,7 +108,7 @@ public final class OHttpVersionChunkDraft implements OHttpVersion {
         }
     }
 
-    static ChunkInfo parseNextChunk(ByteBuf in, boolean isLast) {
+    static ChunkInfo parseNextChunk(ByteBuf in, boolean isLast, int maxChunkSize) {
         if (!in.isReadable()) {
             return null;
         }
@@ -112,8 +121,8 @@ public final class OHttpVersionChunkDraft implements OHttpVersion {
                 return null;
             }
             long contentLength = VarIntCodecUtils.readVariableLengthInteger(in, lengthNumBytes);
-            if (contentLength > MAX_CHUNK_SIZE) {
-                throw new TooLongFrameException("Chunk is too large: " + contentLength + " > " + MAX_CHUNK_SIZE);
+            if (contentLength > maxChunkSize) {
+                throw new TooLongFrameException("Chunk is too large: " + contentLength + " > " + maxChunkSize);
             }
             if (contentLength > 0) {
                 // Non-Final chunk
@@ -137,8 +146,8 @@ public final class OHttpVersionChunkDraft implements OHttpVersion {
         }
     }
 
-    static void serializeChunk(ByteBuf content, boolean isFinal, ByteBuf out) {
-        if (content.readableBytes() > MAX_CHUNK_SIZE) {
+    static void serializeChunk(ByteBuf content, boolean isFinal, ByteBuf out, int maxChunkSize) {
+        if (content.readableBytes() > maxChunkSize) {
             throw new EncoderException("Chunk is too large to be serialized");
         }
         if (!content.isReadable()) {
@@ -164,7 +173,7 @@ public final class OHttpVersionChunkDraft implements OHttpVersion {
             }
         }
         while (in.isReadable()) {
-            ChunkInfo chunkInfo = parseNextChunk(in, completeBodyReceived);
+            ChunkInfo chunkInfo = parseNextChunk(in, completeBodyReceived, maxChunkSize);
             if (chunkInfo == null) {
                 break;
             }
@@ -183,7 +192,7 @@ public final class OHttpVersionChunkDraft implements OHttpVersion {
         ByteBuf encryptedBytes = alloc.buffer();
         try {
             encoder.encodeChunk(alloc, msg, encryptedBytes);
-            serializeChunk(encryptedBytes, isFinal, out);
+            serializeChunk(encryptedBytes, isFinal, out, maxChunkSize);
         } finally {
             encryptedBytes.release();
         }

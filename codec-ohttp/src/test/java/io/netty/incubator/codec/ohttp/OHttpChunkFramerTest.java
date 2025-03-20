@@ -41,7 +41,7 @@ public class OHttpChunkFramerTest {
         try {
             ByteBuf in = bytesFromHex(chunkHex);
             try {
-                OHttpVersionChunkDraft.serializeChunk(in, isFinal, out);
+                OHttpVersionChunkDraft.serializeChunk(in, isFinal, out, MAX_CHUNK_SIZE);
                 assertEquals(expectedEncodedHex, ByteBufUtil.hexDump(out));
             } finally {
                 in.release();
@@ -57,7 +57,7 @@ public class OHttpChunkFramerTest {
         try {
             ByteBuf in = bytesFromHex(chunkHex);
             try {
-                assertThrows(exception, () -> OHttpVersionChunkDraft.serializeChunk(in, isFinal, out));
+                assertThrows(exception, () -> OHttpVersionChunkDraft.serializeChunk(in, isFinal, out, MAX_CHUNK_SIZE));
             } finally {
                 in.release();
             }
@@ -84,7 +84,7 @@ public class OHttpChunkFramerTest {
         try {
             ByteBuf in = Unpooled.buffer().writeBytes(new byte[MAX_CHUNK_SIZE]);
             try {
-                OHttpVersionChunkDraft.serializeChunk(in, false, out);
+                OHttpVersionChunkDraft.serializeChunk(in, false, out, MAX_CHUNK_SIZE);
             } finally {
                 in.release();
             }
@@ -93,7 +93,7 @@ public class OHttpChunkFramerTest {
             ByteBuf in2 = Unpooled.buffer().writeBytes(new byte[MAX_CHUNK_SIZE + 1]);
             try {
                 assertThrows(EncoderException.class,
-                        () -> OHttpVersionChunkDraft.serializeChunk(in2, false, out));
+                        () -> OHttpVersionChunkDraft.serializeChunk(in2, false, out, MAX_CHUNK_SIZE));
             } finally {
                 in2.release();
             }
@@ -112,11 +112,12 @@ public class OHttpChunkFramerTest {
             // Check that all substrings yield no chunk
             if (!isLast) {
                 for (int i = 0; i < in.readableBytes(); i++) {
-                    assertNull(OHttpVersionChunkDraft.parseNextChunk(in.slice(0, i), isLast));
+                    assertNull(OHttpVersionChunkDraft.parseNextChunk(in.slice(0, i), isLast, MAX_CHUNK_SIZE));
                 }
             }
 
-            OHttpVersionChunkDraft.ChunkInfo chunkInfo = OHttpVersionChunkDraft.parseNextChunk(in, isLast);
+            OHttpVersionChunkDraft.ChunkInfo chunkInfo =
+                    OHttpVersionChunkDraft.parseNextChunk(in, isLast, MAX_CHUNK_SIZE);
             assertNotNull(chunkInfo);
             assertEquals(expectedLength, chunkInfo.length);
             assertEquals(expectedIsFinal, chunkInfo.isFinal);
@@ -129,7 +130,8 @@ public class OHttpChunkFramerTest {
     private static void parseNullHelper(String dataHex, boolean isLast) {
         ByteBuf in = bytesFromHex(dataHex);
         try {
-            OHttpVersionChunkDraft.ChunkInfo chunkInfo = OHttpVersionChunkDraft.parseNextChunk(in, isLast);
+            OHttpVersionChunkDraft.ChunkInfo chunkInfo =
+                    OHttpVersionChunkDraft.parseNextChunk(in, isLast, MAX_CHUNK_SIZE);
             assertNull(chunkInfo);
             assertEquals(0, in.readerIndex());
         } finally {
@@ -140,7 +142,7 @@ public class OHttpChunkFramerTest {
     private static <T extends Throwable> void parseThrowsHelper(String dataHex, boolean isLast, Class<T> exception) {
         ByteBuf in = bytesFromHex(dataHex);
         try {
-            assertThrows(exception, () -> OHttpVersionChunkDraft.parseNextChunk(in, isLast));
+            assertThrows(exception, () -> OHttpVersionChunkDraft.parseNextChunk(in, isLast, MAX_CHUNK_SIZE));
             assertEquals(0, in.readerIndex());
         } finally {
             in.release();
