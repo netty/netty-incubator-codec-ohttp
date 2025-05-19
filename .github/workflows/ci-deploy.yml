@@ -17,7 +17,7 @@ name: Deploy project
 
 on:
   push:
-    branches: [ main, deploy, deploy2 ]
+    branches: [ main ]
 
   schedule:
     - cron: '30 7 * * 1'  # At 07:30 on Monday, every Monday.
@@ -58,9 +58,9 @@ jobs:
         with:
           servers: |
             [{
-              "id": "sonatype-nexus-staging",
-              "username": "${{ secrets.SONATYPE_USERNAME }}",
-              "password": "${{ secrets.SONATYPE_PASSWORD }}"
+              "id": "central-portal-snapshots",
+              "username": "${{ secrets.MAVEN_CENTRAL_USERNAME }}",
+              "password": "${{ secrets.MAVEN_CENTRAL_PASSWORD }}"
             }]
 
       - name: Create local staging directory
@@ -120,7 +120,7 @@ jobs:
         run: mkdir -p ~/local-staging
 
       - name: Stage snapshots to local staging directory
-        run: ./mvnw -B -ntp clean package org.sonatype.plugins:nexus-staging-maven-plugin:deploy -DaltStagingDirectory=$HOME/local-staging -DskipRemoteStaging=true -DskipTests=true
+        run: ./mvnw -B -ntp -Pstage-snapshot clean package org.sonatype.plugins:nexus-staging-maven-plugin:deploy -DaltStagingDirectory=$HOME/local-staging
 
       - name: Upload local staging directory
         uses: actions/upload-artifact@v4
@@ -147,9 +147,9 @@ jobs:
         with:
           servers: |
             [{
-              "id": "sonatype-nexus-snapshots",
-              "username": "${{ secrets.SONATYPE_USERNAME }}",
-              "password": "${{ secrets.SONATYPE_PASSWORD }}"
+              "id": "central-portal-snapshots",
+              "username": "${{ secrets.MAVEN_CENTRAL_USERNAME }}",
+              "password": "${{ secrets.MAVEN_CENTRAL_PASSWORD }}"
             }]
 
       # Caching of maven dependencies
@@ -160,11 +160,6 @@ jobs:
           key: deploy-staged-snapshots-maven-cache-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             deploy-staged-snapshots-maven-cache-
-
-      # Setup some env to re-use later.
-      - name: Prepare enviroment variables
-        run: |
-          echo "LOCAL_STAGING_DIR=$HOME/local-staging" >> $GITHUB_ENV
 
       # Hardcode the staging artifacts that need to be downloaded.
       # These must match the matrix setups and windows build. There is currently no way to pull this out of the config.
@@ -197,4 +192,4 @@ jobs:
         run: bash ./.github/scripts/merge_local_staging.sh ~/local-staging ~/macos-x86_64-local-staging ~/macos-aarch64-local-staging ~/linux-aarch64-local-staging ~/linux-x86_64-local-staging
 
       - name: Deploy local staged artifacts
-        run: ./mvnw -B -ntp --file pom.xml org.sonatype.plugins:nexus-staging-maven-plugin:deploy-staged -DaltStagingDirectory=$LOCAL_STAGING_DIR
+        run: ./mvnw -B -ntp --file pom.xml -Pstage-snapshot org.sonatype.plugins:nexus-staging-maven-plugin:deploy-staged -DaltStagingDirectory=$HOME/local-staging
