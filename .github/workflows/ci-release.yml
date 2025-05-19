@@ -128,9 +128,9 @@ jobs:
         with:
           servers: |
             [{
-              "id": "sonatype-nexus-staging",
-              "username": "${{ secrets.SONATYPE_USERNAME }}",
-              "password": "${{ secrets.SONATYPE_PASSWORD }}"
+              "id": "central",
+              "username": "${{ secrets.MAVEN_CENTRAL_USERNAME }}",
+              "password": "${{ secrets.MAVEN_CENTRAL_PASSWORD }}"
             }]
 
       - name: Create local staging directory
@@ -152,7 +152,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.setup }}-local-staging
-          path: ~/local-staging
+          path: target/central-deferred
           if-no-files-found: error
           include-hidden-files: true
 
@@ -213,10 +213,11 @@ jobs:
         with:
           servers: |
             [{
-              "id": "sonatype-nexus-staging",
-              "username": "${{ secrets.SONATYPE_USERNAME }}",
-              "password": "${{ secrets.SONATYPE_PASSWORD }}"
+              "id": "central",
+              "username": "${{ secrets.MAVEN_CENTRAL_USERNAME }}",
+              "password": "${{ secrets.MAVEN_CENTRAL_PASSWORD }}"
             }]
+
 
       # Cache .m2/repository
       # Caching of maven dependencies
@@ -232,18 +233,15 @@ jobs:
         working-directory: ./prepare-release-workspace/
         run: brew bundle
 
-      - name: Create local staging directory
-        run: mkdir -p ~/local-staging
-
       - name: Stage snapshots to local staging directory
         working-directory: ./prepare-release-workspace/
-        run: ./mvnw -B -ntp clean javadoc:jar package gpg:sign org.sonatype.plugins:nexus-staging-maven-plugin:deploy -DnexusUrl=https://oss.sonatype.org -DserverId=sonatype-nexus-staging -DaltStagingDirectory=$HOME/local-staging -DskipRemoteStaging=true -DskipTests=true -Dgpg.passphrase=${{ secrets.GPG_PASSPHRASE }} -Dgpg.keyname=${{ secrets.GPG_KEYNAME }}
+        run: ./mvnw -B -ntp clean package javadoc:jar gpg:sign org.sonatype.central:central-publishing-maven-plugin:publish -DskipTests=true
 
       - name: Upload local staging directory
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.setup }}-local-staging
-          path: ~/local-staging
+          path: target/central-deferred
           if-no-files-found: error
           include-hidden-files: true
 
@@ -314,34 +312,16 @@ jobs:
       # all together with one maven command.
       - name: Merge staging repositories
         working-directory: ./prepare-release-workspace/
-        run: bash ./.github/scripts/merge_local_staging.sh ~/local-staging/staging ~/macos-x86_64-local-staging/staging ~/macos-aarch64-local-staging/staging ~/linux-aarch64-local-staging/staging ~/linux-x86_64-local-staging/staging
+        run: bash ./.github/scripts/local_staging_marge_release.sh ~/local-staging ~/macos-x86_64-local-staging ~/macos-aarch64-local-staging ~/linux-aarch64-local-staging ~/linux-x86_64-local-staging
 
-      # Caching of maven dependencies
-      - uses: actions/cache@v4
-        continue-on-error: true
-        with:
-          path: ~/.m2/repository
-          key: deploy-staged-release-maven-cache-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            deploy-staged-release-maven-cache-
+      - name: Create bundle
+        run: bash ./.github/scripts/bundle_create.sh ~/central-bundle.zip ~/local-staging/
 
-      - uses: s4u/maven-settings-action@v3.0.0
-        with:
-          servers: |
-            [{
-              "id": "sonatype-nexus-staging",
-              "username": "${{ secrets.SONATYPE_USERNAME }}",
-              "password": "${{ secrets.SONATYPE_PASSWORD }}"
-            }]
-
-      - name: Deploy local staged artifacts
-        working-directory: ./prepare-release-workspace/
-        # If we don't want to close the repository we can add -DskipStagingRepositoryClose=true
-        run: ./mvnw -B -ntp --file pom.xml org.sonatype.plugins:nexus-staging-maven-plugin:deploy-staged -DnexusUrl=https://oss.sonatype.org -DserverId=sonatype-nexus-staging -DaltStagingDirectory=$HOME/local-staging -DskipStagingRepositoryClose=true
+      - name: Upload bundle to maven central
+        run: bash ./.github/scripts/bundle_upload.sh ~/central-bundle.zip ${{ secrets.MAVEN_CENTRAL_USERNAME }} ${{ secrets.MAVEN_CENTRAL_PASSWORD }
 
       - name: Rollback release on failure
         working-directory: ./prepare-release-workspace/
         if: ${{ failure() }}
         # Rollback the release in case of an failure
         run: bash ./.github/scripts/release_rollback.sh release.properties netty/netty-incubator-codec-ohttp main
-
