@@ -24,8 +24,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.EncoderException;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultHttpRequest;
@@ -235,14 +233,18 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             }
             if (oHttpContext != null) {
                 boolean isLast = msg instanceof LastHttpContent;
+                ByteBuf contentBytes = ctx.alloc().buffer();
                 try {
-                    ByteBuf contentBytes = ctx.alloc().buffer();
                     oHttpContext.serialize(ctx.alloc(), msg, contentBytes);
                     // Use the correct version of HttpContent depending on if it was the last or not.
                     HttpContent content = isLast ? new DefaultLastHttpContent(contentBytes) :
                             new DefaultHttpContent(contentBytes);
                     out.add(content);
+                    contentBytes = null;
                 } finally {
+                    if (contentBytes != null) {
+                        contentBytes.release();
+                    }
                     if (isLast && oHttpContext.sendLastHttpContent()) {
                         destroyContext();
                     }
