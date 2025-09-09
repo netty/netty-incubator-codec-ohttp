@@ -74,7 +74,7 @@
                 </os>
             </activation>
             <properties>
-                <macosxDeploymentTarget>10.12</macosxDeploymentTarget>
+                <macosxDeploymentTarget>10.13</macosxDeploymentTarget>
                 <!-- On *nix, add ASM flags to disable executable stack -->
                 <cmakeAsmFlags>-Wa,--noexecstack -mmacosx-version-min=${macosxDeploymentTarget}</cmakeAsmFlags>
                 <extraCflags>-mmacosx-version-min=${macosxDeploymentTarget}</extraCflags>
@@ -93,7 +93,7 @@
                 <jniLibName>netty_incubator_codec_ohttp_hpke_boringssl_osx_aarch_64</jniLibName>
                 <jni.classifier>osx-aarch_64</jni.classifier>
                 <javaModuleNameClassifier>osx.aarch_64</javaModuleNameClassifier>
-                <macosxDeploymentTarget>11.0</macosxDeploymentTarget>
+                <macosxDeploymentTarget>13.0</macosxDeploymentTarget>
                 <extraCflags>-target arm64-apple-macos11</extraCflags>
                 <extraCxxflags>-target arm64-apple-macos11</extraCxxflags>
                 <!-- On *nix, add ASM flags to disable executable stack -->
@@ -118,7 +118,7 @@
                 <jniLibName>netty_incubator_codec_ohttp_hpke_boringssl_osx_x86_64</jniLibName>
                 <jni.classifier>osx-x86_64</jni.classifier>
                 <javaModuleNameClassifier>osx.x86_64</javaModuleNameClassifier>
-                <macosxDeploymentTarget>10.12</macosxDeploymentTarget>
+                <macosxDeploymentTarget>10.13</macosxDeploymentTarget>
                 <extraCflags>-target x86_64-apple-macos10.12 -mmacosx-version-min=${macosxDeploymentTarget}</extraCflags>
                 <extraCxxflags>-target x86_64-apple-macos10.12</extraCxxflags>
                 <!-- On *nix, add ASM flags to disable executable stack -->
