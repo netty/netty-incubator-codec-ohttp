@@ -313,7 +313,7 @@
 
                                         <!-- Only copy the libs and header files we need -->
                                         <mkdir dir="${boringsslHomeBuildDir}" />
-                                        <copy file="${boringsslBuildDir}/crypto/${libcrypto}" todir="${boringsslHomeBuildDir}" verbose="true" />
+                                        <copy file="${boringsslBuildDir}/${libcrypto}" todir="${boringsslHomeBuildDir}" verbose="true" />
                                         <copy todir="${boringsslHomeIncludeDir}" verbose="true">
                                             <fileset dir="${boringsslSourceDir}/include" />
                                         </copy>
