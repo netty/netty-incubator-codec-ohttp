@@ -48,7 +48,7 @@
         <boringsslRepository>https://boringssl.googlesource.com/boringssl</boringsslRepository>
         <!-- Lets use what we use in netty-tcnative-boringssl-static -->
         <boringsslBranch>main</boringsslBranch>
-        <boringsslCommitSha>b8c97f5b4bc5d4758612a0430e5c2792d0f9ca7f</boringsslCommitSha>
+        <boringsslCommitSha>0226f30467f540a3f62ef48d453f93927da199b6</boringsslCommitSha>
 
         <generatedSourcesDir>${project.build.directory}/generated-sources</generatedSourcesDir>
         <templateDir>${project.build.directory}/template</templateDir>
