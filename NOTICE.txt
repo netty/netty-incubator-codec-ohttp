@@ -32,3 +32,10 @@ This product contains the Maven wrapper scripts from 'Maven Wrapper', that provi
     * license/LICENSE.mvn-wrapper.txt (Apache License 2.0)
   * HOMEPAGE:
     * https://github.com/takari/maven-wrapper
+
+Parts of this product are statically linked against boringssl.
+
+  * LICENSE
+    * license/LICENSE.boringssl.txt (Apache License 2.0)
+  * HOMEPAGE:
+    * https://boringssl.googlesource.com/boringssl/
