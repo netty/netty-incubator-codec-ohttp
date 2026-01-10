@@ -15,12 +15,17 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.incubator.codec.bhttp.BinaryHttpRequest;
 import io.netty.incubator.codec.bhttp.DefaultBinaryHttpRequest;
 import io.netty.incubator.codec.bhttp.DefaultBinaryHttpResponse;
 import io.netty.incubator.codec.bhttp.DefaultFullBinaryHttpRequest;
 import io.netty.incubator.codec.bhttp.DefaultFullBinaryHttpResponse;
 import io.netty.incubator.codec.bhttp.FullBinaryHttpRequest;
+import io.netty.incubator.codec.bhttp.FullBinaryHttpResponse;
 import io.netty.incubator.codec.hpke.AEAD;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
@@ -75,26 +80,29 @@ public class OHttpCodecsTest {
         @Override
         public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
             List<Arguments> arguments = new ArrayList<>();
-            arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
-                    BouncyCastleOHttpCryptoProvider.INSTANCE));
-            arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
-                    BouncyCastleOHttpCryptoProvider.INSTANCE));
-
-            if (BoringSSLHPKE.isAvailable()) {
-                arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
-                        BoringSSLOHttpCryptoProvider.INSTANCE));
-                arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
-                        BoringSSLOHttpCryptoProvider.INSTANCE));
-
-                arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
-                        BouncyCastleOHttpCryptoProvider.INSTANCE));
-                arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
-                        BouncyCastleOHttpCryptoProvider.INSTANCE));
-
+            for (int i = 0; i < 2; i++) {
+                boolean trailers = i == 0;
                 arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
-                        BoringSSLOHttpCryptoProvider.INSTANCE));
+                        BouncyCastleOHttpCryptoProvider.INSTANCE, trailers));
                 arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
-                        BoringSSLOHttpCryptoProvider.INSTANCE));
+                        BouncyCastleOHttpCryptoProvider.INSTANCE, trailers));
+
+                if (BoringSSLHPKE.isAvailable()) {
+                    arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
+                            BoringSSLOHttpCryptoProvider.INSTANCE, trailers));
+                    arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
+                            BoringSSLOHttpCryptoProvider.INSTANCE, trailers));
+
+                    arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
+                            BouncyCastleOHttpCryptoProvider.INSTANCE, trailers));
+                    arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
+                            BouncyCastleOHttpCryptoProvider.INSTANCE, trailers));
+
+                    arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
+                            BoringSSLOHttpCryptoProvider.INSTANCE, trailers));
+                    arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE,
+                            BouncyCastleOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE, trailers));
+                }
             }
             return arguments.stream();
         }
@@ -195,6 +203,11 @@ public class OHttpCodecsTest {
             assertEquals(expected, received);
             if (expected instanceof HttpContent) {
                 assertEquals(((HttpContent) expected).content(), ((HttpContent) received).content());
+
+                if (expected instanceof LastHttpContent) {
+                    assertEquals(((LastHttpContent) expected).trailingHeaders(),
+                            ((LastHttpContent) received).trailingHeaders());
+                }
             }
             ReferenceCountUtil.release(expected);
             ReferenceCountUtil.release(received);
@@ -207,40 +220,56 @@ public class OHttpCodecsTest {
         return Unpooled.directBuffer().writeBytes(str.getBytes(StandardCharsets.US_ASCII));
     }
 
+    private static HttpHeaders newTrailers(boolean useTrailers) {
+        HttpHeaders trailers = new DefaultHttpHeaders();
+        if (useTrailers) {
+            trailers.add("x-trailer", "value");
+        }
+        return trailers;
+    }
+
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
-    void testContent(OHttpVersion version, OHttpCryptoProvider clientProvider, OHttpCryptoProvider serverProvider)
+    void testContent(OHttpVersion version, OHttpCryptoProvider clientProvider,
+                     OHttpCryptoProvider serverProvider, boolean useTrailers)
             throws Exception {
         ChannelPair channels = createChannelPair(version, clientProvider, serverProvider);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 
+        HttpHeaders trailers = newTrailers(useTrailers);
+        FullBinaryHttpRequest request = new DefaultFullBinaryHttpRequest(
+                HttpVersion.HTTP_1_1,
+                HttpMethod.POST,
+                "https",
+                "foo.bar",
+                "/test",
+                strToBuf("THIS IS MY BODY"));
+        request.trailingHeaders().set(trailers);
+
         testTransferFlow(client, server, false,
-                Collections.singletonList(new DefaultFullBinaryHttpRequest(
-                        HttpVersion.HTTP_1_1,
-                        HttpMethod.POST,
-                        "https",
-                        "foo.bar",
-                        "/test",
-                        strToBuf("THIS IS MY BODY"))),
+                Collections.singletonList(request),
                 Arrays.asList(new DefaultHttpRequest(
                                 HttpVersion.HTTP_1_1,
                                 HttpMethod.POST,
                                 "/test"),
                         new DefaultHttpContent(strToBuf("THIS IS MY BODY")),
-                        new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER))
+                        new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER, trailers))
         );
 
+        FullBinaryHttpResponse response = new DefaultFullBinaryHttpResponse(
+                HttpVersion.HTTP_1_1,
+                HttpResponseStatus.OK,
+                strToBuf("RESPONSE"));
+        response.trailingHeaders().set(trailers);
+
         testTransferFlow(server, client, false,
-                Collections.singletonList(new DefaultFullBinaryHttpResponse(
-                        HttpVersion.HTTP_1_1,
-                        HttpResponseStatus.OK,
-                        strToBuf("RESPONSE"))),
+                Collections.singletonList(response),
                 Arrays.asList(new DefaultHttpResponse(
                                 HttpVersion.HTTP_1_1,
                                 HttpResponseStatus.OK),
                         new DefaultHttpContent(strToBuf("RESPONSE")),
-                        new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER))
+                        new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER, trailers))
         );
 
         client.finishAndReleaseAll();
@@ -250,13 +279,15 @@ public class OHttpCodecsTest {
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
     void testContentChunked(OHttpVersion version, OHttpCryptoProvider clientProvider,
-                            OHttpCryptoProvider serverProvider) throws Exception {
+                            OHttpCryptoProvider serverProvider, boolean useTrailers)
+            throws Exception {
 
         assumeTrue(version != OHttpVersionDraft.INSTANCE);
 
         ChannelPair channels = createChannelPair(version, clientProvider, serverProvider);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
+        HttpHeaders trailers = newTrailers(useTrailers);
 
         testTransferFlow(client, server, false,
                 Arrays.asList(newRequestWithHeaders("test", true),
@@ -291,11 +322,15 @@ public class OHttpCodecsTest {
                 Collections.singletonList(new DefaultHttpContent(strToBuf("555")))
         );
 
-        testTransferFlow(server, client, true,
+        testTransferFlow(server, client, false,
                 Collections.singletonList(new DefaultHttpContent(strToBuf("666"))),
                 Collections.singletonList(new DefaultHttpContent(strToBuf("666")))
         );
-
+        testTransferFlow(server, client, true,
+                Collections.singletonList(new DefaultLastHttpContent(strToBuf("666"), trailers)),
+                Arrays.asList(new DefaultHttpContent(strToBuf("666")),
+                        new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER, trailers))
+        );
         client.finishAndReleaseAll();
         server.finishAndReleaseAll();
     }
@@ -303,27 +338,34 @@ public class OHttpCodecsTest {
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
     void testCodec(OHttpVersion version, OHttpCryptoProvider clientProvider,
-                   OHttpCryptoProvider serverProvider) throws Exception {
+                   OHttpCryptoProvider serverProvider, boolean useTrailers) throws Exception {
 
         ChannelPair channels = createChannelPair(version, clientProvider, serverProvider);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 
+        HttpHeaders trailers = newTrailers(useTrailers);
+
+        FullBinaryHttpRequest request = newFullRequestWithHeaders("/test", strToBuf("request body"));
+        request.trailingHeaders().set(trailers);
         testTransferFlow(client, server, false,
-                Collections.singletonList(newFullRequestWithHeaders("/test", strToBuf("request body"))),
+                Collections.singletonList(request),
                 Arrays.asList(newRequestWithHeaders("/test", false),
                         new DefaultHttpContent(strToBuf("request body")),
-                        new DefaultLastHttpContent()));
+                        new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER, trailers)));
+
+        FullBinaryHttpResponse response = new DefaultFullBinaryHttpResponse(
+                HttpVersion.HTTP_1_1,
+                HttpResponseStatus.OK, strToBuf("response body"));
+        response.trailingHeaders().set(trailers);
 
         testTransferFlow(server, client, false,
-                Collections.singletonList(new DefaultFullBinaryHttpResponse(
-                        HttpVersion.HTTP_1_1,
-                        HttpResponseStatus.OK, strToBuf("response body"))),
+                Collections.singletonList(response),
                 Arrays.asList(new DefaultBinaryHttpResponse(
                                 HttpVersion.HTTP_1_1,
                                 HttpResponseStatus.OK),
                         new DefaultHttpContent(strToBuf("response body")),
-                        new DefaultLastHttpContent())
+                        new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER, trailers))
         );
         client.finishAndReleaseAll();
         server.finishAndReleaseAll();
