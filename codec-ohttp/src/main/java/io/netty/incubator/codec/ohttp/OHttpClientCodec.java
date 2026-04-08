@@ -79,6 +79,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
 
     private final OHttpCryptoProvider provider;
     private final Function<HttpRequest, EncapsulationParameters> encapsulationFunc;
+    private final int maxFieldSectionSize;
 
     private ByteBuf cumulationBuffer = Unpooled.EMPTY_BUFFER;
     private boolean destroyed;
@@ -98,6 +99,18 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
             EncapsulationParameters> encapsulationFunc) {
         this.provider = requireNonNull(provider, "provider");
         this.encapsulationFunc = requireNonNull(encapsulationFunc, "encapsulationFunc");
+        maxFieldSectionSize = OHttpCodecConfig.DEFAULT_MAX_FIELD_SECTION_SIZE;
+    }
+
+    /**
+     * Create a new instance.
+     * @param config The codec configuration to use.
+     */
+    public OHttpClientCodec(OHttpClientCodecConfig config) {
+        this.provider = requireNonNull(config.getProvider(), "config.getProvider()");
+        this.encapsulationFunc = requireNonNull(config.getEncapsulationFunction(),
+                "config.getEncapsulationFunction()");
+        maxFieldSectionSize = config.getMaxFieldSectionSize();
     }
 
     /**
@@ -259,7 +272,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 EncapsulationParameters encapsulation = encapsulationFunc.apply(innerRequest);
                 if (encapsulation != null) {
                     OHttpClientRequestResponseContext oHttpContext =
-                            new OHttpClientRequestResponseContext(encapsulation, provider);
+                            new OHttpClientRequestResponseContext(encapsulation, provider, maxFieldSectionSize);
                     HttpHeaders outerHeaders = encapsulation.outerRequestHeaders();
                     DefaultHttpRequest outerRequest = new DefaultHttpRequest(
                             innerRequest.protocolVersion(),
@@ -326,8 +339,9 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
 
         private final OHttpCryptoSender sender;
 
-        OHttpClientRequestResponseContext(EncapsulationParameters parameters, OHttpCryptoProvider provider) {
-            super(parameters.version());
+        OHttpClientRequestResponseContext(
+                EncapsulationParameters parameters, OHttpCryptoProvider provider, int maxFieldSectionSize) {
+            super(parameters.version(), maxFieldSectionSize);
             this.sender = OHttpCryptoSender.newBuilder()
                     .setOHttpCryptoProvider(provider)
                     .setConfiguration(parameters.version())

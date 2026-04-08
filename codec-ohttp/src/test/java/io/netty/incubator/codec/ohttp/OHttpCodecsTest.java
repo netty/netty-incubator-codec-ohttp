@@ -15,11 +15,12 @@
  */
 package io.netty.incubator.codec.ohttp;
 
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.incubator.codec.bhttp.BinaryHttpRequest;
+import io.netty.incubator.codec.bhttp.BinaryHttpResponse;
 import io.netty.incubator.codec.bhttp.DefaultBinaryHttpRequest;
 import io.netty.incubator.codec.bhttp.DefaultBinaryHttpResponse;
 import io.netty.incubator.codec.bhttp.DefaultFullBinaryHttpRequest;
@@ -131,6 +132,14 @@ public class OHttpCodecsTest {
 
     public static ChannelPair createChannelPair(OHttpVersion version, OHttpCryptoProvider clientProvider,
                                                 OHttpCryptoProvider serverProvider) throws Exception {
+        return createChannelPair(version, clientProvider, serverProvider,
+                new OHttpClientCodecConfig(), new OHttpServerCodecConfig());
+    }
+
+    public static ChannelPair createChannelPair(OHttpVersion version, OHttpCryptoProvider clientProvider,
+                                                OHttpCryptoProvider serverProvider,
+                                                OHttpClientCodecConfig clientConfigTemplate,
+                                                OHttpServerCodecConfig serverConfigTemplate) throws Exception {
         AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(serverProvider,
                 "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
         byte keyId = 0x66;
@@ -151,38 +160,51 @@ public class OHttpCodecsTest {
 
         AsymmetricKeyParameter publicKey = clientProvider.deserializePublicKey(
                 KEM.X25519_SHA256, kpR.publicParameters().encoded());
+
+        final OHttpClientCodecConfig clientConfig = clientConfigTemplate.clone();
+        clientConfig.setProvider(clientProvider);
+        clientConfig.setEncapsulationFunction(ignore ->
+                OHttpClientCodec.EncapsulationParameters.newInstance(
+                        version, ciphersuite, publicKey, "/ohttp", "autority"));
+
+        final OHttpServerCodecConfig serverConfig = serverConfigTemplate.clone();
+        serverConfig.setProvider(serverProvider);
+        serverConfig.setServerKeys(serverKeys);
+
         return new ChannelPair() {
             @Override
             public EmbeddedChannel client() {
-                return createClientChannel(version, clientProvider, ciphersuite, publicKey);
+                return createClientChannel(clientConfig);
             }
 
             @Override
             public EmbeddedChannel server() {
-                return createServerChannel(serverProvider, serverKeys);
+                return createServerChannel(serverConfig);
             }
         };
     }
 
-    private static EmbeddedChannel createClientChannel(OHttpVersion version, OHttpCryptoProvider cryptoProvider,
-                                                       OHttpCiphersuite ciphersuite, AsymmetricKeyParameter publicKey) {
+    private static EmbeddedChannel createClientChannel(OHttpClientCodecConfig clientConfig) {
         return new EmbeddedChannel(
                 new LoggingHandler("CLIENT-RAW"),
                 new HttpClientCodec(),
                 new LoggingHandler("CLIENT-OUTER"),
-                new OHttpClientCodec(cryptoProvider,
-                        __ -> OHttpClientCodec.EncapsulationParameters.newInstance(version, ciphersuite, publicKey,
-                        "/ohttp", "autority")),
+                new OHttpClientCodec(clientConfig.getProvider(), clientConfig.getEncapsulationFunction()),
                 new LoggingHandler("CLIENT-INNER"));
     }
 
-    private static EmbeddedChannel createServerChannel(OHttpCryptoProvider cryptoProvider, OHttpServerKeys keys) {
+    private static EmbeddedChannel createServerChannel(OHttpServerCodecConfig config) {
         return new EmbeddedChannel(
                 new LoggingHandler("SERVER-RAW"),
                 new HttpServerCodec(),
                 new LoggingHandler("SERVER-OUTER"),
-                new OHttpServerCodec(cryptoProvider, keys),
-                new LoggingHandler("SERVER-INNER"));
+                new OHttpServerCodec(config),
+                new LoggingHandler("SERVER-INNER")) {
+            @Override
+            protected void handleOutboundMessage(Object msg) {
+                super.handleOutboundMessage(msg);
+            }
+        };
     }
 
     public static void testTransferFlow(EmbeddedChannel sender,
@@ -199,6 +221,34 @@ public class OHttpCodecsTest {
         }
         for (HttpObject expected : expectedReceivedPieces) {
             HttpObject received = receiver.readInbound();
+            assertNotNull(received);
+            assertEquals(expected, received);
+            if (expected instanceof HttpContent) {
+                assertEquals(((HttpContent) expected).content(), ((HttpContent) received).content());
+
+                if (expected instanceof LastHttpContent) {
+                    assertEquals(((LastHttpContent) expected).trailingHeaders(),
+                            ((LastHttpContent) received).trailingHeaders());
+                }
+            }
+            ReferenceCountUtil.release(expected);
+            ReferenceCountUtil.release(received);
+        }
+        assertTrue(receiver.inboundMessages().isEmpty());
+        assertTrue(receiver.outboundMessages().isEmpty());
+    }
+
+    public static void testRequestResponseFlow(EmbeddedChannel sender,
+                                        EmbeddedChannel receiver,
+                                        List<HttpObject> sentPieces,
+                                        List<HttpObject> expectedResponsePieces) {
+        for (HttpObject obj : sentPieces) {
+            sender.writeOutbound(obj);
+        }
+        transfer(sender, receiver); // Request
+        transfer(receiver, sender); // Response
+        for (HttpObject expected : expectedResponsePieces) {
+            HttpObject received = sender.readInbound();
             assertNotNull(received);
             assertEquals(expected, received);
             if (expected instanceof HttpContent) {
@@ -367,6 +417,39 @@ public class OHttpCodecsTest {
                         new DefaultHttpContent(strToBuf("response body")),
                         new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER, trailers))
         );
+        client.finishAndReleaseAll();
+        server.finishAndReleaseAll();
+    }
+
+    @ParameterizedTest
+    @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
+    void testServerMaxFieldSection(OHttpVersion version, OHttpCryptoProvider clientProvider,
+                   OHttpCryptoProvider serverProvider, boolean useTrailers) throws Exception {
+        OHttpServerCodecConfig serverCodecConfig = new OHttpServerCodecConfig();
+        // Make the max field section size very small, so we make cause it to trigger
+        // and give us a BAD_REQUEST return code.
+        serverCodecConfig.setMaxFieldSectionSize(64);
+
+        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider,
+                new OHttpClientCodecConfig(), serverCodecConfig);
+        EmbeddedChannel client = channels.client();
+        EmbeddedChannel server = channels.server();
+
+        HttpHeaders trailers = newTrailers(useTrailers);
+
+        FullBinaryHttpRequest request = newFullRequestWithHeaders("/test", Unpooled.EMPTY_BUFFER);
+        // Add a field that will run into our custom maxFieldSectionSize limit.
+        request.headers().add("a", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        request.trailingHeaders().set(trailers);
+
+        BinaryHttpResponse response = new DefaultBinaryHttpResponse(
+                HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_REQUEST);
+        response.headers().add(HttpHeaderNames.CONNECTION, "close");
+
+        testRequestResponseFlow(client, server,
+                Collections.singletonList(request),
+                Collections.singletonList(response));
+
         client.finishAndReleaseAll();
         server.finishAndReleaseAll();
     }
