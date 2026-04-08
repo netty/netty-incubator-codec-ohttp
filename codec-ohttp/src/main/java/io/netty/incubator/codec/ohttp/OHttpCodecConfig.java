@@ -30,6 +30,12 @@ public abstract class OHttpCodecConfig implements Cloneable {
     private int maxFieldSectionSize = DEFAULT_MAX_FIELD_SECTION_SIZE;
 
     /**
+     * Package-private constructor, to prevent integrators from extending this class.
+     */
+    OHttpCodecConfig() {
+    }
+
+    /**
      * The {@link OHttpCryptoProvider} to use for all the crypto.
      * @return the configured provider.
      */

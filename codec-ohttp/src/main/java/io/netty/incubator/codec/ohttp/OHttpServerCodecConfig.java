@@ -27,14 +27,14 @@ import static java.util.Objects.requireNonNull;
  *     <li>{@link #setServerKeys(OHttpServerKeys)}</li>
  * </ul>
  */
-public class OHttpServerCodecConfig extends OHttpCodecConfig {
+public final class OHttpServerCodecConfig extends OHttpCodecConfig {
     private OHttpServerKeys serverKeys;
 
     /**
      * The {@link OHttpServerKeys} to use.
      * @return The keys.
      */
-    public final OHttpServerKeys getServerKeys() {
+    public OHttpServerKeys getServerKeys() {
         return serverKeys;
     }
 
@@ -42,7 +42,7 @@ public class OHttpServerCodecConfig extends OHttpCodecConfig {
      * Set the {@link OHttpServerKeys} to use.
      * @param serverKeys The keys, not {@code null}.
      */
-    public final void setServerKeys(OHttpServerKeys serverKeys) {
+    public void setServerKeys(OHttpServerKeys serverKeys) {
         this.serverKeys = requireNonNull(serverKeys, "serverKeys");
     }
 

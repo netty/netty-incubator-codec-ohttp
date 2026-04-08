@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
  *     <li>{@link #setEncapsulationFunction(Function)}</li>
  * </ul>
  */
-public class OHttpClientCodecConfig extends OHttpCodecConfig {
+public final class OHttpClientCodecConfig extends OHttpCodecConfig {
     private Function<HttpRequest, OHttpClientCodec.EncapsulationParameters> encapsulationFunction;
 
     /**
@@ -39,7 +39,7 @@ public class OHttpClientCodecConfig extends OHttpCodecConfig {
      * If {@link Function} returns {@code null} no encapsulation will take place.
      * @return The function.
      */
-    public final Function<HttpRequest, OHttpClientCodec.EncapsulationParameters> getEncapsulationFunction() {
+    public Function<HttpRequest, OHttpClientCodec.EncapsulationParameters> getEncapsulationFunction() {
         return encapsulationFunction;
     }
 
@@ -48,7 +48,7 @@ public class OHttpClientCodecConfig extends OHttpCodecConfig {
      * for a given {@link HttpRequest}.
      * If {@link Function} returns {@code null} no encapsulation will take place.
      */
-    public final void setEncapsulationFunction(
+    public void setEncapsulationFunction(
             Function<HttpRequest, OHttpClientCodec.EncapsulationParameters> encapsulationFunction) {
         this.encapsulationFunction = requireNonNull(encapsulationFunction, "encapsulationFunction");
     }
