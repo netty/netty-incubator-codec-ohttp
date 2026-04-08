@@ -205,7 +205,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             // The response must be binary, because we send it through the BinaryHttpSerializer.
             HttpResponseStatus status = cause instanceof OHttpServerDecoderException ?
                     HttpResponseStatus.BAD_REQUEST : HttpResponseStatus.INTERNAL_SERVER_ERROR;
-            FullHttpResponse response = new DefaultFullBinaryHttpResponse(HttpVersion.HTTP_1_1, status);
+            FullHttpResponse response = new DefaultFullBinaryHttpResponse(
+                    HttpVersion.HTTP_1_1, status, Unpooled.buffer(0));
             HttpUtil.setKeepAlive(response, false);
             onResponse(request, response);
 
