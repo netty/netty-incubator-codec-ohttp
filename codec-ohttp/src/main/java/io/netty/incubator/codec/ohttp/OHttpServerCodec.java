@@ -71,16 +71,16 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
     private boolean destroyed;
 
     public OHttpServerCodec(OHttpCryptoProvider provider, OHttpServerKeys serverKeys) {
-        this.provider = requireNonNull(provider, "provider");
-        this.serverKeys = requireNonNull(serverKeys, "serverKeys");
-        maxFieldSectionSize = OHttpCodecConfig.DEFAULT_MAX_FIELD_SECTION_SIZE;
+        this(OHttpCodecBuilder.forServer()
+                .setProvider(provider)
+                .setServerKeys(serverKeys));
     }
 
     /**
      * Create a new instance with the given configuration.
      * @param config The codec configuration to use.
      */
-    public OHttpServerCodec(OHttpServerCodecConfig config) {
+    OHttpServerCodec(OHttpCodecBuilder.ForServer config) {
         this.provider = requireNonNull(config.getProvider(), "config.getProvider()");
         this.serverKeys = requireNonNull(config.getServerKeys(), "config.getServerKeys()");
         maxFieldSectionSize = config.getMaxFieldSectionSize();

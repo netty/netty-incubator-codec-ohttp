@@ -97,16 +97,16 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
      */
     public OHttpClientCodec(OHttpCryptoProvider provider, Function<HttpRequest,
             EncapsulationParameters> encapsulationFunc) {
-        this.provider = requireNonNull(provider, "provider");
-        this.encapsulationFunc = requireNonNull(encapsulationFunc, "encapsulationFunc");
-        maxFieldSectionSize = OHttpCodecConfig.DEFAULT_MAX_FIELD_SECTION_SIZE;
+        this(OHttpCodecBuilder.forClient()
+                .setProvider(provider)
+                .setEncapsulationFunction(encapsulationFunc));
     }
 
     /**
      * Create a new instance.
      * @param config The codec configuration to use.
      */
-    public OHttpClientCodec(OHttpClientCodecConfig config) {
+    OHttpClientCodec(OHttpCodecBuilder.ForClient config) {
         this.provider = requireNonNull(config.getProvider(), "config.getProvider()");
         this.encapsulationFunc = requireNonNull(config.getEncapsulationFunction(),
                 "config.getEncapsulationFunction()");
