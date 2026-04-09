@@ -17,16 +17,13 @@ package io.netty.incubator.codec.ohttp;
 
 import io.netty.handler.codec.MessageToMessageCodec;
 import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
-
-import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
 /**
  * Builder for configuring and building OHTTP codecs.
- * Use either {@link #forServer()} or {@link #forClient()} for the specific codec.
+ * Use either {@link OHttpServerCodecBuilder} or {@link OHttpClientCodecBuilder} for the specific codec.
  */
 public abstract class OHttpCodecBuilder<B extends OHttpCodecBuilder<B>> implements Cloneable {
     static final int DEFAULT_MAX_FIELD_SECTION_SIZE = 8 * 1024;
@@ -37,35 +34,7 @@ public abstract class OHttpCodecBuilder<B extends OHttpCodecBuilder<B>> implemen
     /**
      * Package-private constructor, to prevent integrators from extending this class.
      */
-    private OHttpCodecBuilder() {
-    }
-
-    /**
-     * Create a new builder for building {@link OHttpServerCodec} instances.
-     * <p>
-     * The following settings are mandatory to configure:
-     * <ul>
-     *     <li>{@link ForServer#setProvider(OHttpCryptoProvider)}</li>
-     *     <li>{@link ForServer#setServerKeys(OHttpServerKeys)}</li>
-     * </ul>
-     * @return a new {@link ForServer} builder instance.
-     */
-    public static ForServer forServer() {
-        return new ForServer();
-    }
-
-    /**
-     * Create a new builder for building {@link OHttpClientCodec} instances.
-     * <p>
-     * The following settings are mandatory to configure:
-     * <ul>
-     *     <li>{@link ForClient#setProvider(OHttpCryptoProvider)}</li>
-     *     <li>{@link ForClient#setEncapsulationFunction(Function)}</li>
-     * </ul>
-     * @return a new {@link ForClient} builder instance.
-     */
-    public static ForClient forClient() {
-        return new ForClient();
+    OHttpCodecBuilder() {
     }
 
     @SuppressWarnings("unchecked")
@@ -131,85 +100,4 @@ public abstract class OHttpCodecBuilder<B extends OHttpCodecBuilder<B>> implemen
      * @return A new codec instance.
      */
     public abstract MessageToMessageCodec<HttpObject, HttpObject> build();
-
-    /**
-     * Configuration for the {@link OHttpServerCodec}.
-     * The following settings are mandatory to configure:
-     * <ul>
-     *     <li>{@link #setProvider(OHttpCryptoProvider)}</li>
-     *     <li>{@link #setServerKeys(OHttpServerKeys)}</li>
-     * </ul>
-     */
-    public static final class ForServer extends OHttpCodecBuilder<ForServer> {
-        private OHttpServerKeys serverKeys;
-
-        private ForServer() {
-        }
-
-        /**
-         * The {@link OHttpServerKeys} to use.
-         * @return The keys.
-         */
-        public OHttpServerKeys getServerKeys() {
-            return serverKeys;
-        }
-
-        /**
-         * Set the {@link OHttpServerKeys} to use.
-         * @param serverKeys The keys, not {@code null}.
-         * @return this builder.
-         */
-        public ForServer setServerKeys(OHttpServerKeys serverKeys) {
-            this.serverKeys = requireNonNull(serverKeys, "serverKeys");
-            return self();
-        }
-
-        @Override
-        public OHttpServerCodec build() {
-            return new OHttpServerCodec(this);
-        }
-    }
-
-    /**
-     * Configuration for the {@link OHttpClientCodec}.
-     * The following settings are mandatory to configure:
-     * <ul>
-     *     <li>{@link #setProvider(OHttpCryptoProvider)}</li>
-     *     <li>{@link #setEncapsulationFunction(Function)}</li>
-     * </ul>
-     */
-    public static final class ForClient extends OHttpCodecBuilder<ForClient> {
-        private Function<HttpRequest, OHttpClientCodec.EncapsulationParameters> encapsulationFunction;
-
-        private ForClient() {
-        }
-
-        /**
-         * The {@link Function} that will be used to return the correct {@link OHttpClientCodec.EncapsulationParameters}
-         * for a given {@link HttpRequest}.
-         * If {@link Function} returns {@code null} no encapsulation will take place.
-         * @return The function.
-         */
-        public Function<HttpRequest, OHttpClientCodec.EncapsulationParameters> getEncapsulationFunction() {
-            return encapsulationFunction;
-        }
-
-        /**
-         * Set he {@link Function} that will be used to return the correct
-         * {@link OHttpClientCodec.EncapsulationParameters} for a given {@link HttpRequest}.
-         * If {@link Function} returns {@code null} no encapsulation will take place.
-         * @param encapsulationFunction the encapsulation function.
-         * @return this builder.
-         */
-        public ForClient setEncapsulationFunction(
-                Function<HttpRequest, OHttpClientCodec.EncapsulationParameters> encapsulationFunction) {
-            this.encapsulationFunction = requireNonNull(encapsulationFunction, "encapsulationFunction");
-            return self();
-        }
-
-        @Override
-        public OHttpClientCodec build() {
-            return new OHttpClientCodec(this);
-        }
-    }
 }

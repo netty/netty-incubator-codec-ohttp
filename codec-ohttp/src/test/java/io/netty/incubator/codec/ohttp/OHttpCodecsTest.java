@@ -133,13 +133,13 @@ public class OHttpCodecsTest {
     public static ChannelPair createChannelPair(OHttpVersion version, OHttpCryptoProvider clientProvider,
                                                 OHttpCryptoProvider serverProvider) throws Exception {
         return createChannelPair(version, clientProvider, serverProvider,
-                OHttpCodecBuilder.forClient(), OHttpCodecBuilder.forServer());
+                new OHttpClientCodecBuilder(), new OHttpServerCodecBuilder());
     }
 
     public static ChannelPair createChannelPair(OHttpVersion version, OHttpCryptoProvider clientProvider,
                                                 OHttpCryptoProvider serverProvider,
-                                                OHttpCodecBuilder.ForClient clientCodecBuilder,
-                                                OHttpCodecBuilder.ForServer serverCodecBuilder) throws Exception {
+                                                OHttpClientCodecBuilder clientCodecBuilder,
+                                                OHttpServerCodecBuilder serverCodecBuilder) throws Exception {
         AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(serverProvider,
                 "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
         byte keyId = 0x66;
@@ -161,13 +161,13 @@ public class OHttpCodecsTest {
         AsymmetricKeyParameter publicKey = clientProvider.deserializePublicKey(
                 KEM.X25519_SHA256, kpR.publicParameters().encoded());
 
-        final OHttpCodecBuilder.ForClient clientBuilder = clientCodecBuilder.clone()
+        final OHttpClientCodecBuilder clientBuilder = clientCodecBuilder.clone()
                 .setProvider(clientProvider)
                 .setEncapsulationFunction(ignore ->
                         OHttpClientCodec.EncapsulationParameters.newInstance(
                                 version, ciphersuite, publicKey, "/ohttp", "autority"));
 
-        final OHttpCodecBuilder.ForServer serverBuilder = serverCodecBuilder.clone()
+        final OHttpServerCodecBuilder serverBuilder = serverCodecBuilder.clone()
                 .setProvider(serverProvider)
                 .setServerKeys(serverKeys);
 
@@ -184,7 +184,7 @@ public class OHttpCodecsTest {
         };
     }
 
-    private static EmbeddedChannel createClientChannel(OHttpCodecBuilder.ForClient builder) {
+    private static EmbeddedChannel createClientChannel(OHttpClientCodecBuilder builder) {
         return new EmbeddedChannel(
                 new LoggingHandler("CLIENT-RAW"),
                 new HttpClientCodec(),
@@ -193,7 +193,7 @@ public class OHttpCodecsTest {
                 new LoggingHandler("CLIENT-INNER"));
     }
 
-    private static EmbeddedChannel createServerChannel(OHttpCodecBuilder.ForServer builder) {
+    private static EmbeddedChannel createServerChannel(OHttpServerCodecBuilder builder) {
         return new EmbeddedChannel(
                 new LoggingHandler("SERVER-RAW"),
                 new HttpServerCodec(),
@@ -420,13 +420,13 @@ public class OHttpCodecsTest {
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
     void testServerMaxFieldSection(OHttpVersion version, OHttpCryptoProvider clientProvider,
                    OHttpCryptoProvider serverProvider, boolean useTrailers) throws Exception {
-        OHttpCodecBuilder.ForServer serverCodecConfig = OHttpCodecBuilder.forServer();
+        OHttpServerCodecBuilder serverCodecConfig = new OHttpServerCodecBuilder();
         // Make the max field section size very small, so we make cause it to trigger
         // and give us a BAD_REQUEST return code.
         serverCodecConfig.setMaxFieldSectionSize(64);
 
         ChannelPair channels = createChannelPair(version, clientProvider, serverProvider,
-                OHttpCodecBuilder.forClient(), serverCodecConfig);
+                new OHttpClientCodecBuilder(), serverCodecConfig);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 
