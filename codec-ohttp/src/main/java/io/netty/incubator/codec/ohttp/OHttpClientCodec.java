@@ -79,6 +79,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
 
     private final OHttpCryptoProvider provider;
     private final Function<HttpRequest, EncapsulationParameters> encapsulationFunc;
+    private final int maxFieldSectionSize;
 
     private ByteBuf cumulationBuffer = Unpooled.EMPTY_BUFFER;
     private boolean destroyed;
@@ -96,8 +97,20 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
      */
     public OHttpClientCodec(OHttpCryptoProvider provider, Function<HttpRequest,
             EncapsulationParameters> encapsulationFunc) {
-        this.provider = requireNonNull(provider, "provider");
-        this.encapsulationFunc = requireNonNull(encapsulationFunc, "encapsulationFunc");
+        this(new OHttpClientCodecBuilder()
+                .setProvider(provider)
+                .setEncapsulationFunction(encapsulationFunc));
+    }
+
+    /**
+     * Create a new instance.
+     * @param builder The codec configuration to use.
+     */
+    OHttpClientCodec(OHttpClientCodecBuilder builder) {
+        this.provider = requireNonNull(builder.getProvider(), "builder.getProvider()");
+        this.encapsulationFunc = requireNonNull(builder.getEncapsulationFunction(),
+                "builder.getEncapsulationFunction()");
+        maxFieldSectionSize = builder.getMaxFieldSectionSize();
     }
 
     /**
@@ -259,7 +272,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 EncapsulationParameters encapsulation = encapsulationFunc.apply(innerRequest);
                 if (encapsulation != null) {
                     OHttpClientRequestResponseContext oHttpContext =
-                            new OHttpClientRequestResponseContext(encapsulation, provider);
+                            new OHttpClientRequestResponseContext(encapsulation, provider, maxFieldSectionSize);
                     HttpHeaders outerHeaders = encapsulation.outerRequestHeaders();
                     DefaultHttpRequest outerRequest = new DefaultHttpRequest(
                             innerRequest.protocolVersion(),
@@ -326,8 +339,9 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
 
         private final OHttpCryptoSender sender;
 
-        OHttpClientRequestResponseContext(EncapsulationParameters parameters, OHttpCryptoProvider provider) {
-            super(parameters.version());
+        OHttpClientRequestResponseContext(
+                EncapsulationParameters parameters, OHttpCryptoProvider provider, int maxFieldSectionSize) {
+            super(parameters.version(), maxFieldSectionSize);
             this.sender = OHttpCryptoSender.newBuilder()
                     .setOHttpCryptoProvider(provider)
                     .setConfiguration(parameters.version())

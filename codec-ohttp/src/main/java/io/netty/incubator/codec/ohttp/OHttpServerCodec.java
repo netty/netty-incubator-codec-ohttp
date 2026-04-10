@@ -18,6 +18,7 @@ package io.netty.incubator.codec.ohttp;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.MessageToMessageCodec;
+import io.netty.incubator.codec.bhttp.DefaultFullBinaryHttpResponse;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.buffer.ByteBuf;
@@ -59,6 +60,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
     private final OHttpCryptoProvider provider;
     private final OHttpServerKeys serverKeys;
+    private final int maxFieldSectionSize;
 
     private HttpRequest request;
     private boolean sentResponse;
@@ -69,8 +71,19 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
     private boolean destroyed;
 
     public OHttpServerCodec(OHttpCryptoProvider provider, OHttpServerKeys serverKeys) {
-        this.provider = requireNonNull(provider, "provider");
-        this.serverKeys = requireNonNull(serverKeys, "serverKeys");
+        this(new OHttpServerCodecBuilder()
+                .setProvider(provider)
+                .setServerKeys(serverKeys));
+    }
+
+    /**
+     * Create a new instance with the given configuration.
+     * @param builder The codec configuration to use.
+     */
+    OHttpServerCodec(OHttpServerCodecBuilder builder) {
+        this.provider = requireNonNull(builder.getProvider(), "builder.getProvider()");
+        this.serverKeys = requireNonNull(builder.getServerKeys(), "builder.getServerKeys()");
+        maxFieldSectionSize = builder.getMaxFieldSectionSize();
     }
 
     /**
@@ -135,7 +148,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 if (version != null) {
                     // Keep a copy of the request, which will be used to generate the response.
                     request = new DefaultHttpRequest(req.protocolVersion(), req.method(), req.uri(), req.headers());
-                    oHttpContext = new OHttpServerRequestResponseContext(version, provider, serverKeys);
+                    oHttpContext = new OHttpServerRequestResponseContext(
+                            version, provider, serverKeys, maxFieldSectionSize);
                 } else {
                     sentResponse = true;
                     FullHttpResponse response = new DefaultFullHttpResponse(
@@ -188,9 +202,11 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
             // Respond with 4xx status code in case of unable to decode message:
             // See https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-10.html#section-5.2
+            // The response must be binary, because we send it through the BinaryHttpSerializer.
             HttpResponseStatus status = cause instanceof OHttpServerDecoderException ?
                     HttpResponseStatus.BAD_REQUEST : HttpResponseStatus.INTERNAL_SERVER_ERROR;
-            FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
+            FullHttpResponse response = new DefaultFullBinaryHttpResponse(
+                    HttpVersion.HTTP_1_1, status, Unpooled.buffer(0));
             HttpUtil.setKeepAlive(response, false);
             onResponse(request, response);
 
@@ -292,8 +308,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         private boolean sendLastHttpContent;
 
         OHttpServerRequestResponseContext(
-                OHttpVersion version, OHttpCryptoProvider provider, OHttpServerKeys keys) {
-            super(version);
+                OHttpVersion version, OHttpCryptoProvider provider, OHttpServerKeys keys, int maxFieldSectionSize) {
+            super(version, maxFieldSectionSize);
             this.provider = provider;
             this.keys = keys;
         }
