@@ -15,8 +15,7 @@
  */
 package io.netty.incubator.codec.ohttp;
 
-import io.netty.handler.codec.MessageToMessageCodec;
-import io.netty.handler.codec.http.HttpObject;
+import io.netty.channel.ChannelHandler;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
 import static java.util.Objects.requireNonNull;
@@ -99,5 +98,5 @@ public abstract class OHttpCodecBuilder<B extends OHttpCodecBuilder<B>> implemen
      * Build the configured codec.
      * @return A new codec instance.
      */
-    public abstract MessageToMessageCodec<HttpObject, HttpObject> build();
+    public abstract ChannelHandler build();
 }
