@@ -15,12 +15,13 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Configuration for the {@link OHttpServerCodec}.
+ * Builder for the {@link OHttpServerCodec}.
  * The following settings are mandatory to configure:
  * <ul>
  *     <li>{@link #setProvider(OHttpCryptoProvider)}</li>
@@ -38,7 +39,6 @@ public final class OHttpServerCodecBuilder extends OHttpCodecBuilder<OHttpServer
      *     <li>{@link OHttpServerCodecBuilder#setProvider(OHttpCryptoProvider)}</li>
      *     <li>{@link OHttpServerCodecBuilder#setServerKeys(OHttpServerKeys)}</li>
      * </ul>
-     * @return a new {@link OHttpServerCodecBuilder} builder instance.
      */
     public OHttpServerCodecBuilder() {
     }
@@ -64,7 +64,7 @@ public final class OHttpServerCodecBuilder extends OHttpCodecBuilder<OHttpServer
     }
 
     @Override
-    public OHttpServerCodec build() {
+    public ChannelHandler build() {
         return new OHttpServerCodec(this);
     }
 }
