@@ -256,7 +256,7 @@ cleanup:
     if (context != NULL) {
         (*env)->ReleaseByteArrayElements(env, context_array, (jbyte *) context, JNI_ABORT);
     }
-    if (out_array != NULL) {
+    if (out != NULL) {
         int mode = JNI_ABORT;
         if (res == 1) {
             // Copy back changes
