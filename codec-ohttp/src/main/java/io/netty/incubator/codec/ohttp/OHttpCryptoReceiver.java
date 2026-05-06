@@ -19,6 +19,7 @@ import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.buffer.ByteBuf;
+import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
@@ -110,6 +111,10 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         try {
             this.aead = createResponseAEAD(provider, context, ciphersuite.aead(), encapsulatedKey,
                     this.responseNonce, configuration.responseExportContext());
+        } catch (CryptoException e) {
+            // Close context before rethrowing as otherwise we might leak resources.
+            context.close();
+            throw new IllegalStateException(e);
         } catch (Throwable cause) {
             // Close context before rethrowing as otherwise we might leak resources.
             context.close();

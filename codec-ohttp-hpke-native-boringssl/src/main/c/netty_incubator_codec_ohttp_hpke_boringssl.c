@@ -264,6 +264,11 @@ cleanup:
         }
         (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, mode);
     }
+    if (res != 1 && out_array != NULL) {
+        // Operation failed: discard the allocated array so the caller receives NULL.
+        (*env)->DeleteLocalRef(env, out_array);
+        out_array = NULL;
+    }
     return out_array;
 }
 
@@ -479,6 +484,11 @@ cleanup:
             mode = 0;
         }
         (*env)->ReleaseByteArrayElements(env, out_array, (jbyte *) out, mode);
+    }
+    if (result != 1 && out_array != NULL) {
+        // Operation failed: discard the allocated array so the caller receives NULL.
+        (*env)->DeleteLocalRef(env, out_array);
+        out_array = NULL;
     }
     return out_array;
 }

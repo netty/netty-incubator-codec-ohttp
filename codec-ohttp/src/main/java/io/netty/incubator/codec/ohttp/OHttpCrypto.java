@@ -60,7 +60,7 @@ public abstract class OHttpCrypto implements AutoCloseable {
      * See https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#name-encapsulation-of-responses
      */
     static AEADContext createResponseAEAD(OHttpCryptoProvider provider, HPKEContext context, AEAD aead, byte[] enc,
-                                   byte[] responseNonce, byte[] responseExportContext) {
+                                   byte[] responseNonce, byte[] responseExportContext) throws CryptoException {
         int secretLength = Math.max(aead.nk(), aead.nn());
         byte[] secret = context.export(responseExportContext, secretLength);
         byte[] salt = new byte[enc.length + responseNonce.length];

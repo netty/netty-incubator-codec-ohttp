@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.hpke.boringssl;
 
+import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.HPKEContext;
 
 /**
@@ -30,19 +31,31 @@ class BoringSSLHPKEContext extends BoringSSLCryptoContext implements HPKEContext
     }
 
     @Override
-    public final byte[] export(byte[] exportContext, int length) {
+    public final byte[] export(byte[] exportContext, int length) throws CryptoException {
         long ctx = checkClosedAndReturnCtx();
-        return BoringSSL.EVP_HPKE_CTX_export(ctx, length, exportContext);
+        byte[] exported = BoringSSL.EVP_HPKE_CTX_export(ctx, length, exportContext);
+        if (exported == null) {
+            throw new CryptoException("Unable to export secret");
+        }
+        return exported;
     }
 
     @Override
-    public final byte[] extract(byte[] salt, byte[] ikm) {
-        return BoringSSL.HKDF_extract(digest, ikm, salt);
+    public final byte[] extract(byte[] salt, byte[] ikm) throws CryptoException {
+        byte[] extracted = BoringSSL.HKDF_extract(digest, ikm, salt);
+        if (extracted == null) {
+            throw new CryptoException("Unable to extract a pseudorandom secret");
+        }
+        return extracted;
     }
 
     @Override
-    public final byte[] expand(byte[] prk, byte[] info, int length) {
-        return BoringSSL.HKDF_expand(digest, length, prk, info);
+    public final byte[] expand(byte[] prk, byte[] info, int length) throws CryptoException {
+        byte[] expanded = BoringSSL.HKDF_expand(digest, length, prk, info);
+        if (expanded == null) {
+            throw new CryptoException("Unable to expand pseudorandom key");
+        }
+        return expanded;
     }
 
     @Override

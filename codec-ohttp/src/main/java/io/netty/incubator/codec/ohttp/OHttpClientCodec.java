@@ -351,7 +351,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
         }
 
         @Override
-        public boolean decodePrefix(ByteBufAllocator alloc, ByteBuf in) {
+        public boolean decodePrefix(ByteBufAllocator alloc, ByteBuf in) throws CryptoException {
             return sender.readResponseNonce(in);
         }
 

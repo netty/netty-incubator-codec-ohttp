@@ -27,8 +27,9 @@ public interface HPKEContext extends CryptoContext {
      * @param exportContext the context used for exporting.
      * @param length        the desired length
      * @return              the exported secret.
+     * @throws CryptoException on failure
      */
-    byte[] export(byte[] exportContext, int length);
+    byte[] export(byte[] exportContext, int length) throws CryptoException;
 
     /**
      * Extract a pseudorandom key of fixed length Nh bytes from input keying material ikm and an optional byte
@@ -37,8 +38,9 @@ public interface HPKEContext extends CryptoContext {
      * @param salt  the salt to use.
      * @param ikm   the key material
      * @return      the extracted kex.
+     * @throws CryptoException on failure
      */
-    byte[] extract(byte[] salt, byte[] ikm);
+    byte[] extract(byte[] salt, byte[] ikm) throws CryptoException;
 
     /**
      * Expand a pseudorandom key prk using optional string info into L bytes of output keying material.
@@ -47,6 +49,7 @@ public interface HPKEContext extends CryptoContext {
      * @param info  the info.
      * @param length the number of bytes.
      * @return      the expanded key.
+     * @throws CryptoException on failure
      */
-    byte[] expand(byte[] prk, byte[] info, int length);
+    byte[] expand(byte[] prk, byte[] info, int length) throws CryptoException;
 }

@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.hpke.bouncycastle;
 
+import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.HPKEContext;
 
 abstract class BouncyCastleHPKEContext implements HPKEContext {
@@ -26,21 +27,33 @@ abstract class BouncyCastleHPKEContext implements HPKEContext {
     }
 
     @Override
-    public byte[] export(byte[] exportContext, int length) {
+    public byte[] export(byte[] exportContext, int length) throws CryptoException {
         checkClosed();
-        return context.export(exportContext, length);
+        try {
+            return context.export(exportContext, length);
+        } catch (RuntimeException e) {
+            throw new CryptoException("Unable to export secret", e);
+        }
     }
 
     @Override
-    public byte[] extract(byte[] salt, byte[] ikm) {
+    public byte[] extract(byte[] salt, byte[] ikm) throws CryptoException {
         checkClosed();
-        return context.extract(salt, ikm);
+        try {
+            return context.extract(salt, ikm);
+        } catch (RuntimeException e) {
+            throw new CryptoException("Unable to extract a pseudorandom secret", e);
+        }
     }
 
     @Override
-    public byte[] expand(byte[] prk, byte[] info, int length) {
+    public byte[] expand(byte[] prk, byte[] info, int length) throws CryptoException {
         checkClosed();
-        return context.expand(prk, info, length);
+        try {
+            return context.expand(prk, info, length);
+        } catch (RuntimeException e) {
+            throw new CryptoException("Unable to expand pseudorandom key", e);
+        }
     }
 
     protected void checkClosed() {

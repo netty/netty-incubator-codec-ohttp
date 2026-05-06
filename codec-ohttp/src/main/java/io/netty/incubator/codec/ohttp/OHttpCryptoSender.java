@@ -20,6 +20,7 @@ import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.buffer.ByteBuf;
+import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.HPKESenderContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 
@@ -123,7 +124,7 @@ public final class OHttpCryptoSender extends OHttpCrypto {
      * @param in    the buffer from which we read.
      * @return      {@code true} if there were enough bytes to read the nounce, {@code false} otherwise.
      */
-    public boolean readResponseNonce(ByteBuf in) {
+    public boolean readResponseNonce(ByteBuf in) throws CryptoException {
         if (in.readableBytes() < ciphersuite().responseNonceLength()) {
             return false;
         }
