@@ -172,12 +172,17 @@ public final class OHttpVersionChunkDraft implements OHttpVersion {
                 return;
             }
         }
+        boolean finalChunk = false;
         while (in.isReadable()) {
             ChunkInfo chunkInfo = parseNextChunk(in, completeBodyReceived, maxChunkSize);
             if (chunkInfo == null) {
                 break;
             }
+            finalChunk |= chunkInfo.isFinal;
             decoder.decodeChunk(alloc, in, chunkInfo.length, chunkInfo.isFinal, out);
+        }
+        if (completeBodyReceived && !finalChunk) {
+            throw new CorruptedFrameException("OHTTP stream ended without a final chunk");
         }
     }
 
