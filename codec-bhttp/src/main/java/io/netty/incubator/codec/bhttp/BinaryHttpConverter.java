@@ -15,6 +15,7 @@
  */
 package io.netty.incubator.codec.bhttp;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -76,11 +77,17 @@ public final class BinaryHttpConverter {
         BinaryHttpHeaders trailers = BinaryHttpHeaders.newTrailers(true);
         copyAndSanitize(request.trailingHeaders(), trailers);
 
-        FullBinaryHttpRequest binaryHttpRequest =  new DefaultFullBinaryHttpRequest(request.protocolVersion(),
-                request.method(), scheme, authority, request.uri(), request.content().retain(), headers, trailers);
-        binaryHttpRequest.setDecoderResult(request.decoderResult());
-        request.release();
-        return binaryHttpRequest;
+        ByteBuf retained = request.content().retain();
+        try {
+            FullBinaryHttpRequest binaryHttpRequest = new DefaultFullBinaryHttpRequest(request.protocolVersion(),
+                    request.method(), scheme, authority, request.uri(), retained, headers, trailers);
+            binaryHttpRequest.setDecoderResult(request.decoderResult());
+            request.release();
+            return binaryHttpRequest;
+        } catch (Throwable t) {
+            retained.release();
+            throw t;
+        }
     }
 
     /**
@@ -119,11 +126,17 @@ public final class BinaryHttpConverter {
         BinaryHttpHeaders trailers = BinaryHttpHeaders.newTrailers(true);
         copyAndSanitize(response.trailingHeaders(), trailers);
 
-        FullBinaryHttpResponse binaryHttpResponse =  new DefaultFullBinaryHttpResponse(response.protocolVersion(),
-                response.status(), response.content().retain(), headers, trailers);
-        binaryHttpResponse.setDecoderResult(response.decoderResult());
-        response.release();
-        return binaryHttpResponse;
+        ByteBuf retained = response.content().retain();
+        try {
+            FullBinaryHttpResponse binaryHttpResponse = new DefaultFullBinaryHttpResponse(response.protocolVersion(),
+                    response.status(), retained, headers, trailers);
+            binaryHttpResponse.setDecoderResult(response.decoderResult());
+            response.release();
+            return binaryHttpResponse;
+        }  catch (Throwable t) {
+            retained.release();
+            throw t;
+        }
     }
 
     /**
@@ -139,9 +152,15 @@ public final class BinaryHttpConverter {
     public static LastHttpContent convert(LastHttpContent content) {
         BinaryHttpHeaders trailers = BinaryHttpHeaders.newTrailers(true);
         copyAndSanitize(content.trailingHeaders(), trailers);
-        LastHttpContent binaryContent =  new DefaultLastHttpContent(content.content().retain(), trailers);
-        content.release();
-        return binaryContent;
+        ByteBuf retained = content.content().retain();
+        try {
+            LastHttpContent binaryContent = new DefaultLastHttpContent(retained, trailers);
+            content.release();
+            return binaryContent;
+        }   catch (Throwable t) {
+            retained.release();
+            throw t;
+        }
     }
 
     /**
