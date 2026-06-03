@@ -48,11 +48,11 @@ abstract class BoringSSLCryptoOperation {
             int maxOutLen = maxOutLen(ctx, in.readableBytes());
             directOut = directWritable(alloc, out, maxOutLen);
 
-            long directAadAddress = BoringSSL.memory_address(directAad) + directAad.readerIndex();
+            long directAadAddress = BoringSSL.readerMemoryAddress(directAad);
             int directAddReadableBytes = directAad.readableBytes();
-            long directInAddress = BoringSSL.memory_address(directIn) + directIn.readerIndex();
+            long directInAddress = BoringSSL.readerMemoryAddress(directIn);
             int directInReadableBytes = directIn.readableBytes();
-            long directOutAddress = BoringSSL.memory_address(directOut) + directOut.writerIndex();
+            long directOutAddress = BoringSSL.writerMemoryAddress(directOut);
             int directOutWritableBytes = directOut.writableBytes();
             int result = execute(ctx, alloc, directAadAddress, directAddReadableBytes,
                     directInAddress, directInReadableBytes,

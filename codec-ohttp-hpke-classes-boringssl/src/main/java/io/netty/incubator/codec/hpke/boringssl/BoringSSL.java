@@ -116,7 +116,7 @@ final class BoringSSL {
 
     static native int EVP_HPKE_KEM_public_key_len(long kem);
 
-    static native long memory_address(ByteBuffer buffer);
+    private static native long memory_address(ByteBuffer buffer);
 
     static native int EVP_AEAD_key_length(long aead);
     static native int EVP_AEAD_nonce_length(long aead);
@@ -138,11 +138,57 @@ final class BoringSSL {
 
     static native byte[] HKDF_expand(long digest, int out_len, byte[] prk, byte[] info);
 
-    static long memory_address(ByteBuf buffer) {
-        if (buffer.hasMemoryAddress()) {
-            return buffer.memoryAddress();
+    /**
+     * Returns the memory address if the {@link ByteBuf} taking the readerIndex into account.
+     *
+     * @param buf   the {@link ByteBuf} of which we want to obtain the memory address
+     *              (taking its {@link ByteBuf#readerIndex()} into account).
+     * @return      the memory address of this {@link ByteBuf}s readerIndex.
+     */
+    static long readerMemoryAddress(ByteBuf buf) {
+        return memoryAddress(buf, buf.readerIndex(), buf.readableBytes());
+    }
+
+    /**
+     * Returns the memory address if the {@link ByteBuf} taking the writerIndex into account.
+     *
+     * @param buf   the {@link ByteBuf} of which we want to obtain the memory address
+     *              (taking its {@link ByteBuf#writerIndex()} into account).
+     * @return      the memory address of this {@link ByteBuf}s writerIndex.
+     */
+    static long writerMemoryAddress(ByteBuf buf) {
+        return memoryAddress(buf, buf.writerIndex(), buf.writableBytes());
+    }
+
+    /**
+     * Returns the memory address if the {@link ByteBuf} taking the offset into account.
+     *
+     * @param buf       the {@link ByteBuf} of which we want to obtain the memory address
+     *                  (taking the {@code offset} into account).
+     * @param offset    the offset of the memory address.
+     * @param len       the length of the {@link ByteBuf}.
+     * @return          the memory address of this {@link ByteBuf}s offset.
+     */
+    static long memoryAddress(ByteBuf buf, int offset, int len) {
+        assert buf.isDirect();
+        if (buf.hasMemoryAddress()) {
+            return buf.memoryAddress() + offset;
         }
-        return memory_address(buffer.internalNioBuffer(0, buffer.capacity()));
+        return memoryAddressWithPosition(buf.internalNioBuffer(offset, len));
+    }
+
+    /**
+     * Returns the memory address of the given {@link ByteBuffer} taking its current {@link ByteBuffer#position()} into
+     * account.
+     *
+     * @param buf   the {@link ByteBuffer} of which we want to obtain the memory address
+     *              (taking its {@link ByteBuffer#position()} into account).
+     * @return      the memory address of this {@link ByteBuffer}s position.
+     */
+    static long memoryAddressWithPosition(ByteBuffer buf) {
+        assert buf.isDirect();
+        // We need to add the position as well as the JNI variant will return the base address.
+        return memory_address(buf) + buf.position();
     }
 
     static long EVP_HPKE_CTX_new_or_throw() {

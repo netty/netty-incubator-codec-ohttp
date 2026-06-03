@@ -132,7 +132,7 @@ final class BoringSSLAEADContext extends BoringSSLCryptoContext implements AEADC
         long computeNext(ByteBufAllocator alloc) {
             if (nonce == null) {
                 nonce = alloc.directBuffer(baseNonce.length).writeBytes(baseNonce);
-                nonceAddress = BoringSSL.memory_address(nonce);
+                nonceAddress = BoringSSL.readerMemoryAddress(nonce);
             }
 
             for (int idx = 0, idx2 = baseNonce.length - 8 ; idx < 8; ++idx, ++idx2) {
