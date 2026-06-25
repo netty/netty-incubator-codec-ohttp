@@ -366,6 +366,15 @@ public final class BinaryHttpParser {
         }
     }
 
+    // Sum up both arguments and check if these fit into a integer, if not throw.
+    private static int sumAndCheckForOverflow(int bytes, long v) {
+        long sum = bytes + v;
+        if (sum > Integer.MAX_VALUE) {
+            throw new TooLongFrameException("Overflow encountered during parsing");
+        }
+        return (int) sum;
+    }
+
     /**
      * Reads the request head which includes the
      * <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-request-control-data">control data</a>
@@ -384,15 +393,15 @@ public final class BinaryHttpParser {
 
         // Check first if we can access all the control data for the request.
         int sumBytes = 0;
-        final int methodLengthIdx = in.readerIndex() + sumBytes;
+        final int methodLengthIdx = in.readerIndex();
         final int methodLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(methodLengthIdx));
-        sumBytes += methodLengthBytes;
+        sumBytes = sumAndCheckForOverflow(sumBytes, methodLengthBytes);
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
 
         final long methodLength = getVariableLengthInteger(in, methodLengthIdx, methodLengthBytes);
-        sumBytes += methodLength;
+        sumBytes = sumAndCheckForOverflow(sumBytes, methodLength);
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
@@ -400,13 +409,15 @@ public final class BinaryHttpParser {
 
         final int schemeLengthIdx = in.readerIndex() + sumBytes;
         final int schemeLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(schemeLengthIdx));
-        sumBytes += schemeLengthBytes;
+        sumBytes = sumAndCheckForOverflow(sumBytes, schemeLengthBytes);
+
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
 
         final long schemeLength = getVariableLengthInteger(in, schemeLengthIdx, schemeLengthBytes);
-        sumBytes += schemeLength;
+        sumBytes = sumAndCheckForOverflow(sumBytes, schemeLength);
+
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
@@ -414,13 +425,15 @@ public final class BinaryHttpParser {
 
         final int authorityLengthIdx = in.readerIndex() + sumBytes;
         final int authorityLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(authorityLengthIdx));
-        sumBytes += authorityLengthBytes;
+        sumBytes = sumAndCheckForOverflow(sumBytes, authorityLengthBytes);
+
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
 
         final long authorityLength = getVariableLengthInteger(in, authorityLengthIdx, authorityLengthBytes);
-        sumBytes += authorityLength;
+        sumBytes = sumAndCheckForOverflow(sumBytes, authorityLength);
+
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
@@ -428,13 +441,15 @@ public final class BinaryHttpParser {
 
         final int pathLengthIdx = in.readerIndex() + sumBytes;
         final int pathLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(pathLengthIdx));
-        sumBytes += pathLengthBytes;
+        sumBytes = sumAndCheckForOverflow(sumBytes, pathLengthBytes);
+
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
 
         final long pathLength = getVariableLengthInteger(in, pathLengthIdx, pathLengthBytes);
-        sumBytes += pathLength;
+        sumBytes = sumAndCheckForOverflow(sumBytes, pathLength);
+
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
@@ -494,7 +509,8 @@ public final class BinaryHttpParser {
         int sumBytes = 0;
         final int statusLengthIdx = in.readerIndex();
         final int statusLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(statusLengthIdx));
-        sumBytes += statusLengthBytes;
+        sumBytes = sumAndCheckForOverflow(sumBytes, statusLengthBytes);
+
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
@@ -544,12 +560,13 @@ public final class BinaryHttpParser {
         for (int sumBytes = 0; sumBytes < in.readableBytes();) {
             int idx = in.readerIndex() + sumBytes;
             int possibleTerminatorBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(idx));
-            sumBytes += possibleTerminatorBytes;
+            sumBytes = sumAndCheckForOverflow(sumBytes, possibleTerminatorBytes);
+
             if (in.readableBytes() < sumBytes) {
                 return -1;
             }
             long possibleTerminator = getVariableLengthInteger(in, idx, possibleTerminatorBytes);
-            sumBytes += possibleTerminator;
+            sumBytes = sumAndCheckForOverflow(sumBytes, possibleTerminator);
             if (in.readableBytes() < sumBytes) {
                 return -1;
             }
@@ -584,13 +601,14 @@ public final class BinaryHttpParser {
         int sumBytes = 0;
         if (knownLength) {
             fieldSectionBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(in.readerIndex()));
-            sumBytes += fieldSectionBytes;
+            sumBytes = sumAndCheckForOverflow(sumBytes, fieldSectionBytes);
+
             if (in.readableBytes() < sumBytes) {
                 checkFieldSectionTooLarge(in.readableBytes(), maxFieldSectionSize);
                 return null;
             }
             fieldSectionLength = getVariableLengthInteger(in, in.readerIndex(), fieldSectionBytes);
-            sumBytes += fieldSectionLength;
+            sumBytes = sumAndCheckForOverflow(sumBytes, fieldSectionLength);
         } else {
             int indeterminateLength = getIndeterminateLength(in);
             assert indeterminateLength >= -1;
@@ -659,13 +677,15 @@ public final class BinaryHttpParser {
         int sumBytes = 0;
         final int nameLengthIdx = in.readerIndex();
         final int nameLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(in.readerIndex()));
-        sumBytes += nameLengthBytes;
+        sumBytes = sumAndCheckForOverflow(sumBytes, nameLengthBytes);
+
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
 
         final long nameLength = getVariableLengthInteger(in, in.readerIndex(), nameLengthBytes);
-        sumBytes += nameLength;
+        sumBytes = sumAndCheckForOverflow(sumBytes, nameLength);
+
         if (sumBytes >= in.readableBytes()) {
             return null;
         }
@@ -673,10 +693,11 @@ public final class BinaryHttpParser {
 
         final int valueLengthIdx = nameIdx + (int) nameLength;
         final int valueLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(valueLengthIdx));
-        sumBytes += valueLengthBytes;
+        sumBytes = sumAndCheckForOverflow(sumBytes, valueLengthBytes);
 
         final long valueLength = getVariableLengthInteger(in, valueLengthIdx, valueLengthBytes);
-        sumBytes += valueLength;
+        sumBytes = sumAndCheckForOverflow(sumBytes, valueLength);
+
         if (sumBytes > in.readableBytes()) {
             return null;
         }

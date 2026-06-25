@@ -20,12 +20,14 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.TooLongFrameException;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +58,20 @@ public class BinaryHttpParserTest {
         assertEquals("/", parsed.uri());
         assertEquals(1, parsed.headers().size());
         assertEquals("b", parsed.headers().get("a"));
+        buffer.release();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { 0, 2 })
+    void testOverflow(int frameIndicator) {
+        ByteBuf buffer = Unpooled.buffer();
+        VarIntCodecUtils.writeVariableLengthInteger(buffer, frameIndicator);
+        VarIntCodecUtils.writeVariableLengthInteger(buffer, (long) Integer.MAX_VALUE  + 1);
+        // write one byte so we continue process and should see a too large number that would overflow
+        buffer.writeByte((byte) 'a');
+        BinaryHttpParser parser = new BinaryHttpParser(8192);
+        Assertions.assertThrows(TooLongFrameException.class, () -> parser.parse(buffer, false));
+        buffer.release();
     }
 
     @ParameterizedTest(name = "{index} => {0}, {1}, {2}")
