@@ -17,15 +17,14 @@ package io.netty.incubator.codec.bhttp;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.TooLongFrameException;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -35,6 +34,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class BinaryHttpParserTest {
 
@@ -66,12 +66,48 @@ public class BinaryHttpParserTest {
     void testOverflow(int frameIndicator) {
         ByteBuf buffer = Unpooled.buffer();
         VarIntCodecUtils.writeVariableLengthInteger(buffer, frameIndicator);
-        VarIntCodecUtils.writeVariableLengthInteger(buffer, (long) Integer.MAX_VALUE  + 1);
+        VarIntCodecUtils.writeVariableLengthInteger(buffer, (long) Integer.MAX_VALUE + 1);
         // write one byte so we continue process and should see a too large number that would overflow
         buffer.writeByte((byte) 'a');
         BinaryHttpParser parser = new BinaryHttpParser(8192);
         Assertions.assertThrows(TooLongFrameException.class, () -> parser.parse(buffer, false));
         buffer.release();
+    }
+
+    @ParameterizedTest
+    @EnumSource(Part.class)
+    void testInvalidInitialLineSize(Part part) {
+        ByteBuf buffer = Unpooled.buffer();
+        VarIntCodecUtils.writeVariableLengthInteger(buffer, 0);
+        int methodIdx = buffer.writerIndex();
+        writeString(buffer, "GET");
+        int schemeIdx = buffer.writerIndex();
+        writeString(buffer, "HTTPS");
+        int authorityIdx = buffer.writerIndex();
+        writeString(buffer, "something");
+        int pathIdx = buffer.writerIndex();
+        writeString(buffer, "/somepath");
+        VarIntCodecUtils.writeVariableLengthInteger(buffer, 0);
+
+        int limit = 0;
+        switch (part) {
+            case METHOD:
+                limit = methodIdx - 1;
+                break;
+            case SCHEME:
+                limit = schemeIdx - 1;
+                break;
+            case AUTHORITY:
+                limit = authorityIdx - 1;
+                break;
+            case PATH:
+                limit = pathIdx - 1;
+                break;
+            default:
+                fail();
+                break;
+        }
+        testInvalidHead(buffer, limit, TooLongFrameException.class);
     }
 
     @ParameterizedTest(name = "{index} => {0}, {1}, {2}")
@@ -85,7 +121,7 @@ public class BinaryHttpParserTest {
         writeString(Part.AUTHORITY, "something", buffer, p, part, c);
         writeString(Part.PATH, "/somepath", buffer, p, part, c);
         VarIntCodecUtils.writeVariableLengthInteger(buffer, 0);
-        testInvalidHead(buffer);
+        testInvalidHead(buffer, 256, IllegalArgumentException.class);
     }
 
     private void writeString(Part currentPart, String str, ByteBuf out, Position p, Part part, Character c) {
@@ -126,9 +162,10 @@ public class BinaryHttpParserTest {
         out.writeBytes(bytes);
     }
 
-    private static void testInvalidHead(ByteBuf input) {
-        BinaryHttpParser parser = new BinaryHttpParser(8192);
-        Assertions.assertThrows(IllegalArgumentException.class, () -> parser.parse(input, false));
+    private static void testInvalidHead(ByteBuf input, int maxInitialLineSize,
+                                        Class<? extends Throwable> exceptionType) {
+        BinaryHttpParser parser = new BinaryHttpParser(maxInitialLineSize, 8192);
+        Assertions.assertThrows(exceptionType, () -> parser.parse(input, false));
         input.release();
     }
 

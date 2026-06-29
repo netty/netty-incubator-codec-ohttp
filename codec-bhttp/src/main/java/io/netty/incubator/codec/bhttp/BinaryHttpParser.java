@@ -127,6 +127,7 @@ public final class BinaryHttpParser {
     private boolean completeBodyReceived;
     private long contentLength = -1;
 
+    private final int maxInitialLineSize;
     private final int maxFieldSectionSize;
 
     /**
@@ -135,6 +136,17 @@ public final class BinaryHttpParser {
      * @param maxFieldSectionSize   the maximum size of the field-section (in bytes)
      */
     public BinaryHttpParser(int maxFieldSectionSize) {
+        this(256, maxFieldSectionSize);
+    }
+
+    /**
+     * Creates a new instance
+     *
+     * @param maxInitialLineSize   the maximum size of the initial line (iny bytes)
+     * @param maxFieldSectionSize   the maximum size of the field-section (in bytes)
+     */
+    public BinaryHttpParser(int maxInitialLineSize, int maxFieldSectionSize) {
+        this.maxInitialLineSize = ObjectUtil.checkPositiveOrZero(maxInitialLineSize , "maxInitialLineSize");
         this.maxFieldSectionSize = ObjectUtil.checkPositiveOrZero(maxFieldSectionSize, "maxFieldSectionSize");
     }
 
@@ -187,7 +199,8 @@ public final class BinaryHttpParser {
                     case READ_INDETERMINATE_LENGTH_REQUEST_HEAD:
                         assert contentLength == -1 : "contentLength should have been reset";
 
-                        HttpMessage request = readRequestHead(in, state.knownLength, maxFieldSectionSize);
+                        HttpMessage request = readRequestHead(
+                                in, state.knownLength, maxInitialLineSize,  maxFieldSectionSize);
                         if (request == null) {
                             throwIfNotReadAllAndBodyReceived(in, completeBodyReceived);
 
@@ -205,7 +218,8 @@ public final class BinaryHttpParser {
                     case READ_INDETERMINATE_LENGTH_RESPONSE_HEAD:
                         assert contentLength == -1 : "contentLength should have been reset";
 
-                        BinaryHttpResponse response = readResponseHead(in, state.knownLength, maxFieldSectionSize);
+                        BinaryHttpResponse response = readResponseHead(
+                                in, state.knownLength, maxInitialLineSize, maxFieldSectionSize);
                         if (response == null) {
                             throwIfNotReadAllAndBodyReceived(in, completeBodyReceived);
 
@@ -375,6 +389,13 @@ public final class BinaryHttpParser {
         return (int) sum;
     }
 
+    private static boolean checkInitialLineSize(ByteBuf in, int maxInitialLineSize, int sumBytes) {
+        if (sumBytes > maxInitialLineSize) {
+            throw new TooLongFrameException("Initial line size exceeded: " + maxInitialLineSize);
+        }
+        return sumBytes < in.readableBytes();
+    }
+
     /**
      * Reads the request head which includes the
      * <a href="https://www.rfc-editor.org/rfc/rfc9292.html#name-request-control-data">control data</a>
@@ -383,10 +404,12 @@ public final class BinaryHttpParser {
      *
      * @param in                    the {@link ByteBuf} to read from.
      * @param knownLength           {@code true} if the length is known, {@code false} otherwise.
+     * @param maxInitialLineSize  the maximum size of the initial line (iny bytes)
      * @param maxFieldSectionSize   the maximum size of the field-section (in bytes)
      * @return                      {@link BinaryHttpRequest} or {@code null} if not enough bytes are readable yet.
      */
-    private static BinaryHttpRequest readRequestHead(ByteBuf in, boolean knownLength, int maxFieldSectionSize) {
+    private static BinaryHttpRequest readRequestHead(ByteBuf in, boolean knownLength, int maxInitialLineSize,
+                                                     int maxFieldSectionSize) {
         if (!in.isReadable()) {
             return null;
         }
@@ -395,62 +418,64 @@ public final class BinaryHttpParser {
         int sumBytes = 0;
         final int methodLengthIdx = in.readerIndex();
         final int methodLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(methodLengthIdx));
+
         sumBytes = sumAndCheckForOverflow(sumBytes, methodLengthBytes);
-        if (sumBytes >= in.readableBytes()) {
+        if (!checkInitialLineSize(in, maxInitialLineSize, sumBytes)) {
             return null;
         }
 
         final long methodLength = getVariableLengthInteger(in, methodLengthIdx, methodLengthBytes);
+
         sumBytes = sumAndCheckForOverflow(sumBytes, methodLength);
-        if (sumBytes >= in.readableBytes()) {
+        if (!checkInitialLineSize(in, maxInitialLineSize, sumBytes)) {
             return null;
         }
         final int methodIdx = methodLengthIdx + methodLengthBytes;
 
         final int schemeLengthIdx = in.readerIndex() + sumBytes;
         final int schemeLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(schemeLengthIdx));
-        sumBytes = sumAndCheckForOverflow(sumBytes, schemeLengthBytes);
 
-        if (sumBytes >= in.readableBytes()) {
+        sumBytes = sumAndCheckForOverflow(sumBytes, schemeLengthBytes);
+        if (!checkInitialLineSize(in, maxInitialLineSize, sumBytes)) {
             return null;
         }
 
         final long schemeLength = getVariableLengthInteger(in, schemeLengthIdx, schemeLengthBytes);
-        sumBytes = sumAndCheckForOverflow(sumBytes, schemeLength);
 
-        if (sumBytes >= in.readableBytes()) {
+        sumBytes = sumAndCheckForOverflow(sumBytes, schemeLength);
+        if (!checkInitialLineSize(in, maxInitialLineSize, sumBytes)) {
             return null;
         }
         final int schemeIdx = schemeLengthIdx + schemeLengthBytes;
 
         final int authorityLengthIdx = in.readerIndex() + sumBytes;
         final int authorityLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(authorityLengthIdx));
-        sumBytes = sumAndCheckForOverflow(sumBytes, authorityLengthBytes);
 
-        if (sumBytes >= in.readableBytes()) {
+        sumBytes = sumAndCheckForOverflow(sumBytes, authorityLengthBytes);
+        if (!checkInitialLineSize(in, maxInitialLineSize, sumBytes)) {
             return null;
         }
 
         final long authorityLength = getVariableLengthInteger(in, authorityLengthIdx, authorityLengthBytes);
-        sumBytes = sumAndCheckForOverflow(sumBytes, authorityLength);
 
-        if (sumBytes >= in.readableBytes()) {
+        sumBytes = sumAndCheckForOverflow(sumBytes, authorityLength);
+        if (!checkInitialLineSize(in, maxInitialLineSize, sumBytes)) {
             return null;
         }
         final int authorityIdx = authorityLengthIdx + authorityLengthBytes;
 
         final int pathLengthIdx = in.readerIndex() + sumBytes;
         final int pathLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(pathLengthIdx));
-        sumBytes = sumAndCheckForOverflow(sumBytes, pathLengthBytes);
 
-        if (sumBytes >= in.readableBytes()) {
+        sumBytes = sumAndCheckForOverflow(sumBytes, pathLengthBytes);
+        if (!checkInitialLineSize(in, maxInitialLineSize, sumBytes)) {
             return null;
         }
 
         final long pathLength = getVariableLengthInteger(in, pathLengthIdx, pathLengthBytes);
-        sumBytes = sumAndCheckForOverflow(sumBytes, pathLength);
 
-        if (sumBytes >= in.readableBytes()) {
+        sumBytes = sumAndCheckForOverflow(sumBytes, pathLength);
+        if (!checkInitialLineSize(in, maxInitialLineSize, sumBytes)) {
             return null;
         }
         final int pathIdx = pathLengthIdx + pathLengthBytes;
@@ -499,19 +524,21 @@ public final class BinaryHttpParser {
      *
      * @param in                    the {@link ByteBuf} to read from.
      * @param knownLength           {@code true} if the length is known, {@code false} otherwise.
+     * @param maxInitialLineSize  the maximum size of the initial line (iny bytes)
      * @param maxFieldSectionSize   the maximum size of the field-section (in bytes)
      * @return                      {@link BinaryHttpResponse} or {@code null} if not enough bytes are readable yet.
      */
-    private static BinaryHttpResponse readResponseHead(ByteBuf in, boolean knownLength, int maxFieldSectionSize) {
+    private static BinaryHttpResponse readResponseHead(ByteBuf in, boolean knownLength,
+                                                       int maxInitialLineSize, int maxFieldSectionSize) {
         if (!in.isReadable()) {
             return null;
         }
         int sumBytes = 0;
         final int statusLengthIdx = in.readerIndex();
         final int statusLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(statusLengthIdx));
-        sumBytes = sumAndCheckForOverflow(sumBytes, statusLengthBytes);
 
-        if (sumBytes >= in.readableBytes()) {
+        sumBytes = sumAndCheckForOverflow(sumBytes, statusLengthBytes);
+        if (!checkInitialLineSize(in, maxInitialLineSize, sumBytes)) {
             return null;
         }
 
