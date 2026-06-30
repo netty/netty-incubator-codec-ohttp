@@ -664,9 +664,14 @@ public final class BinaryHttpParser {
         while (fieldSectionLength != 0) {
             int readableBytes = in.readableBytes();
             lastType = readFieldLine(in, headers, lastType, trailers);
-            assert lastType != null;
             int read = readableBytes - in.readableBytes();
-            assert read > 0;
+            if (lastType == null || read <= 0) {
+                throw new CorruptedFrameException("truncated or over-long field line");
+            }
+            if (read > fieldSectionLength) {
+                throw new CorruptedFrameException("field line exceeds declared field-section length: "
+                        + fieldSectionLength);
+            }
             fieldSectionLength -= read;
         }
         if (!knownLength) {

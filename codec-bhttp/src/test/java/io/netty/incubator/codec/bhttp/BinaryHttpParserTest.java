@@ -18,6 +18,7 @@ package io.netty.incubator.codec.bhttp;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.CorruptedFrameException;
 import io.netty.handler.codec.TooLongFrameException;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Assertions;
@@ -34,7 +35,9 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
+
 
 public class BinaryHttpParserTest {
 
@@ -108,6 +111,14 @@ public class BinaryHttpParserTest {
                 break;
         }
         testInvalidHead(buffer, limit, TooLongFrameException.class);
+    }
+
+    @Test
+    void testInvalidFieldLength() {
+        ByteBuf buffer = Unpooled.wrappedBuffer(new byte[] { 0x00, 0x01, 0x67, 0x01, 0x68, 0x01, 0x61, 0x01,
+                0x70, 0x01, 0x01, 0x61, 0x01, 0x62, 0x01, 0x63, 0x01});
+        assertThrows(CorruptedFrameException.class, () -> new BinaryHttpParser(8192).parse(buffer, false));
+        buffer.release();
     }
 
     @ParameterizedTest(name = "{index} => {0}, {1}, {2}")
