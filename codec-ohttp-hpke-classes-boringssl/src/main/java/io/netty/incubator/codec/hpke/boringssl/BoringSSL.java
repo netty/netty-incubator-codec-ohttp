@@ -21,7 +21,6 @@ import io.netty.util.internal.NativeLibraryLoader;
 import io.netty.util.internal.PlatformDependent;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 final class BoringSSL {
 
@@ -228,7 +227,7 @@ final class BoringSSL {
     static void EVP_HPKE_KEY_init_or_throw(long key, long kem, byte[] privateKeyBytes) {
         if (BoringSSL.EVP_HPKE_KEY_init(key, kem, privateKeyBytes) != 1) {
             throw new IllegalArgumentException(
-                    "privateKeyBytes does not contain a valid private key: " + Arrays.toString(privateKeyBytes));
+                    "privateKeyBytes does not contain a valid private key");
         }
     }
 

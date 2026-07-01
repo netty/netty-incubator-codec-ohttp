@@ -72,7 +72,7 @@ final class BoringSSLAsymmetricCipherKeyPair implements AsymmetricCipherKeyPair 
     @Override
     public String toString() {
         return "BoringSSLAsymmetricCipherKeyPair{" +
-                "privateKey=" + privateKey +
+                "privateKey=<redacted>" +
                 ", publicKey=" + publicKey +
                 '}';
     }

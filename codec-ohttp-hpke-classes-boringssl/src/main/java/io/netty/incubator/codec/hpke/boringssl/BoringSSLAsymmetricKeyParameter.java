@@ -70,7 +70,7 @@ final class BoringSSLAsymmetricKeyParameter implements AsymmetricKeyParameter {
     @Override
     public String toString() {
         return "BoringSSLAsymmetricKeyParameter{" +
-                "bytes=" + Arrays.toString(bytes) +
+                "bytes=" + (isPrivate ? "<redacted>" : Arrays.toString(bytes)) +
                 ", isPrivate=" + isPrivate +
                 '}';
     }
