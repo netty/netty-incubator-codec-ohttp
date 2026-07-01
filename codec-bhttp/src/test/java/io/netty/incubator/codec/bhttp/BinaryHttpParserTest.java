@@ -17,8 +17,12 @@ package io.netty.incubator.codec.bhttp;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpObject;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -27,7 +31,32 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 public class BinaryHttpParserTest {
+
+    @Test
+    void testExactBoundary() {
+        ByteBuf buffer = Unpooled.buffer();
+        VarIntCodecUtils.writeVariableLengthInteger(buffer, 0); // known-length request
+        writeString(buffer, "GET");
+        writeString(buffer, "https");
+        writeString(buffer, "example.com");
+        writeString(buffer, "/");
+        VarIntCodecUtils.writeVariableLengthInteger(buffer, 4); // field section length
+        writeString(buffer, "a");
+        writeString(buffer, "b");
+        BinaryHttpRequest parsed = (BinaryHttpRequest)
+                new BinaryHttpParser(8192).parse(buffer, false);
+        assertNotNull(parsed);
+        assertEquals(HttpMethod.GET, parsed.method());
+        assertEquals("https", parsed.scheme());
+        assertEquals("example.com", parsed.authority());
+        assertEquals("/", parsed.uri());
+        assertEquals(1, parsed.headers().size());
+        assertEquals("b", parsed.headers().get("a"));
+    }
 
     @ParameterizedTest(name = "{index} => {0}, {1}, {2}")
     @MethodSource("invalidChars")

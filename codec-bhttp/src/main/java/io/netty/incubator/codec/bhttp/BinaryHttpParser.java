@@ -677,7 +677,7 @@ public final class BinaryHttpParser {
 
         final long valueLength = getVariableLengthInteger(in, valueLengthIdx, valueLengthBytes);
         sumBytes += valueLength;
-        if (sumBytes >= in.readableBytes()) {
+        if (sumBytes > in.readableBytes()) {
             return null;
         }
         final int valueIdx = valueLengthIdx + valueLengthBytes;
