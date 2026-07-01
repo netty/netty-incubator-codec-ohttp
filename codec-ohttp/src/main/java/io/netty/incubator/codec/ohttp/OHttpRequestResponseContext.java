@@ -208,8 +208,16 @@ abstract class OHttpRequestResponseContext {
         public void decodeChunk(ByteBufAllocator alloc, ByteBuf chunk, int chunkLength,
                                 boolean completeBodyReceived, List<Object> out) throws CryptoException {
             ByteBuf decryptedChunk = alloc.buffer();
-            decryptChunk(alloc, chunk, chunkLength, completeBodyReceived, decryptedChunk);
-            binaryHttpCumulation = MERGE_CUMULATOR.cumulate(alloc, binaryHttpCumulation, decryptedChunk);
+            try {
+                decryptChunk(alloc, chunk, chunkLength, completeBodyReceived, decryptedChunk);
+                binaryHttpCumulation = MERGE_CUMULATOR.cumulate(alloc, binaryHttpCumulation, decryptedChunk);
+                // Ownership transferred to binaryHttpCumulation; do not release in finally
+                decryptedChunk = null;
+            } finally {
+                if (decryptedChunk != null) {
+                    decryptedChunk.release();
+                }
+            }
             for (;;) {
                 HttpObject msg = binaryHttpParser.parse(binaryHttpCumulation, completeBodyReceived);
                 if (msg == null) {
