@@ -136,7 +136,7 @@ public final class BinaryHttpParser {
      * @param maxFieldSectionSize   the maximum size of the field-section (in bytes)
      */
     public BinaryHttpParser(int maxFieldSectionSize) {
-        this(256, maxFieldSectionSize);
+        this(1024, maxFieldSectionSize);
     }
 
     /**
