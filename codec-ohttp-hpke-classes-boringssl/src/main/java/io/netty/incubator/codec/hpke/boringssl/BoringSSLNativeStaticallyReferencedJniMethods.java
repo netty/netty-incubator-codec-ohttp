@@ -17,6 +17,7 @@ package io.netty.incubator.codec.hpke.boringssl;
 
 final class BoringSSLNativeStaticallyReferencedJniMethods {
     static native long EVP_hpke_x25519_hkdf_sha256();
+    static native long EVP_hpke_xwing();
     static native long EVP_hpke_hkdf_sha256();
     static native long EVP_hpke_aes_128_gcm();
     static native long EVP_hpke_aes_256_gcm();

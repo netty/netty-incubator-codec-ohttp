@@ -89,10 +89,14 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
     }
 
     private static long boringSSLKEM(KEM kem) {
-        if (kem != KEM.X25519_SHA256) {
-            throw new IllegalArgumentException("KEM not supported: " + kem);
+        switch (kem) {
+            case XWING:
+                return BoringSSL.EVP_hpke_xwing;
+            case X25519_SHA256:
+                return BoringSSL.EVP_hpke_x25519_hkdf_sha256;
+            default:
+                throw new IllegalArgumentException("KEM not supported: " + kem);
         }
-        return BoringSSL.EVP_hpke_x25519_hkdf_sha256;
     }
 
     private static long boringSSLHPKEAEAD(AEAD aead) {
@@ -264,7 +268,13 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
 
     @Override
     public boolean isSupported(KEM kem) {
-        return kem == KEM.X25519_SHA256;
+        switch (kem) {
+            case X25519_SHA256:
+            case XWING:
+                return true;
+            default:
+                return false;
+        }
     }
 
     @Override

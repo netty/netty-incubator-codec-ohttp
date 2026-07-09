@@ -53,6 +53,10 @@ static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_x25519_hkdf_sha
     return (jlong) EVP_hpke_x25519_hkdf_sha256();
 }
 
+static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_xwing(JNIEnv* env, jclass clazz) {
+    return (jlong) EVP_hpke_xwing();
+}
+
 static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_hkdf_sha256(JNIEnv* env, jclass clazz) {
     return (jlong) EVP_hpke_hkdf_sha256();
 }
@@ -497,6 +501,7 @@ cleanup:
 // JNI Method Registration Table Begin
 static const JNINativeMethod statically_referenced_fixed_method_table[] = {
   { "EVP_hpke_x25519_hkdf_sha256", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_x25519_hkdf_sha256 },
+  { "EVP_hpke_xwing", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_xwing },
   { "EVP_hpke_hkdf_sha256", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_hkdf_sha256 },
   { "EVP_hpke_aes_128_gcm", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_aes_128_gcm },
   { "EVP_hpke_aes_256_gcm", "()J", (void *) netty_incubator_codec_ohttp_hpke_boringssl_EVP_hpke_aes_256_gcm },
