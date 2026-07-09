@@ -87,7 +87,6 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 builder.getMaxInitialLineSize(), builder.getMaxFieldSectionSize());
     }
 
-
     /**
      * Create a new instance with the given configuration.
      */
@@ -96,7 +95,12 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         this.provider = requireNonNull(provider, "provider");
         this.serverKeys = requireNonNull(serverKeys, "serverKeys");
         this.maxInitialLineSize = ObjectUtil.checkPositive(maxInitialLineSize, "maxInitialLineSize");
-        this.maxFieldSectionSize = ObjectUtil.checkPositive(maxFieldSectionSize, "maxFieldSectionSize");
+        maxFieldSectionSize = ObjectUtil.checkPositive(maxFieldSectionSize, "maxFieldSectionSize");
+        if (maxFieldSectionSize > (Integer.MAX_VALUE >> 1)) {
+            throw new IllegalArgumentException("Max field section size cannot be greater than " +
+                    (Integer.MAX_VALUE >> 1));
+        }
+        this.maxFieldSectionSize = maxFieldSectionSize;
     }
 
     /**
