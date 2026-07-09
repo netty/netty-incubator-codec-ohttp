@@ -43,6 +43,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.internal.ObjectUtil;
 
 import java.util.List;
 
@@ -82,10 +83,24 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
      * @param builder The codec configuration to use.
      */
     OHttpServerCodec(OHttpServerCodecBuilder builder) {
-        this.provider = requireNonNull(builder.getProvider(), "builder.getProvider()");
-        this.serverKeys = requireNonNull(builder.getServerKeys(), "builder.getServerKeys()");
-        maxInitialLineSize = builder.getMaxInitialLineSize();
-        maxFieldSectionSize = builder.getMaxFieldSectionSize();
+        this(builder.getProvider(), builder.getServerKeys(),
+                builder.getMaxInitialLineSize(), builder.getMaxFieldSectionSize());
+    }
+
+    /**
+     * Create a new instance with the given configuration.
+     */
+    protected OHttpServerCodec(OHttpCryptoProvider provider, OHttpServerKeys serverKeys,
+                               int maxInitialLineSize, int maxFieldSectionSize) {
+        this.provider = requireNonNull(provider, "provider");
+        this.serverKeys = requireNonNull(serverKeys, "serverKeys");
+        this.maxInitialLineSize = ObjectUtil.checkPositive(maxInitialLineSize, "maxInitialLineSize");
+        maxFieldSectionSize = ObjectUtil.checkPositive(maxFieldSectionSize, "maxFieldSectionSize");
+        if (maxFieldSectionSize > (Integer.MAX_VALUE >> 1)) {
+            throw new IllegalArgumentException("Max field section size cannot be greater than " +
+                    (Integer.MAX_VALUE >> 1));
+        }
+        this.maxFieldSectionSize = maxFieldSectionSize;
     }
 
     /**
