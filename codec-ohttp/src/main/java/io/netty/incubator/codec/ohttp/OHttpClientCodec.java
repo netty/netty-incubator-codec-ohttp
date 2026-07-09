@@ -79,6 +79,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
 
     private final OHttpCryptoProvider provider;
     private final Function<HttpRequest, EncapsulationParameters> encapsulationFunc;
+    private final int maxInitialLineSize;
     private final int maxFieldSectionSize;
 
     private ByteBuf cumulationBuffer = Unpooled.EMPTY_BUFFER;
@@ -110,6 +111,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
         this.provider = requireNonNull(builder.getProvider(), "builder.getProvider()");
         this.encapsulationFunc = requireNonNull(builder.getEncapsulationFunction(),
                 "builder.getEncapsulationFunction()");
+        maxInitialLineSize = builder.getMaxInitialLineSize();
         maxFieldSectionSize = builder.getMaxFieldSectionSize();
     }
 
@@ -272,7 +274,8 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 EncapsulationParameters encapsulation = encapsulationFunc.apply(innerRequest);
                 if (encapsulation != null) {
                     OHttpClientRequestResponseContext oHttpContext =
-                            new OHttpClientRequestResponseContext(encapsulation, provider, maxFieldSectionSize);
+                            new OHttpClientRequestResponseContext(encapsulation, provider,
+                                    maxInitialLineSize, maxFieldSectionSize);
                     HttpHeaders outerHeaders = encapsulation.outerRequestHeaders();
                     DefaultHttpRequest outerRequest = new DefaultHttpRequest(
                             innerRequest.protocolVersion(),
@@ -340,8 +343,9 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
         private final OHttpCryptoSender sender;
 
         OHttpClientRequestResponseContext(
-                EncapsulationParameters parameters, OHttpCryptoProvider provider, int maxFieldSectionSize) {
-            super(parameters.version(), maxFieldSectionSize);
+                EncapsulationParameters parameters, OHttpCryptoProvider provider, int maxInitialLineSize,
+                int maxFieldSectionSize) {
+            super(parameters.version(), maxInitialLineSize, maxFieldSectionSize);
             this.sender = OHttpCryptoSender.newBuilder()
                     .setOHttpCryptoProvider(provider)
                     .setConfiguration(parameters.version())

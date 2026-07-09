@@ -17,6 +17,7 @@ package io.netty.incubator.codec.ohttp;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
+import io.netty.util.internal.ObjectUtil;
 
 import static java.util.Objects.requireNonNull;
 
@@ -26,9 +27,11 @@ import static java.util.Objects.requireNonNull;
  */
 public abstract class OHttpCodecBuilder<B extends OHttpCodecBuilder<B>> implements Cloneable {
     static final int DEFAULT_MAX_FIELD_SECTION_SIZE = 8 * 1024;
+    static final int DEFAULT_MAX_INITIAL_LINE_SIZE = 1024;
 
     private OHttpCryptoProvider provider;
     private int maxFieldSectionSize = DEFAULT_MAX_FIELD_SECTION_SIZE;
+    private int maxInitialLineSize = DEFAULT_MAX_INITIAL_LINE_SIZE;
 
     /**
      * Package-private constructor, to prevent integrators from extending this class.
@@ -56,6 +59,24 @@ public abstract class OHttpCodecBuilder<B extends OHttpCodecBuilder<B>> implemen
      */
     public final B setProvider(OHttpCryptoProvider provider) {
         this.provider = requireNonNull(provider, "provider");
+        return self();
+    }
+
+    /**
+     * The maximum size of the initial line (in bytes).
+     * @return The max initial line size.
+     */
+    public final int getMaxInitialLineSize() {
+        return maxInitialLineSize;
+    }
+
+    /**
+     * Set the maximum size of the initial line (in bytes).
+     * @param maxInitialLineSize The max initial line size, in bytes. Must be positive.
+     * @return this builder.
+     */
+    public final B setMaxInitialLineSize(int maxInitialLineSize) {
+        this.maxInitialLineSize = ObjectUtil.checkPositive(maxInitialLineSize, "maxInitialLineSize");
         return self();
     }
 

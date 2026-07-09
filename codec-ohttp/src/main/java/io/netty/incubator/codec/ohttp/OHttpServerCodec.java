@@ -60,6 +60,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
     private final OHttpCryptoProvider provider;
     private final OHttpServerKeys serverKeys;
+    private final int maxInitialLineSize;
     private final int maxFieldSectionSize;
 
     private HttpRequest request;
@@ -83,6 +84,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
     OHttpServerCodec(OHttpServerCodecBuilder builder) {
         this.provider = requireNonNull(builder.getProvider(), "builder.getProvider()");
         this.serverKeys = requireNonNull(builder.getServerKeys(), "builder.getServerKeys()");
+        maxInitialLineSize = builder.getMaxInitialLineSize();
         maxFieldSectionSize = builder.getMaxFieldSectionSize();
     }
 
@@ -149,7 +151,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                     // Keep a copy of the request, which will be used to generate the response.
                     request = new DefaultHttpRequest(req.protocolVersion(), req.method(), req.uri(), req.headers());
                     oHttpContext = new OHttpServerRequestResponseContext(
-                            version, provider, serverKeys, maxFieldSectionSize);
+                            version, provider, serverKeys, maxInitialLineSize, maxFieldSectionSize);
                 } else {
                     sentResponse = true;
                     FullHttpResponse response = new DefaultFullHttpResponse(
@@ -308,8 +310,9 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         private boolean sendLastHttpContent;
 
         OHttpServerRequestResponseContext(
-                OHttpVersion version, OHttpCryptoProvider provider, OHttpServerKeys keys, int maxFieldSectionSize) {
-            super(version, maxFieldSectionSize);
+                OHttpVersion version, OHttpCryptoProvider provider, OHttpServerKeys keys, int maxInitialLineSize,
+                int maxFieldSectionSize) {
+            super(version, maxInitialLineSize, maxFieldSectionSize);
             this.provider = provider;
             this.keys = keys;
         }

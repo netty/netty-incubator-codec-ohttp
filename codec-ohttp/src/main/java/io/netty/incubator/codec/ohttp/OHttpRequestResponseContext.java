@@ -37,11 +37,13 @@ import static io.netty.handler.codec.ByteToMessageDecoder.MERGE_CUMULATOR;
 abstract class OHttpRequestResponseContext {
     private final OHttpVersion version;
     private final ContentEncoder contentEncoder;
+    private final int maxInitialLineSize;
     private final int maxFieldSectionSize;
     private ContentDecoder decoder;
 
-    OHttpRequestResponseContext(OHttpVersion version, int maxFieldSectionSize) {
+    OHttpRequestResponseContext(OHttpVersion version, int maxInitialLineSize, int maxFieldSectionSize) {
         this.version = version;
+        this.maxInitialLineSize = maxInitialLineSize; // Assign before creating ContentDecoder!
         this.maxFieldSectionSize = maxFieldSectionSize; // Assign before creating ContentDecoder!
         contentEncoder = new ContentEncoder();
         decoder = new ContentDecoder();
@@ -180,7 +182,7 @@ abstract class OHttpRequestResponseContext {
     private final class ContentDecoder implements OHttpChunkFramer.Decoder {
 
         // Allow up to 8kb for the field-section.
-        private final BinaryHttpParser binaryHttpParser = new BinaryHttpParser(maxFieldSectionSize);
+        private final BinaryHttpParser binaryHttpParser = new BinaryHttpParser(maxInitialLineSize, maxFieldSectionSize);
 
         // Cumulation buffer with plaintext binary HTTP bytes, which are coming from decrypted type 0 chunks.
         private ByteBuf binaryHttpCumulation = Unpooled.EMPTY_BUFFER;
