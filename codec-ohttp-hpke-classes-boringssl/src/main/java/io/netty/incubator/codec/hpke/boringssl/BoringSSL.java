@@ -63,7 +63,6 @@ final class BoringSSL {
             BoringSSLNativeStaticallyReferencedJniMethods.EVP_hpke_x25519_hkdf_sha256();
     static final long EVP_hpke_xwing =
             BoringSSLNativeStaticallyReferencedJniMethods.EVP_hpke_xwing();
-
     static final long EVP_hpke_hkdf_sha256 =
             BoringSSLNativeStaticallyReferencedJniMethods.EVP_hpke_hkdf_sha256();
     static final long EVP_hpke_aes_128_gcm =
