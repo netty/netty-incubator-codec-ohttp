@@ -55,6 +55,7 @@ import io.netty.incubator.codec.hpke.boringssl.BoringSSLOHttpCryptoProvider;
 import io.netty.incubator.codec.hpke.bouncycastle.BouncyCastleOHttpCryptoProvider;
 import io.netty.util.ReferenceCountUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -83,26 +84,37 @@ public class OHttpCodecsTest {
             List<Arguments> arguments = new ArrayList<>();
             for (int i = 0; i < 2; i++) {
                 boolean trailers = i == 0;
-                arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
-                        BouncyCastleOHttpCryptoProvider.INSTANCE, trailers));
-                arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
-                        BouncyCastleOHttpCryptoProvider.INSTANCE, trailers));
+                for (KEM kem: new KEM[] { KEM.X25519_SHA256, KEM.XWING }) {
+                    arguments.add(Arguments.of(
+                            OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
+                            BouncyCastleOHttpCryptoProvider.INSTANCE, kem, trailers));
+                    arguments.add(Arguments.of(
+                            OHttpVersionChunkDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
+                            BouncyCastleOHttpCryptoProvider.INSTANCE, kem, trailers));
 
-                if (BoringSSLHPKE.isAvailable()) {
-                    arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
-                            BoringSSLOHttpCryptoProvider.INSTANCE, trailers));
-                    arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
-                            BoringSSLOHttpCryptoProvider.INSTANCE, trailers));
+                    if (BoringSSLHPKE.isAvailable()) {
+                        arguments.add(Arguments.of(
+                                OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
+                                BoringSSLOHttpCryptoProvider.INSTANCE, kem, trailers));
+                        arguments.add(Arguments.of(
+                                OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
+                                BoringSSLOHttpCryptoProvider.INSTANCE, kem, trailers));
 
-                    arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
-                            BouncyCastleOHttpCryptoProvider.INSTANCE, trailers));
-                    arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
-                            BouncyCastleOHttpCryptoProvider.INSTANCE, trailers));
+                        arguments.add(Arguments.of(
+                                OHttpVersionDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
+                                BouncyCastleOHttpCryptoProvider.INSTANCE, kem, trailers));
+                        arguments.add(Arguments.of(
+                                OHttpVersionChunkDraft.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
+                                BouncyCastleOHttpCryptoProvider.INSTANCE, kem, trailers));
 
-                    arguments.add(Arguments.of(OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
-                            BoringSSLOHttpCryptoProvider.INSTANCE, trailers));
-                    arguments.add(Arguments.of(OHttpVersionChunkDraft.INSTANCE,
-                            BouncyCastleOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE, trailers));
+                        arguments.add(Arguments.of(
+                                OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
+                                BoringSSLOHttpCryptoProvider.INSTANCE, kem, trailers));
+                        arguments.add(Arguments.of(
+                                OHttpVersionChunkDraft.INSTANCE,
+                                BouncyCastleOHttpCryptoProvider.INSTANCE, BoringSSLOHttpCryptoProvider.INSTANCE,
+                                kem, trailers));
+                    }
                 }
             }
             return arguments.stream();
@@ -131,35 +143,36 @@ public class OHttpCodecsTest {
     }
 
     public static ChannelPair createChannelPair(OHttpVersion version, OHttpCryptoProvider clientProvider,
-                                                OHttpCryptoProvider serverProvider) throws Exception {
-        return createChannelPair(version, clientProvider, serverProvider,
+                                                OHttpCryptoProvider serverProvider, KEM kem) throws Exception {
+        return createChannelPair(version, clientProvider, serverProvider, kem,
                 new OHttpClientCodecBuilder(), new OHttpServerCodecBuilder());
     }
 
     public static ChannelPair createChannelPair(OHttpVersion version, OHttpCryptoProvider clientProvider,
-                                                OHttpCryptoProvider serverProvider,
+                                                OHttpCryptoProvider serverProvider, KEM kem,
                                                 OHttpClientCodecBuilder clientCodecBuilder,
                                                 OHttpServerCodecBuilder serverCodecBuilder) throws Exception {
-        AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(serverProvider,
-                "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+        Assumptions.assumeTrue(clientProvider.isSupported(kem));
+        Assumptions.assumeTrue(serverProvider.isSupported(kem));
+        AsymmetricCipherKeyPair kpR = serverProvider.newRandomPrivateKey(kem);
         byte keyId = 0x66;
 
         OHttpServerKeys serverKeys = new OHttpServerKeys(
                 OHttpKey.newPrivateKey(
                         keyId,
-                        KEM.X25519_SHA256,
+                        kem,
                         Arrays.asList(
                                 OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.AES_GCM128),
                                 OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.CHACHA20_POLY1305)),
                         kpR));
 
         OHttpCiphersuite ciphersuite = new OHttpCiphersuite(keyId,
-                KEM.X25519_SHA256,
+                kem,
                 KDF.HKDF_SHA256,
                 AEAD.AES_GCM128);
 
         AsymmetricKeyParameter publicKey = clientProvider.deserializePublicKey(
-                KEM.X25519_SHA256, kpR.publicParameters().encoded());
+                kem, kpR.publicParameters().encoded());
 
         final OHttpClientCodecBuilder clientBuilder = clientCodecBuilder.clone()
                 .setProvider(clientProvider)
@@ -276,9 +289,9 @@ public class OHttpCodecsTest {
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
     void testContent(OHttpVersion version, OHttpCryptoProvider clientProvider,
-                     OHttpCryptoProvider serverProvider, boolean useTrailers)
+                     OHttpCryptoProvider serverProvider, KEM kem, boolean useTrailers)
             throws Exception {
-        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider);
+        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider, kem);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 
@@ -324,12 +337,12 @@ public class OHttpCodecsTest {
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
     void testContentChunked(OHttpVersion version, OHttpCryptoProvider clientProvider,
-                            OHttpCryptoProvider serverProvider, boolean useTrailers)
+                            OHttpCryptoProvider serverProvider, KEM kem, boolean useTrailers)
             throws Exception {
 
         assumeTrue(version != OHttpVersionDraft.INSTANCE);
 
-        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider);
+        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider, kem);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
         HttpHeaders trailers = newTrailers(useTrailers);
@@ -383,9 +396,9 @@ public class OHttpCodecsTest {
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
     void testCodec(OHttpVersion version, OHttpCryptoProvider clientProvider,
-                   OHttpCryptoProvider serverProvider, boolean useTrailers) throws Exception {
+                   OHttpCryptoProvider serverProvider, KEM kem, boolean useTrailers) throws Exception {
 
-        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider);
+        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider, kem);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
 
@@ -419,13 +432,13 @@ public class OHttpCodecsTest {
     @ParameterizedTest
     @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
     void testServerMaxFieldSection(OHttpVersion version, OHttpCryptoProvider clientProvider,
-                   OHttpCryptoProvider serverProvider, boolean useTrailers) throws Exception {
+                   OHttpCryptoProvider serverProvider, KEM kem, boolean useTrailers) throws Exception {
         OHttpServerCodecBuilder serverCodecConfig = new OHttpServerCodecBuilder();
         // Make the max field section size very small, so we make cause it to trigger
         // and give us a BAD_REQUEST return code.
         serverCodecConfig.setMaxFieldSectionSize(64);
 
-        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider,
+        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider, kem,
                 new OHttpClientCodecBuilder(), serverCodecConfig);
         EmbeddedChannel client = channels.client();
         EmbeddedChannel server = channels.server();
