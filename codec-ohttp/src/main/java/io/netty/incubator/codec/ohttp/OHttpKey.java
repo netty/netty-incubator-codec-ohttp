@@ -188,7 +188,8 @@ public abstract class OHttpKey {
 
             byte[] encoded = keyPair.privateParameters().encoded();
             if (encoded != null && encoded.length != kem.npk()) {
-                throw new CryptoException("Invalid public key, pkEncoded.length does not match Npk from KEM");
+                throw new CryptoException("Invalid public key, pkEncoded.length(" + encoded.length +
+                        ") does not match Npk(" + kem.npk() + ") from KEM: " + kem);
             }
             this.keyPair = keyPair;
         }
