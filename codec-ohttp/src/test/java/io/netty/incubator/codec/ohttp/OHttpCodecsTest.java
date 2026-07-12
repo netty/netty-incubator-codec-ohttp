@@ -84,7 +84,7 @@ public class OHttpCodecsTest {
             List<Arguments> arguments = new ArrayList<>();
             for (int i = 0; i < 2; i++) {
                 boolean trailers = i == 0;
-                for (KEM kem: new KEM[] { KEM.X25519_SHA256, KEM.XWING }) {
+                for (KEM kem: KEM.values()) {
                     arguments.add(Arguments.of(
                             OHttpVersionDraft.INSTANCE, BouncyCastleOHttpCryptoProvider.INSTANCE,
                             BouncyCastleOHttpCryptoProvider.INSTANCE, kem, trailers));
