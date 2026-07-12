@@ -25,7 +25,10 @@ public enum KEM {
     X25519_SHA256((short) 32, 32, 32),
     X448_SHA512((short) 33, 56, 56),
     // See https://datatracker.ietf.org/doc/draft-connolly-cfrg-xwing-kem/
-    XWING((short) 0x647a, 1120, 1216);
+    XWING((short) 0x647a, 1120, 1216),
+    // https://datatracker.ietf.org/doc/html/draft-ietf-hpke-pq-05#ml-kem-iana-table
+    MLKEM786((short) 0x0041, 1088, 1184),
+    MLKEM1024((short) 0x0042, 1568, 1568);
 
     public static KEM forId(short id) {
         for (KEM val : values()) {

@@ -92,6 +92,10 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
         switch (kem) {
             case XWING:
                 return BoringSSL.EVP_hpke_xwing;
+            case MLKEM786:
+                return BoringSSL.EVP_hpke_mlkem768;
+            case MLKEM1024:
+                return BoringSSL.EVP_hpke_mlkem1024;
             case X25519_SHA256:
                 return BoringSSL.EVP_hpke_x25519_hkdf_sha256;
             default:
@@ -271,6 +275,8 @@ public final class BoringSSLOHttpCryptoProvider implements OHttpCryptoProvider {
         switch (kem) {
             case X25519_SHA256:
             case XWING:
+            case MLKEM786:
+            case MLKEM1024:
                 return true;
             default:
                 return false;
