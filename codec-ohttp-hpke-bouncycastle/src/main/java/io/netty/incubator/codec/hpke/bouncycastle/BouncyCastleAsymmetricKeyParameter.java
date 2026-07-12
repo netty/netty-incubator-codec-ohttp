@@ -16,6 +16,8 @@
 package io.netty.incubator.codec.hpke.bouncycastle;
 
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.params.X25519PrivateKeyParameters;
 import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
 import org.bouncycastle.crypto.params.X448PrivateKeyParameters;
@@ -42,11 +44,30 @@ final class BouncyCastleAsymmetricKeyParameter implements AsymmetricKeyParameter
         if (param instanceof X448PublicKeyParameters) {
             return ((X448PublicKeyParameters) param).getEncoded();
         }
+        if (param instanceof ECPublicKeyParameters) {
+            return ((ECPublicKeyParameters) param).getQ().getEncoded(false);
+        }
         if (param instanceof X25519PrivateKeyParameters) {
             return ((X25519PrivateKeyParameters) param).getEncoded();
         }
         if (param instanceof X448PrivateKeyParameters) {
             return ((X448PrivateKeyParameters) param).getEncoded();
+        }
+        if (param instanceof ECPrivateKeyParameters) {
+            ECPrivateKeyParameters privateKey = (ECPrivateKeyParameters) param;
+            byte[] rawD = privateKey.getD().toByteArray();
+            //  Removing any extra leading 0x00 signs from BigInteger if needed.
+            switch (rawD.length) {
+                case 33: // P256_SHA256
+                case 49: // P384_SHA348
+                case 65: // P521_SHA512
+                    if (rawD[0] == 0) {
+                        return java.util.Arrays.copyOfRange(rawD, 1, rawD.length);
+                    }
+                    // fall-through
+                default:
+                    return rawD;
+            }
         }
         return null;
     }

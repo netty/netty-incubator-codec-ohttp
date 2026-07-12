@@ -25,7 +25,9 @@ import io.netty.incubator.codec.hpke.KDF;
 import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import org.bouncycastle.asn1.nist.NISTNamedCurves;
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
 import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.bouncycastle.crypto.params.X25519PrivateKeyParameters;
@@ -177,6 +179,19 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
                 X448PrivateKeyParameters x448PrivateKey = new X448PrivateKeyParameters(random);
                 return new org.bouncycastle.crypto.AsymmetricCipherKeyPair(
                         x448PrivateKey.generatePublicKey(), x448PrivateKey);
+            case P256_SHA256:
+            case P384_SHA348:
+            case P521_SHA512:
+                ECDomainParameters parameters = ecDomainParameters(kem);
+
+                // Initialize Key Generator
+                ECKeyGenerationParameters keyParams = new ECKeyGenerationParameters(parameters, random);
+
+                ECKeyPairGenerator generator = new ECKeyPairGenerator();
+                generator.init(keyParams);
+
+                // Generate the key pair
+                return generator.generateKeyPair();
             default:
                 throw new UnsupportedOperationException("Can't generate random key for kem: " + kem);
         }
