@@ -188,6 +188,13 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                         oHttpContext.parse(ctx.alloc(), cumulationBuffer, isLast, out);
                     } finally {
                         if (isLast && oHttpContext.receivedLastHttpContent()) {
+                            // Check if we can either free up some memory or release it all together.
+                            if (cumulationBuffer.isReadable()) {
+                                cumulationBuffer.discardSomeReadBytes();
+                            } else {
+                                cumulationBuffer.release();
+                                cumulationBuffer = Unpooled.EMPTY_BUFFER;
+                            }
                             destroyContext();
                         }
                     }
@@ -297,7 +304,6 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             destroyed = true;
             cumulationBuffer.release();
             cumulationBuffer = Unpooled.EMPTY_BUFFER;
-
             destroyContext();
         }
         super.handlerRemoved(ctx);

@@ -245,6 +245,14 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 out.add(ReferenceCountUtil.retain(msg));
             }
             if (isLast) {
+                // Check if we can either free up some memory or release it all together.
+                if (cumulationBuffer.isReadable()) {
+                    cumulationBuffer.discardSomeReadBytes();
+                } else {
+                    cumulationBuffer.release();
+                    cumulationBuffer = Unpooled.EMPTY_BUFFER;
+                }
+
                 OHttpRequestResponseContextHolder h = contextHolders.pollFirst();
                 assert h != null;
                 h.destroy();
