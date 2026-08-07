@@ -18,10 +18,14 @@ package io.netty.incubator.codec.hpke.bouncycastle;
 import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.crypto.params.MLKEMPrivateKeyParameters;
+import org.bouncycastle.crypto.params.MLKEMPublicKeyParameters;
 import org.bouncycastle.crypto.params.X25519PrivateKeyParameters;
 import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
 import org.bouncycastle.crypto.params.X448PrivateKeyParameters;
 import org.bouncycastle.crypto.params.X448PublicKeyParameters;
+import org.bouncycastle.pqc.crypto.xwing.XWingPrivateKeyParameters;
+import org.bouncycastle.pqc.crypto.xwing.XWingPublicKeyParameters;
 
 final class BouncyCastleAsymmetricKeyParameter implements AsymmetricKeyParameter {
 
@@ -47,6 +51,12 @@ final class BouncyCastleAsymmetricKeyParameter implements AsymmetricKeyParameter
         if (param instanceof ECPublicKeyParameters) {
             return ((ECPublicKeyParameters) param).getQ().getEncoded(false);
         }
+        if (param instanceof MLKEMPublicKeyParameters) {
+            return ((MLKEMPublicKeyParameters) param).getEncoded();
+        }
+        if (param instanceof XWingPublicKeyParameters) {
+            return ((XWingPublicKeyParameters) param).getEncoded();
+        }
         if (param instanceof X25519PrivateKeyParameters) {
             return ((X25519PrivateKeyParameters) param).getEncoded();
         }
@@ -68,6 +78,12 @@ final class BouncyCastleAsymmetricKeyParameter implements AsymmetricKeyParameter
                 default:
                     return rawD;
             }
+        }
+        if (param instanceof MLKEMPrivateKeyParameters) {
+            return ((MLKEMPrivateKeyParameters) param).getEncoded();
+        }
+        if (param instanceof XWingPrivateKeyParameters) {
+            return ((XWingPrivateKeyParameters) param).getEncoded();
         }
         return null;
     }

@@ -26,15 +26,25 @@ import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import org.bouncycastle.asn1.nist.NISTNamedCurves;
 import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
+import org.bouncycastle.crypto.generators.MLKEMKeyPairGenerator;
 import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.crypto.params.MLDSAPrivateKeyParameters;
+import org.bouncycastle.crypto.params.MLKEMKeyGenerationParameters;
+import org.bouncycastle.crypto.params.MLKEMParameters;
+import org.bouncycastle.crypto.params.MLKEMPrivateKeyParameters;
+import org.bouncycastle.crypto.params.MLKEMPublicKeyParameters;
 import org.bouncycastle.crypto.params.X25519PrivateKeyParameters;
 import org.bouncycastle.crypto.params.X25519PublicKeyParameters;
 import org.bouncycastle.crypto.params.X448PrivateKeyParameters;
 import org.bouncycastle.crypto.params.X448PublicKeyParameters;
 import org.bouncycastle.math.ec.ECPoint;
+import org.bouncycastle.pqc.crypto.xwing.XWingKeyGenerationParameters;
+import org.bouncycastle.pqc.crypto.xwing.XWingKeyPairGenerator;
+import org.bouncycastle.pqc.crypto.xwing.XWingPrivateKeyParameters;
+import org.bouncycastle.pqc.crypto.xwing.XWingPublicKeyParameters;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
@@ -121,6 +131,15 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
             case X448_SHA512:
                 return new org.bouncycastle.crypto.AsymmetricCipherKeyPair(publicKey,
                         new X448PrivateKeyParameters(privateKeyBytes));
+            case MLKEM786:
+                return new org.bouncycastle.crypto.AsymmetricCipherKeyPair(publicKey,
+                        new MLKEMPrivateKeyParameters(MLKEMParameters.ml_kem_768, privateKeyBytes));
+            case MLKEM1024:
+                return new org.bouncycastle.crypto.AsymmetricCipherKeyPair(publicKey,
+                        new MLKEMPrivateKeyParameters(MLKEMParameters.ml_kem_1024, privateKeyBytes));
+            case XWING:
+                return new org.bouncycastle.crypto.AsymmetricCipherKeyPair(publicKey,
+                        new XWingPrivateKeyParameters(privateKeyBytes));
             default:
                 throw new IllegalArgumentException("invalid kem: " + kem);
         }
@@ -146,6 +165,12 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
                 return new X25519PublicKeyParameters(publicKeyBytes);
             case X448_SHA512:
                 return new X448PublicKeyParameters(publicKeyBytes);
+            case MLKEM786:
+                return new MLKEMPublicKeyParameters(MLKEMParameters.ml_kem_768, publicKeyBytes);
+            case MLKEM1024:
+                return new MLKEMPublicKeyParameters(MLKEMParameters.ml_kem_1024, publicKeyBytes);
+            case XWING:
+                return new XWingPublicKeyParameters(publicKeyBytes);
             default:
                 throw new IllegalArgumentException("invalid kem: " + kem);
         }
@@ -192,6 +217,18 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
 
                 // Generate the key pair
                 return generator.generateKeyPair();
+            case MLKEM786:
+                MLKEMKeyPairGenerator mlkem768Generator = new MLKEMKeyPairGenerator();
+                mlkem768Generator.init(new MLKEMKeyGenerationParameters(random, MLKEMParameters.ml_kem_768));
+                return mlkem768Generator.generateKeyPair();
+            case MLKEM1024:
+                MLKEMKeyPairGenerator mlkem1024Generator = new MLKEMKeyPairGenerator();
+                mlkem1024Generator.init(new MLKEMKeyGenerationParameters(random, MLKEMParameters.ml_kem_1024));
+                return mlkem1024Generator.generateKeyPair();
+            case XWING:
+                XWingKeyPairGenerator xwing768Generator = new XWingKeyPairGenerator();
+                xwing768Generator.init(new XWingKeyGenerationParameters(random));
+                return xwing768Generator.generateKeyPair();
             default:
                 throw new UnsupportedOperationException("Can't generate random key for kem: " + kem);
         }
@@ -223,6 +260,9 @@ public final class BouncyCastleOHttpCryptoProvider implements OHttpCryptoProvide
             case P384_SHA348:
             case P521_SHA512:
             case X448_SHA512:
+            case MLKEM786:
+            case MLKEM1024:
+            case XWING:
                 return true;
             default:
                 return false;
