@@ -39,10 +39,10 @@ jobs:
     runs-on: ubuntu-latest
     name: linux-x86_64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Caching of maven dependencies
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         continue-on-error: true
         with:
           path: ~/.m2/repository
@@ -59,14 +59,14 @@ jobs:
       - name: Checking for test failures
         run: ./.github/scripts/check_build_result.sh build.output
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ always() }}
         with:
           name: build-linux-x86_64-jars
           path: |
             **/target/*.jar
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ failure() }}
         with:
           name: target
@@ -78,10 +78,10 @@ jobs:
     runs-on: ubuntu-latest
     name: linux-aarch64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Caching of maven dependencies
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         continue-on-error: true
         with:
           path: ~/.m2/repository
@@ -95,14 +95,14 @@ jobs:
       - name: Build project without leak detection
         run: docker compose -f docker/docker-compose.centos-7-cross.yaml run cross-compile-aarch64-build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ always() }}
         with:
           name: build-linux-aarch64-jars
           path: |
             **/target/*.jar
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ failure() }}
         with:
           name: target
