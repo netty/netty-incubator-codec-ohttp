@@ -462,6 +462,50 @@ public class OHttpCodecsTest {
         server.finishAndReleaseAll();
     }
 
+    @ParameterizedTest
+    @ArgumentsSource(value = OHttpVersionArgumentsProvider.class)
+    void testServerMaxPreAuthContentLengthAllowsRequestWithinLimit(
+            OHttpVersion version, OHttpCryptoProvider clientProvider,
+            OHttpCryptoProvider serverProvider, KEM kem, boolean useTrailers) throws Exception {
+        OHttpServerCodecBuilder serverCodecConfig = new OHttpServerCodecBuilder();
+        // A tight but sufficient limit: proves legitimate requests still round-trip correctly, whether
+        // delivered in one shot or incrementally across multiple HttpContent chunks, as long as the total
+        // stays within the configured bound.
+        serverCodecConfig.setMaxBufferLength(4096);
+
+        ChannelPair channels = createChannelPair(version, clientProvider, serverProvider, kem,
+                new OHttpClientCodecBuilder(), serverCodecConfig);
+        EmbeddedChannel client = channels.client();
+        EmbeddedChannel server = channels.server();
+
+        HttpHeaders trailers = newTrailers(useTrailers);
+        FullBinaryHttpRequest request = newFullRequestWithHeaders("/test", strToBuf("request body"));
+        request.trailingHeaders().set(trailers);
+
+        testTransferFlow(client, server, false,
+                Collections.singletonList(request),
+                Arrays.asList(newRequestWithHeaders("/test", false),
+                        new DefaultHttpContent(strToBuf("request body")),
+                        new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER, trailers)));
+
+        FullBinaryHttpResponse response = new DefaultFullBinaryHttpResponse(
+                HttpVersion.HTTP_1_1,
+                HttpResponseStatus.OK, strToBuf("response body"));
+        response.trailingHeaders().set(trailers);
+
+        testTransferFlow(server, client, false,
+                Collections.singletonList(response),
+                Arrays.asList(new DefaultBinaryHttpResponse(
+                                HttpVersion.HTTP_1_1,
+                                HttpResponseStatus.OK),
+                        new DefaultHttpContent(strToBuf("response body")),
+                        new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER, trailers))
+        );
+
+        client.finishAndReleaseAll();
+        server.finishAndReleaseAll();
+    }
+
     public static BinaryHttpRequest newRequestWithHeaders(String path, boolean chunked) {
         BinaryHttpRequest httpRequest = new DefaultBinaryHttpRequest(
                 HttpVersion.HTTP_1_1,

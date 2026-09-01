@@ -28,6 +28,7 @@ import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
@@ -136,6 +137,54 @@ public class OHttpServerCodecTest {
 
         assertFalse(channel.finish());
         assertEquals(0, lastContent.refCnt());
+    }
+
+    @Test
+    public void testMaxPreAuthContentLengthEnforcedForUnboundedNonChunkedBody() throws Exception {
+        AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(BouncyCastleOHttpCryptoProvider.INSTANCE,
+                "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+        byte keyId = 0x66;
+
+        OHttpServerKeys serverKeys = new OHttpServerKeys(
+                OHttpKey.newPrivateKey(
+                        keyId,
+                        KEM.X25519_SHA256,
+                        Arrays.asList(
+                                OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.AES_GCM128),
+                                OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.CHACHA20_POLY1305)),
+                        kpR));
+
+        final int maxPreAuthContentLength = 16;
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new OHttpServerCodecBuilder()
+                        .setProvider(BouncyCastleOHttpCryptoProvider.INSTANCE)
+                        .setServerKeys(serverKeys)
+                        .setMaxBufferLength(maxPreAuthContentLength)
+                        .build());
+
+        DefaultHttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/test");
+        req.headers().set(HttpHeaderNames.CONTENT_TYPE, OHttpConstants.REQUEST_CONTENT_TYPE);
+        assertFalse(channel.writeInbound(req));
+
+        // A chunk that stays within the configured limit is buffered without producing a response,
+        // since the (non-chunked) body cannot be authenticated until it has been fully received.
+        HttpContent withinLimit = new DefaultHttpContent(Unpooled.buffer().writeZero(maxPreAuthContentLength));
+        assertFalse(channel.writeInbound(withinLimit));
+        assertNull(channel.readOutbound());
+
+        // Simulate an attacker that never sends a LastHttpContent (e.g. chunked transfer-encoding that never
+        // terminates): once the cumulative body exceeds the configured limit, the connection must be failed
+        // instead of continuing to buffer an unbounded amount of data.
+        HttpContent overLimit = new DefaultHttpContent(Unpooled.buffer().writeZero(1));
+        assertFalse(channel.writeInbound(overLimit));
+
+        FullHttpResponse response = channel.readOutbound();
+        assertEquals(HttpResponseStatus.BAD_REQUEST, response.status());
+        assertTrue(response.release());
+
+        assertFalse(channel.finish());
+        assertEquals(0, withinLimit.refCnt());
+        assertEquals(0, overLimit.refCnt());
     }
 
     private static final class DelayingWriteHandler extends ChannelOutboundHandlerAdapter {

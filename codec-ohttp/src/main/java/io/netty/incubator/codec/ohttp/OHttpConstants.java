@@ -19,6 +19,10 @@ import io.netty.util.AsciiString;
 
 public final class OHttpConstants {
 
+    // Default to 2MB.
+    static final int MAX_BUFFER_LENGTH = 2 * 1024 * 1024;
+
+    // Default to 1MB.
     public static final int MAX_CHUNK_SIZE = 1024 * 1024;
 
     /**

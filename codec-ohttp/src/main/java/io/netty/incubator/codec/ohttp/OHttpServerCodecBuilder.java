@@ -17,6 +17,7 @@ package io.netty.incubator.codec.ohttp;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
+import io.netty.util.internal.ObjectUtil;
 
 import static java.util.Objects.requireNonNull;
 
@@ -30,6 +31,8 @@ import static java.util.Objects.requireNonNull;
  */
 public final class OHttpServerCodecBuilder extends OHttpCodecBuilder<OHttpServerCodecBuilder> {
     private OHttpServerKeys serverKeys;
+
+    private int maxBufferLength = OHttpConstants.MAX_BUFFER_LENGTH;
 
     /**
      * Create a new builder for building {@link OHttpServerCodec} instances.
@@ -61,6 +64,26 @@ public final class OHttpServerCodecBuilder extends OHttpCodecBuilder<OHttpServer
     public OHttpServerCodecBuilder setServerKeys(OHttpServerKeys serverKeys) {
         this.serverKeys = requireNonNull(serverKeys, "serverKeys");
         return self();
+    }
+
+    /**
+     * Set the maximum number of bytes that are allowed to be buffered for an OHTTP request.
+     *
+     * @param maxBufferLength the maximum number of bytes that will be allowed to buffer for an OHTTP request.
+     * @return this builder.
+     */
+    public OHttpServerCodecBuilder setMaxBufferLength(int maxBufferLength) {
+        this.maxBufferLength = ObjectUtil.checkPositive(maxBufferLength, "maxBufferLength");
+        return self();
+    }
+
+    /**
+     * The maximum number of bytes that are allowed to be buffered for an OHTTP request.
+     *
+     * @return The length.
+     */
+    public int maxBufferLength() {
+        return maxBufferLength;
     }
 
     @Override
