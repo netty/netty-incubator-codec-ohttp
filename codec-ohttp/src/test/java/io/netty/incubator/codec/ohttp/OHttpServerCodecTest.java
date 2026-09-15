@@ -15,7 +15,9 @@
  */
 package io.netty.incubator.codec.ohttp;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
@@ -28,25 +30,31 @@ import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.incubator.codec.hpke.AEAD;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
+import io.netty.incubator.codec.hpke.AsymmetricKeyParameter;
 import io.netty.incubator.codec.hpke.KDF;
 import io.netty.incubator.codec.hpke.KEM;
 import io.netty.incubator.codec.hpke.bouncycastle.BouncyCastleOHttpCryptoProvider;
+import io.netty.util.ReferenceCountUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class OHttpServerCodecTest {
 
@@ -190,6 +198,85 @@ public class OHttpServerCodecTest {
         assertEquals(2, readCountHandler.readCount.get());
 
         assertFalse(channel.finish());
+    }
+
+    @Test
+    public void eventLoopMustNotGetStuckOnTruncatedEncapsulatedBHttp() throws Exception {
+        AsymmetricCipherKeyPair kpR = OHttpCryptoTest.createX25519KeyPair(BouncyCastleOHttpCryptoProvider.INSTANCE,
+                "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+        byte keyId = 0x66;
+
+        OHttpServerKeys serverKeys = new OHttpServerKeys(
+                OHttpKey.newPrivateKey(
+                        keyId,
+                        KEM.X25519_SHA256,
+                        Arrays.asList(
+                                OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.AES_GCM128),
+                                OHttpKey.newCipher(KDF.HKDF_SHA256, AEAD.CHACHA20_POLY1305)),
+                        kpR));
+
+        OHttpCiphersuite ciphersuite = new OHttpCiphersuite(
+                keyId, KEM.X25519_SHA256, KDF.HKDF_SHA256, AEAD.AES_GCM128);
+        AsymmetricKeyParameter receiverPublicKey = BouncyCastleOHttpCryptoProvider.INSTANCE
+                .deserializePublicKey(KEM.X25519_SHA256, kpR.publicParameters().encoded());
+
+        // Build a well-formed encapsulated request whose plaintext is a single truncated varint byte.
+        ByteBuf encapsulated = Unpooled.buffer();
+        ByteBuf plaintext = Unpooled.wrappedBuffer(new byte[] { 0x40 });
+        ByteBuf encrypted = Unpooled.buffer();
+        try (OHttpCryptoSender sender = OHttpCryptoSender.newBuilder()
+                .setOHttpCryptoProvider(BouncyCastleOHttpCryptoProvider.INSTANCE)
+                .setConfiguration(OHttpVersionDraft.INSTANCE)
+                .setCiphersuite(ciphersuite)
+                .setReceiverPublicKey(receiverPublicKey)
+                .build()) {
+            sender.encrypt(UnpooledByteBufAllocator.DEFAULT, plaintext, plaintext.readableBytes(), true, encrypted);
+            sender.writeHeader(encapsulated);
+            encapsulated.writeBytes(encrypted);
+        } finally {
+            plaintext.release();
+            encrypted.release();
+        }
+
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new OHttpServerCodecBuilder()
+                        .setProvider(BouncyCastleOHttpCryptoProvider.INSTANCE)
+                        .setServerKeys(serverKeys)
+                        .build());
+
+        DefaultHttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/test");
+        req.headers().set(HttpHeaderNames.CONTENT_TYPE, OHttpConstants.REQUEST_CONTENT_TYPE);
+        assertFalse(channel.writeInbound(req));
+
+        // Feed the encapsulated request on a daemon thread: if decoding never returns, the test fails on the
+        // deadline instead of hanging the build, and the spinning thread cannot keep the JVM alive.
+        CountDownLatch done = new CountDownLatch(1);
+        Thread thread = new Thread(() -> {
+            try {
+                channel.writeInbound(new DefaultLastHttpContent(encapsulated));
+            } catch (Throwable ignore) {
+                // A protocol error (e.g. CorruptedFrameException surfacing as a 4xx) is a perfectly acceptable
+                // outcome here; the only unacceptable outcome is never returning.
+            } finally {
+                done.countDown();
+            }
+        }, "ohttp-decode");
+        thread.setDaemon(true);
+        thread.start();
+
+        try {
+            if (!done.await(10, TimeUnit.SECONDS)) {
+                fail("Decoding a truncated encapsulated bHTTP message never completed: " +
+                        "the decoding thread is spinning inside BinaryHttpParser.parse(...)");
+            }
+        } finally {
+            // Whatever the codec decided to emit, nothing may be retained.
+            Object outbound;
+            while ((outbound = channel.readOutbound()) != null) {
+                ReferenceCountUtil.release(outbound);
+            }
+            channel.finishAndReleaseAll();
+        }
     }
 
     private static final class ReadCountHandler extends ChannelDuplexHandler {

@@ -16,13 +16,15 @@
 package io.netty.incubator.codec.bhttp;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.CorruptedFrameException;
 import io.netty.handler.codec.TooLongFrameException;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.util.CharsetUtil;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -35,6 +37,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -133,6 +136,25 @@ public class BinaryHttpParserTest {
         writeString(Part.PATH, "/somepath", buffer, p, part, c);
         VarIntCodecUtils.writeVariableLengthInteger(buffer, 0);
         testInvalidHead(buffer, 256, IllegalArgumentException.class);
+    }
+
+    /**
+     * A truncated framing indicator must make {@code parse(...)} return {@code null} to request more bytes.
+     *
+     * <p>{@code ""} is an empty plaintext chunk; {@code "40"} is a single byte whose two high bits announce a
+     * 2-byte QUIC variable-length integer, so one more byte is needed.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = { "", "40" })
+    @Timeout(value = 10, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+    void testTruncatedFramingIndicatorDoesNotSpin(String hexDump) throws Exception {
+        ByteBuf buffer = Unpooled.wrappedBuffer(ByteBufUtil.decodeHexDump(hexDump));
+        try {
+            BinaryHttpParser parser = new BinaryHttpParser(8192);
+            assertNull(parser.parse(buffer, false));
+        } finally {
+            buffer.release();
+        }
     }
 
     private void writeString(Part currentPart, String str, ByteBuf out, Position p, Part part, Character c) {
