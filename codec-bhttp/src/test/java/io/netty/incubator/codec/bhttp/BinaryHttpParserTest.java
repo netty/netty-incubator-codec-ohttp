@@ -121,6 +121,27 @@ public class BinaryHttpParserTest {
         buffer.release();
     }
 
+    // https://www.rfc-editor.org/rfc/rfc9292.html#section-3.6 : a field line's value-length is itself a
+    // variable-length integer whose marker byte can announce a 1, 2, 4 or 8 byte encoding. If the buffer is
+    // truncated right after that marker, the parser must not dereference the missing bytes.
+    @ParameterizedTest
+    @ValueSource(bytes = { (byte) 0xC0, (byte) 0x80, (byte) 0x40 })
+    void testTruncatedFieldValueLength(byte valueLengthMarker) {
+        // Framing indicator 0x00 (known-length request), four 1-byte control fields, field-section length 0x03,
+        // then a field line: name length 1, name 'a', followed only by a value-length marker (no value bytes).
+        ByteBuf buffer = Unpooled.wrappedBuffer(new byte[] {
+                0x00, 0x01, 0x41, 0x01, 0x41, 0x01, 0x41, 0x01, 0x41, 0x03, 0x01, 0x61, valueLengthMarker
+        });
+        assertThrows(CorruptedFrameException.class, () -> new BinaryHttpParser(8192).parse(buffer, true));
+        buffer.release();
+
+        ByteBuf buffer2 = Unpooled.wrappedBuffer(new byte[] {
+                0x00, 0x01, 0x41, 0x01, 0x41, 0x01, 0x41, 0x01, 0x41, 0x03, 0x01, 0x61, valueLengthMarker
+        });
+        assertThrows(CorruptedFrameException.class, () -> new BinaryHttpParser(8192).parse(buffer2, false));
+        buffer2.release();
+    }
+
     @ParameterizedTest(name = "{index} => {0}, {1}, {2}")
     @MethodSource("invalidChars")
     void testInvalidMethodSuffix(Position p, Part part, String hexString, Character c) {

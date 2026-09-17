@@ -727,6 +727,10 @@ public final class BinaryHttpParser {
         final int valueLengthBytes = numBytesForVariableLengthIntegerFromByte(in.getByte(valueLengthIdx));
         sumBytes = sumAndCheckForOverflow(sumBytes, valueLengthBytes);
 
+        if (sumBytes > in.readableBytes()) {
+            return null;
+        }
+
         final long valueLength = getVariableLengthInteger(in, valueLengthIdx, valueLengthBytes);
         sumBytes = sumAndCheckForOverflow(sumBytes, valueLength);
 
