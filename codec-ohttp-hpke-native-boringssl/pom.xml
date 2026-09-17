@@ -73,7 +73,7 @@
                 </os>
             </activation>
             <properties>
-                <macosxDeploymentTarget>10.13</macosxDeploymentTarget>
+                <macosxDeploymentTarget>11</macosxDeploymentTarget>
                 <!-- On *nix, add ASM flags to disable executable stack -->
                 <cmakeAsmFlags>-Wa,--noexecstack -mmacosx-version-min=${macosxDeploymentTarget}</cmakeAsmFlags>
                 <extraCflags>-mmacosx-version-min=${macosxDeploymentTarget}</extraCflags>
