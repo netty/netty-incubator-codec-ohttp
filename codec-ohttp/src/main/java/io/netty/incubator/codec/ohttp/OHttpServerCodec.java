@@ -18,6 +18,7 @@ package io.netty.incubator.codec.ohttp;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.MessageToMessageCodec;
+import io.netty.handler.codec.TooLongFrameException;
 import io.netty.incubator.codec.bhttp.DefaultFullBinaryHttpResponse;
 import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.CryptoException;
@@ -48,6 +49,7 @@ import io.netty.util.internal.ObjectUtil;
 import java.util.List;
 
 import static io.netty.handler.codec.ByteToMessageDecoder.MERGE_CUMULATOR;
+import static io.netty.incubator.codec.ohttp.OHttpConstants.MAX_BUFFER_LENGTH;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -71,6 +73,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
     private boolean decodeCalled;
     private boolean producedMessage;
     private boolean destroyed;
+    private int maxBufferLength;
 
     public OHttpServerCodec(OHttpCryptoProvider provider, OHttpServerKeys serverKeys) {
         this(new OHttpServerCodecBuilder()
@@ -84,14 +87,22 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
      */
     OHttpServerCodec(OHttpServerCodecBuilder builder) {
         this(builder.getProvider(), builder.getServerKeys(),
-                builder.getMaxInitialLineSize(), builder.getMaxFieldSectionSize());
+                builder.getMaxInitialLineSize(), builder.getMaxFieldSectionSize(), builder.maxBufferLength());
     }
 
+    /**
+     * @deprecated use {@link #OHttpServerCodec(OHttpCryptoProvider, OHttpServerKeys, int, int, int)}
+     */
+    @Deprecated
+    protected OHttpServerCodec(OHttpCryptoProvider provider, OHttpServerKeys serverKeys,
+                               int maxInitialLineSize, int maxFieldSectionSize) {
+        this(provider, serverKeys, maxInitialLineSize, maxFieldSectionSize, MAX_BUFFER_LENGTH);
+    }
     /**
      * Create a new instance with the given configuration.
      */
     protected OHttpServerCodec(OHttpCryptoProvider provider, OHttpServerKeys serverKeys,
-                               int maxInitialLineSize, int maxFieldSectionSize) {
+                               int maxInitialLineSize, int maxFieldSectionSize, int maxBufferLength) {
         this.provider = requireNonNull(provider, "provider");
         this.serverKeys = requireNonNull(serverKeys, "serverKeys");
         this.maxInitialLineSize = ObjectUtil.checkPositive(maxInitialLineSize, "maxInitialLineSize");
@@ -101,6 +112,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                     (Integer.MAX_VALUE >> 1));
         }
         this.maxFieldSectionSize = maxFieldSectionSize;
+        this.maxBufferLength = ObjectUtil.checkPositive(maxBufferLength, "maxBufferLength");
     }
 
     /**
@@ -186,6 +198,12 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                         cumulationBuffer = MERGE_CUMULATOR.cumulate(
                                 ctx.alloc(), cumulationBuffer, content.retain());
                         oHttpContext.parse(ctx.alloc(), cumulationBuffer, isLast, out);
+
+                        // We check what is left after we parse to see if it will exceed the limit.
+                        // parse(...) is expected to read as much as possible from the buffer.
+                        if (cumulationBuffer.readableBytes() > maxBufferLength) {
+                            throw new TooLongFrameException("max buffer length exceeded: " + maxBufferLength);
+                        }
                     } finally {
                         if (isLast && oHttpContext.receivedLastHttpContent()) {
                             // Check if we can either free up some memory or release it all together.
@@ -243,7 +261,9 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             // before removing protection (including being unable to remove encapsulation for any reason) result in the
             // status code being sent without protection in response to the POST request made to that resource.
             //
-            if (cause.getCause() instanceof CryptoException) {
+            if (cause.getCause() instanceof CryptoException ||
+                    // If we were not able to decode the prefix yet we also need to respond without encapsulation.
+                    oHttpContext == null || !oHttpContext.isPrefixDecoded()) {
                 // Not able to remove protection, sent without protection.
                 ctx.writeAndFlush(response, promise);
             } else {
@@ -339,7 +359,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         }
 
         private void checkPrefixDecoded()throws CryptoException {
-            if (receiver == null) {
+            if (!isPrefixDecoded()) {
                 throw new CryptoException("Prefix was not decoded yet");
             }
         }
@@ -420,6 +440,10 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         boolean sendLastHttpContent() {
             sendLastHttpContent = true;
             return receivedLastHttpContent;
+        }
+
+        boolean isPrefixDecoded() {
+            return receiver != null;
         }
 
         @Override
