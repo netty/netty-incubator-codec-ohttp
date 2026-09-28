@@ -194,6 +194,12 @@ public final class BinaryHttpParser {
                         assert contentLength == -1 : "contentLength should have been reset";
 
                         state = readFramingIndicator(in);
+                        if (state == State.READ_FRAME_TYPE) {
+                            throwIfNotReadAllAndBodyReceived(in, completeBodyReceived);
+
+                            // Not enough readable bytes
+                            return null;
+                        }
                         break;
                     case READ_KNOWN_LENGTH_REQUEST_HEAD:
                     case READ_INDETERMINATE_LENGTH_REQUEST_HEAD:
