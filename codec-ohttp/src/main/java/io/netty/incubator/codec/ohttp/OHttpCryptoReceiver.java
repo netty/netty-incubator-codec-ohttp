@@ -19,6 +19,7 @@ import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
@@ -38,6 +39,7 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
     private final HPKERecipientContext context;
     private final byte[] responseNonce;
     private final CryptoEncryptContext aead;
+    private final byte[] requestAad;
 
     public static final class Builder {
         private OHttpCryptoProvider provider;
@@ -45,6 +47,7 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         private AsymmetricCipherKeyPair privateKey;
         private OHttpCiphersuite ciphersuite;
         private byte[] encapsulatedKey;
+        private OHttpCryptoParameters cryptoParameters = OHttpCryptoParameters.DEFAULT;
         private byte[] forcedResponseNonce; // for testing only!
 
         public Builder setOHttpCryptoProvider(OHttpCryptoProvider provider) {
@@ -69,6 +72,11 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
 
         public Builder setEncapsulatedKey(byte[] value) {
             this.encapsulatedKey = value;
+            return this;
+        }
+
+        public Builder setCryptoParameters(OHttpCryptoParameters value) {
+            this.cryptoParameters = value;
             return this;
         }
 
@@ -100,14 +108,23 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         byte[] encapsulatedKey = requireNonNull(builder.encapsulatedKey, "encapsulatedKey");
         OHttpCryptoProvider provider = requireNonNull(builder.provider, "provider");
         AsymmetricCipherKeyPair keyPair = requireNonNull(builder.privateKey, "privateKey");
+        OHttpCryptoParameters cryptoParameters = requireNonNull(builder.cryptoParameters, "cryptoParameters");
+        checkRequestAad(configuration, cryptoParameters);
+        this.requestAad = cryptoParameters.requestAad;
         if (builder.forcedResponseNonce == null) {
             this.responseNonce = new byte[ciphersuite.responseNonceLength()];
             RAND.nextBytes(responseNonce);
         } else {
             this.responseNonce = builder.forcedResponseNonce;
         }
-        this.context = provider.setupHPKEBaseR(ciphersuite.kem(), ciphersuite.kdf(), ciphersuite.aead(),
-                encapsulatedKey, keyPair, createInfo(ciphersuite, configuration.requestExportContext()));
+        byte[] info = createInfo(ciphersuite, configuration.requestExportContext(), cryptoParameters.infoSuffix);
+        if (cryptoParameters.psk == null) {
+            this.context = provider.setupHPKEBaseR(ciphersuite.kem(), ciphersuite.kdf(), ciphersuite.aead(),
+                    encapsulatedKey, keyPair, info);
+        } else {
+            this.context = provider.setupHPKEPskR(ciphersuite.kem(), ciphersuite.kdf(), ciphersuite.aead(),
+                    encapsulatedKey, keyPair, info, cryptoParameters.psk, cryptoParameters.pskId);
+        }
         try {
             this.aead = createResponseAEAD(provider, context, ciphersuite.aead(), encapsulatedKey,
                     this.responseNonce, configuration.responseExportContext());
@@ -139,6 +156,14 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
     @Override
     protected CryptoDecryptContext decryptCrypto() {
         return context;
+    }
+
+    @Override
+    ByteBuf decryptAad(boolean isFinal, boolean preferDirect) {
+        if (requestAad != null) {
+            return Unpooled.wrappedBuffer(requestAad);
+        }
+        return super.decryptAad(isFinal, preferDirect);
     }
 
     @Override
