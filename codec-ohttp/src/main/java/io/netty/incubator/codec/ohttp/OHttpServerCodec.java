@@ -65,6 +65,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
     private final OHttpServerKeys serverKeys;
     private final int maxInitialLineSize;
     private final int maxFieldSectionSize;
+    private final boolean knownLengthBinaryHttp;
 
     private HttpRequest request;
     private boolean sentResponse;
@@ -85,9 +86,10 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
      * Create a new instance with the given configuration.
      * @param builder The codec configuration to use.
      */
-    OHttpServerCodec(OHttpServerCodecBuilder builder) {
+    protected OHttpServerCodec(OHttpServerCodecBuilder builder) {
         this(builder.getProvider(), builder.getServerKeys(),
-                builder.getMaxInitialLineSize(), builder.getMaxFieldSectionSize(), builder.maxBufferLength());
+                builder.getMaxInitialLineSize(), builder.getMaxFieldSectionSize(), builder.maxBufferLength(),
+                builder.isKnownLengthBinaryHttp());
     }
 
     /**
@@ -103,6 +105,12 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
      */
     protected OHttpServerCodec(OHttpCryptoProvider provider, OHttpServerKeys serverKeys,
                                int maxInitialLineSize, int maxFieldSectionSize, int maxBufferLength) {
+        this(provider, serverKeys, maxInitialLineSize, maxFieldSectionSize, maxBufferLength, false);
+    }
+
+    private OHttpServerCodec(OHttpCryptoProvider provider, OHttpServerKeys serverKeys,
+                             int maxInitialLineSize, int maxFieldSectionSize, int maxBufferLength,
+                             boolean knownLengthBinaryHttp) {
         this.provider = requireNonNull(provider, "provider");
         this.serverKeys = requireNonNull(serverKeys, "serverKeys");
         this.maxInitialLineSize = ObjectUtil.checkPositive(maxInitialLineSize, "maxInitialLineSize");
@@ -113,6 +121,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         }
         this.maxFieldSectionSize = maxFieldSectionSize;
         this.maxBufferLength = ObjectUtil.checkPositive(maxBufferLength, "maxBufferLength");
+        this.knownLengthBinaryHttp = knownLengthBinaryHttp;
     }
 
     /**
@@ -129,6 +138,20 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         if (OHttpConstants.CHUNKED_REQUEST_CONTENT_TYPE.contentEqualsIgnoreCase(contentTypeValue)) {
             return OHttpVersionChunkDraft.INSTANCE;
         }
+        return null;
+    }
+
+    /**
+     * Returns the {@link OHttpPlaintextTransformer} that is applied to the plaintext of an OHTTP request and its
+     * response, or {@code null} if the plaintext is not transformed. This method is called once per OHTTP request,
+     * after the {@link OHttpVersion} was selected.
+     *
+     * @param ctx       the {@link ChannelHandlerContext} of this handler.
+     * @param request   the outer {@link HttpRequest}.
+     * @return          the transformer or {@code null} if none should be used.
+     */
+    protected OHttpPlaintextTransformer plaintextTransformer(
+            @SuppressWarnings("unused") ChannelHandlerContext ctx, @SuppressWarnings("unused") HttpRequest request) {
         return null;
     }
 
@@ -178,7 +201,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                     // Keep a copy of the request, which will be used to generate the response.
                     request = new DefaultHttpRequest(req.protocolVersion(), req.method(), req.uri(), req.headers());
                     oHttpContext = new OHttpServerRequestResponseContext(
-                            version, provider, serverKeys, maxInitialLineSize, maxFieldSectionSize);
+                            version, provider, serverKeys, maxInitialLineSize, maxFieldSectionSize,
+                            knownLengthBinaryHttp, plaintextTransformer(ctx, request));
                 } else {
                     sentResponse = true;
                     FullHttpResponse response = new DefaultFullHttpResponse(
@@ -352,8 +376,9 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
         OHttpServerRequestResponseContext(
                 OHttpVersion version, OHttpCryptoProvider provider, OHttpServerKeys keys, int maxInitialLineSize,
-                int maxFieldSectionSize) {
-            super(version, maxInitialLineSize, maxFieldSectionSize);
+                int maxFieldSectionSize, boolean knownLengthBinaryHttp,
+                OHttpPlaintextTransformer plaintextTransformer) {
+            super(version, maxInitialLineSize, maxFieldSectionSize, knownLengthBinaryHttp, plaintextTransformer);
             this.provider = provider;
             this.keys = keys;
         }
