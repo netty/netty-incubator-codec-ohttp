@@ -160,6 +160,15 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
         OHttpVersion version();
 
         /**
+         * The {@link OHttpCryptoParameters} to use.
+         *
+         * @return the parameters.
+         */
+        default OHttpCryptoParameters cryptoParameters() {
+            return OHttpCryptoParameters.DEFAULT;
+        }
+
+        /**
          * Create a simple {@link EncapsulationParameters} instance.
          *
          * @param version               the version to use.
@@ -359,6 +368,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                     .setConfiguration(parameters.version())
                     .setCiphersuite(requireNonNull(parameters.ciphersuite(), "ciphersuite"))
                     .setReceiverPublicKey(requireNonNull(parameters.serverPublicKey(), "serverPublicKey"))
+                    .setCryptoParameters(requireNonNull(parameters.cryptoParameters(), "cryptoParameters"))
                     .build();
         }
 

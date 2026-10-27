@@ -47,6 +47,7 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.ObjectUtil;
 
 import java.util.List;
+import java.util.function.Function;
 
 import static io.netty.handler.codec.ByteToMessageDecoder.MERGE_CUMULATOR;
 import static io.netty.incubator.codec.ohttp.OHttpConstants.MAX_BUFFER_LENGTH;
@@ -133,6 +134,21 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
     }
 
     /**
+     * Returns the {@link OHttpCryptoParameters} to use for a request. This method is called once per request, after
+     * the {@link OHttpCiphersuite} was decoded and before the request is decrypted.
+     *
+     * @param ctx           the {@link ChannelHandlerContext} of this handler.
+     * @param request       the outer {@link HttpRequest}.
+     * @param ciphersuite   the {@link OHttpCiphersuite} of the request.
+     * @return              the parameters to use.
+     */
+    protected OHttpCryptoParameters cryptoParameters(
+            @SuppressWarnings("unused") ChannelHandlerContext ctx, @SuppressWarnings("unused") HttpRequest request,
+            @SuppressWarnings("unused") OHttpCiphersuite ciphersuite) {
+        return OHttpCryptoParameters.DEFAULT;
+    }
+
+    /**
      * Optional callback to report the outer HTTP request and response.
      * @param request Incoming {@link HttpRequest}.
      * @param response Outgoing {@link HttpResponse}.
@@ -176,9 +192,12 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 }
                 if (version != null) {
                     // Keep a copy of the request, which will be used to generate the response.
-                    request = new DefaultHttpRequest(req.protocolVersion(), req.method(), req.uri(), req.headers());
+                    HttpRequest outerRequest = new DefaultHttpRequest(
+                            req.protocolVersion(), req.method(), req.uri(), req.headers());
+                    request = outerRequest;
                     oHttpContext = new OHttpServerRequestResponseContext(
-                            version, provider, serverKeys, maxInitialLineSize, maxFieldSectionSize);
+                            version, provider, serverKeys, maxInitialLineSize, maxFieldSectionSize,
+                            ciphersuite -> cryptoParameters(ctx, outerRequest, ciphersuite));
                 } else {
                     sentResponse = true;
                     FullHttpResponse response = new DefaultFullHttpResponse(
@@ -346,16 +365,18 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
         private final OHttpCryptoProvider provider;
         private final OHttpServerKeys keys;
+        private final Function<OHttpCiphersuite, OHttpCryptoParameters> cryptoParameters;
         private OHttpCryptoReceiver receiver;
         private boolean receivedLastHttpContent;
         private boolean sendLastHttpContent;
 
         OHttpServerRequestResponseContext(
                 OHttpVersion version, OHttpCryptoProvider provider, OHttpServerKeys keys, int maxInitialLineSize,
-                int maxFieldSectionSize) {
+                int maxFieldSectionSize, Function<OHttpCiphersuite, OHttpCryptoParameters> cryptoParameters) {
             super(version, maxInitialLineSize, maxFieldSectionSize);
             this.provider = provider;
             this.keys = keys;
+            this.cryptoParameters = cryptoParameters;
         }
 
         private void checkPrefixDecoded()throws CryptoException {
@@ -396,6 +417,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                     .setPrivateKey(pair)
                     .setCiphersuite(ciphersuite)
                     .setEncapsulatedKey(encapsulatedKey)
+                    .setCryptoParameters(cryptoParameters.apply(ciphersuite))
                     .build();
             return true;
         }
