@@ -376,6 +376,71 @@ public class OHttpCryptoParametersTest {
                 .build());
     }
 
+    @Test
+    public void testPskWithForcedEphemeralKeyPairNotSupported() throws CryptoException {
+        OHttpCryptoProvider provider = BouncyCastleOHttpCryptoProvider.INSTANCE;
+        OHttpServerKeys serverKeys = newServerKeys(provider, KEM.X25519_SHA256);
+        OHttpCiphersuite ciphersuite = new OHttpCiphersuite(KEY_ID, KEM.X25519_SHA256, KDF.HKDF_SHA256,
+                AEAD.CHACHA20_POLY1305);
+        AsymmetricKeyParameter publicKey = provider.deserializePublicKey(
+                KEM.X25519_SHA256, serverKeys.getKeyPair(ciphersuite).publicParameters().encoded());
+
+        assertThrows(IllegalArgumentException.class, () -> OHttpCryptoSender.newBuilder()
+                .setOHttpCryptoProvider(provider)
+                .setConfiguration(OHttpVersionDraft.INSTANCE)
+                .setCiphersuite(ciphersuite)
+                .setReceiverPublicKey(publicKey)
+                .setCryptoParameters(PSK)
+                .setForcedEphemeralKeyPair(provider.newRandomPrivateKey(KEM.X25519_SHA256))
+                .build());
+    }
+
+    /*
+     * Opens with a plain HPKE context and the raw AAD bytes, so this pins that requestAad is used verbatim
+     * (and for every message, not just the first).
+     */
+    @Test
+    public void testRequestAadUsedVerbatim() throws CryptoException {
+        OHttpCryptoProvider provider = BouncyCastleOHttpCryptoProvider.INSTANCE;
+        OHttpServerKeys serverKeys = newServerKeys(provider, KEM.X25519_SHA256);
+        OHttpCiphersuite ciphersuite = new OHttpCiphersuite(KEY_ID, KEM.X25519_SHA256, KDF.HKDF_SHA256,
+                AEAD.CHACHA20_POLY1305);
+
+        try (OHttpCryptoSender sender = newSender(provider, serverKeys, ciphersuite, REQUEST_AAD)) {
+            ByteBuf first = encryptRequest(sender);
+            // Same instance again: the AAD handed out for the first message must not have been consumed.
+            ByteBuf second = encryptRequest(sender);
+            HPKERecipientContext context = null;
+            try {
+                OHttpCiphersuite received = OHttpCiphersuite.decode(first);
+                byte[] enc = new byte[received.encapsulatedKeyLength()];
+                first.readBytes(enc);
+                context = provider.setupHPKEBaseR(received.kem(), received.kdf(), received.aead(), enc,
+                        serverKeys.getKeyPair(received),
+                        OHttpCrypto.createInfo(received, OHttpVersionDraft.INSTANCE.requestExportContext(),
+                                new byte[0]));
+                second.skipBytes(first.readerIndex());
+                for (ByteBuf msg : new ByteBuf[] { first, second }) {
+                    ByteBuf aad = Unpooled.wrappedBuffer(bytes("request aad"));
+                    ByteBuf pt = Unpooled.buffer();
+                    try {
+                        context.open(UnpooledByteBufAllocator.DEFAULT, aad, msg, pt);
+                        assertEquals(Unpooled.wrappedBuffer(REQUEST), pt);
+                    } finally {
+                        aad.release();
+                        pt.release();
+                    }
+                }
+            } finally {
+                if (context != null) {
+                    context.close();
+                }
+                first.release();
+                second.release();
+            }
+        }
+    }
+
     @ParameterizedTest
     @ArgumentsSource(ProviderArgumentsProvider.class)
     public void testCrypto(OHttpCryptoProvider senderProvider, OHttpCryptoProvider receiverProvider, KEM kem,
