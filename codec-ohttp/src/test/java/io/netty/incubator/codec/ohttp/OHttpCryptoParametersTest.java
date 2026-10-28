@@ -52,6 +52,7 @@ import io.netty.incubator.codec.hpke.boringssl.BoringSSLHPKE;
 import io.netty.incubator.codec.hpke.boringssl.BoringSSLOHttpCryptoProvider;
 import io.netty.incubator.codec.hpke.bouncycastle.BouncyCastleOHttpCryptoProvider;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.ResourceLeakDetector;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -153,7 +154,8 @@ public class OHttpCryptoParametersTest {
 
     @BeforeAll
     public static void setupAll() {
-        System.setProperty("io.netty.leakDetection.level", "paranoid");
+        // The system property has no effect if the ResourceLeakDetector was already initialized by another test.
+        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
     }
 
     private static byte[] bytes(String value) {
