@@ -19,6 +19,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.EncoderException;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
@@ -69,6 +70,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class OHttpServerCodecResponseTest {
@@ -445,5 +447,91 @@ public class OHttpServerCodecResponseTest {
 
         client.finishAndReleaseAll();
         server.finishAndReleaseAll();
+    }
+
+    private static DefaultHttpRequest newOuterRequest() {
+        DefaultHttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/ohttp");
+        request.headers().set(HttpHeaderNames.CONTENT_TYPE, OHttpConstants.REQUEST_CONTENT_TYPE);
+        return request;
+    }
+
+    @ParameterizedTest
+    @MethodSource("providers")
+    public void testDefaultErrorResponseStatus(OHttpCryptoProvider provider) throws Exception {
+        Keys keys = new Keys(provider);
+
+        // A decoding failure is reported as 400.
+        EmbeddedChannel server = new EmbeddedChannel(new OHttpServerCodec(keys.serverCodecBuilder(provider)));
+        assertFalse(server.writeInbound(newOuterRequest()));
+        assertFalse(server.writeInbound(
+                new DefaultLastHttpContent(Unpooled.copiedBuffer("bad", StandardCharsets.US_ASCII))));
+        FullHttpResponse response = server.readOutbound();
+        assertEquals(HttpResponseStatus.BAD_REQUEST, response.status());
+        assertTrue(response.release());
+        assertFalse(server.finishAndReleaseAll());
+
+        // Any other failure is reported as 500.
+        server = new EmbeddedChannel(new OHttpServerCodec(keys.serverCodecBuilder(provider)));
+        assertFalse(server.writeInbound(newOuterRequest()));
+        server.pipeline().fireExceptionCaught(new IllegalStateException("boom"));
+        response = server.readOutbound();
+        assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, response.status());
+        assertTrue(response.release());
+        assertFalse(server.isOpen());
+        assertFalse(server.finishAndReleaseAll());
+    }
+
+    @Test
+    public void testUnencapsulatedResponseHookThrows() throws Exception {
+        Keys keys = new Keys(BouncyCastleOHttpCryptoProvider.INSTANCE);
+        EmbeddedChannel server = new EmbeddedChannel(
+                new OHttpServerCodec(keys.serverCodecBuilder(BouncyCastleOHttpCryptoProvider.INSTANCE)) {
+                    @Override
+                    protected FullHttpResponse unencapsulatedResponse(HttpRequest request,
+                                                                      FullHttpResponse response) {
+                        throw new IllegalStateException("hook failed");
+                    }
+                });
+        assertFalse(server.writeInbound(newOuterRequest()));
+
+        FullHttpResponse inner = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        // The failure is propagated as an EncoderException; the codec does not turn it into an error response
+        // and the connection is left open (it is up to the caller to deal with the failed write).
+        EncoderException e = assertThrows(EncoderException.class, () -> server.writeOutbound(inner));
+        assertInstanceOf(IllegalStateException.class, e.getCause());
+        assertNull(server.readOutbound());
+        assertTrue(server.isOpen());
+        assertEquals(0, inner.refCnt());
+        assertFalse(server.finishAndReleaseAll());
+    }
+
+    @Test
+    public void testUnencapsulatedResponseBeforeRequestFullyReceivedAndNeverFinished() throws Exception {
+        Keys keys = new Keys(BouncyCastleOHttpCryptoProvider.INSTANCE);
+        EmptyResponseUnencapsulatingServerCodec codec = new EmptyResponseUnencapsulatingServerCodec(
+                keys.serverCodecBuilder(BouncyCastleOHttpCryptoProvider.INSTANCE));
+        EmbeddedChannel server = new EmbeddedChannel(codec);
+
+        // The outer request is never completed (no LastHttpContent).
+        assertFalse(server.writeInbound(newOuterRequest()));
+        assertTrue(server.writeOutbound(
+                new DefaultFullBinaryHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NO_CONTENT)));
+        FullHttpResponse outer = server.readOutbound();
+        assertEquals("204", outer.headers().get(INNER_STATUS_HEADER));
+        assertTrue(outer.release());
+
+        // Current behavior: the request state is only cleaned up once the request was fully received, so the
+        // next request on the connection is treated as pipelining and rejected. Note that behind an
+        // HttpServerCodec the bytes of such a request are consumed as body of the unfinished request and never
+        // reach this codec.
+        assertFalse(server.writeInbound(newOuterRequest()));
+        FullHttpResponse rejected = server.readOutbound();
+        assertEquals(HttpResponseStatus.BAD_REQUEST, rejected.status());
+        assertFalse(HttpUtil.isKeepAlive(rejected));
+        assertTrue(rejected.release());
+        assertEquals(2, codec.outerResponses.size());
+        assertFalse(server.isOpen());
+
+        assertFalse(server.finishAndReleaseAll());
     }
 }
