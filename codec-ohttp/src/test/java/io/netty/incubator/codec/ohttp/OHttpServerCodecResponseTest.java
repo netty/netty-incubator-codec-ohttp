@@ -495,12 +495,12 @@ public class OHttpServerCodecResponseTest {
         assertFalse(server.writeInbound(newOuterRequest()));
 
         FullHttpResponse inner = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        // The failure is propagated as an EncoderException; the codec does not turn it into an error response
-        // and the connection is left open (it is up to the caller to deal with the failed write).
+        // The failure is propagated as an EncoderException and, as no response can be sent anymore, the
+        // connection is closed.
         EncoderException e = assertThrows(EncoderException.class, () -> server.writeOutbound(inner));
         assertInstanceOf(IllegalStateException.class, e.getCause());
         assertNull(server.readOutbound());
-        assertTrue(server.isOpen());
+        assertFalse(server.isOpen());
         assertEquals(0, inner.refCnt());
         assertFalse(server.finishAndReleaseAll());
     }
