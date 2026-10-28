@@ -45,6 +45,8 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.ObjectUtil;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.util.List;
 import java.util.function.Function;
@@ -61,6 +63,8 @@ import static java.util.Objects.requireNonNull;
  * Both incoming and outgoing messages are {@link HttpObject}s.
  */
 public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObject> {
+
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(OHttpServerCodec.class);
 
     private final OHttpCryptoProvider provider;
     private final OHttpServerKeys serverKeys;
@@ -411,14 +415,30 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             final byte[] encapsulatedKey = new byte[encapsulatedKeyLength];
             in.readBytes(encapsulatedKey);
 
-            receiver = OHttpCryptoReceiver.newBuilder()
-                    .setOHttpCryptoProvider(provider)
-                    .setConfiguration(version())
-                    .setPrivateKey(pair)
-                    .setCiphersuite(ciphersuite)
-                    .setEncapsulatedKey(encapsulatedKey)
-                    .setCryptoParameters(cryptoParameters.apply(ciphersuite))
-                    .build();
+            // Failures that are caused by the server configuration and not by the client are logged, as the client
+            // can only be told that the request could not be decrypted.
+            final OHttpCryptoParameters parameters;
+            try {
+                parameters = requireNonNull(cryptoParameters.apply(ciphersuite), "cryptoParameters");
+                OHttpCrypto.checkRequestAad(version(), parameters);
+            } catch (RuntimeException e) {
+                logger.warn("Invalid OHttpCryptoParameters, rejecting the request", e);
+                throw e;
+            }
+            try {
+                receiver = OHttpCryptoReceiver.newBuilder()
+                        .setOHttpCryptoProvider(provider)
+                        .setConfiguration(version())
+                        .setPrivateKey(pair)
+                        .setCiphersuite(ciphersuite)
+                        .setEncapsulatedKey(encapsulatedKey)
+                        .setCryptoParameters(parameters)
+                        .build();
+            } catch (UnsupportedOperationException e) {
+                logger.warn("The OHttpCryptoProvider does not support {}, rejecting the request",
+                        parameters.mode(), e);
+                throw e;
+            }
             return true;
         }
 

@@ -19,7 +19,6 @@ import io.netty.incubator.codec.hpke.AsymmetricCipherKeyPair;
 import io.netty.incubator.codec.hpke.CryptoDecryptContext;
 import io.netty.incubator.codec.hpke.CryptoEncryptContext;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.incubator.codec.hpke.CryptoException;
 import io.netty.incubator.codec.hpke.HPKERecipientContext;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
@@ -39,7 +38,6 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
     private final HPKERecipientContext context;
     private final byte[] responseNonce;
     private final CryptoEncryptContext aead;
-    private final byte[] requestAad;
 
     public static final class Builder {
         private OHttpCryptoProvider provider;
@@ -103,14 +101,14 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
     }
 
     private OHttpCryptoReceiver(Builder builder) {
+        super(requireNonNull(builder.cryptoParameters, "cryptoParameters").requestAad);
         this.configuration = requireNonNull(builder.configuration, "configuration");
         OHttpCiphersuite ciphersuite = requireNonNull(builder.ciphersuite, "ciphersuite");
         byte[] encapsulatedKey = requireNonNull(builder.encapsulatedKey, "encapsulatedKey");
         OHttpCryptoProvider provider = requireNonNull(builder.provider, "provider");
         AsymmetricCipherKeyPair keyPair = requireNonNull(builder.privateKey, "privateKey");
-        OHttpCryptoParameters cryptoParameters = requireNonNull(builder.cryptoParameters, "cryptoParameters");
+        OHttpCryptoParameters cryptoParameters = builder.cryptoParameters;
         checkRequestAad(configuration, cryptoParameters);
-        this.requestAad = cryptoParameters.requestAad;
         if (builder.forcedResponseNonce == null) {
             this.responseNonce = new byte[ciphersuite.responseNonceLength()];
             RAND.nextBytes(responseNonce);
@@ -159,11 +157,8 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
     }
 
     @Override
-    ByteBuf decryptAad(boolean isFinal, boolean preferDirect) {
-        if (requestAad != null) {
-            return Unpooled.wrappedBuffer(requestAad);
-        }
-        return super.decryptAad(isFinal, preferDirect);
+    boolean encryptsRequest() {
+        return false;
     }
 
     @Override
