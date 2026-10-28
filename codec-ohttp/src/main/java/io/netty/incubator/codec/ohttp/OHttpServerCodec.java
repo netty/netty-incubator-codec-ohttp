@@ -323,7 +323,14 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         try {
             if (msg instanceof FullHttpResponse && oHttpContext != null && !encodingErrorResponse) {
                 assert request != null;
-                FullHttpResponse response = unencapsulatedResponse(request, (FullHttpResponse) msg);
+                FullHttpResponse response;
+                try {
+                    response = unencapsulatedResponse(request, (FullHttpResponse) msg);
+                } catch (RuntimeException e) {
+                    // No response can be sent for this request anymore, don't leave the client waiting.
+                    ctx.close();
+                    throw e;
+                }
                 if (response != null) {
                     sentResponse = true;
                     onResponse(request, response);
