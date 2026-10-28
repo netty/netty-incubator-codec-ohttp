@@ -189,6 +189,49 @@ public class OHttpPlaintextTransformerTest {
         channels.finish();
     }
 
+    @ParameterizedTest
+    @MethodSource("versionsAndProviders")
+    void testBuffersReleasedByTransformerPaths(OHttpVersion version, OHttpCryptoProvider provider)
+            throws Exception {
+        TrackingTransformer clientTransformer = new TrackingTransformer(false);
+        TrackingTransformer serverTransformer = new TrackingTransformer(false);
+        Channels channels = new Channels(version, provider, false, clientTransformer,
+                (ctx, request) -> serverTransformer);
+
+        testTransferFlow(channels.client, channels.server, false,
+                Collections.singletonList(newFullRequest()),
+                Arrays.asList(new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/test"),
+                        new DefaultHttpContent(strToBuf("request body")),
+                        new DefaultLastHttpContent()));
+        testTransferFlow(channels.server, channels.client, false,
+                Collections.singletonList(new DefaultFullBinaryHttpResponse(
+                        HttpVersion.HTTP_1_1, HttpResponseStatus.OK, strToBuf("response body"))),
+                Arrays.asList(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK),
+                        new DefaultHttpContent(strToBuf("response body")),
+                        new DefaultLastHttpContent()));
+        channels.finish();
+
+        // Both sides encode what they send and decode what they receive.
+        clientTransformer.assertAllReleased(true, true);
+        serverTransformer.assertAllReleased(true, true);
+    }
+
+    @ParameterizedTest
+    @MethodSource("versionsAndProviders")
+    void testBuffersReleasedWhenTransformerThrows(OHttpVersion version, OHttpCryptoProvider provider)
+            throws Exception {
+        TrackingTransformer serverTransformer = new TrackingTransformer(true);
+        Channels channels = new Channels(version, provider, false, new MarkerXorTransformer(),
+                (ctx, request) -> serverTransformer);
+
+        testRequestResponseFlow(channels.client, channels.server,
+                Collections.singletonList(newFullRequest()),
+                Collections.singletonList(newBadRequestResponse()));
+        channels.finish();
+
+        serverTransformer.assertAllReleased(true, true);
+    }
+
     private static FullBinaryHttpRequest newFullRequest() {
         return new DefaultFullBinaryHttpRequest(
                 HttpVersion.HTTP_1_1, HttpMethod.POST, "https", "foo.bar", "/test", strToBuf("request body"));
@@ -346,6 +389,47 @@ public class OHttpPlaintextTransformerTest {
             super.decode(alloc, in, isFinal, out);
             if (decoded == 1 && out.writerIndex() > writerIndex && out.getByte(writerIndex) == 0x02) {
                 throw new CorruptedFrameException("Indeterminate-length binary HTTP is not supported");
+            }
+        }
+    }
+
+    /**
+     * Records every buffer handed to the transformer, so tests can check they were all released.
+     */
+    private static final class TrackingTransformer extends MarkerXorTransformer {
+        private final boolean failDecode;
+        private final List<ByteBuf> encodeBuffers = new ArrayList<>();
+        private final List<ByteBuf> decodeBuffers = new ArrayList<>();
+
+        TrackingTransformer(boolean failDecode) {
+            this.failDecode = failDecode;
+        }
+
+        @Override
+        public void decode(ByteBufAllocator alloc, ByteBuf in, boolean isFinal, ByteBuf out) {
+            decodeBuffers.add(in);
+            decodeBuffers.add(out);
+            super.decode(alloc, in, isFinal, out);
+            if (failDecode) {
+                throw new CorruptedFrameException("Unable to transform");
+            }
+        }
+
+        @Override
+        public void encode(ByteBufAllocator alloc, ByteBuf in, boolean isFinal, ByteBuf out) {
+            encodeBuffers.add(in);
+            encodeBuffers.add(out);
+            super.encode(alloc, in, isFinal, out);
+        }
+
+        void assertAllReleased(boolean expectEncode, boolean expectDecode) {
+            assertEquals(expectEncode, !encodeBuffers.isEmpty());
+            assertEquals(expectDecode, !decodeBuffers.isEmpty());
+            for (ByteBuf buffer : encodeBuffers) {
+                assertEquals(0, buffer.refCnt());
+            }
+            for (ByteBuf buffer : decodeBuffers) {
+                assertEquals(0, buffer.refCnt());
             }
         }
     }
