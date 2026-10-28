@@ -481,28 +481,57 @@ public class OHttpServerCodecResponseTest {
         assertFalse(server.finishAndReleaseAll());
     }
 
-    @Test
-    public void testUnencapsulatedResponseHookThrows() throws Exception {
-        Keys keys = new Keys(BouncyCastleOHttpCryptoProvider.INSTANCE);
-        EmbeddedChannel server = new EmbeddedChannel(
-                new OHttpServerCodec(keys.serverCodecBuilder(BouncyCastleOHttpCryptoProvider.INSTANCE)) {
+    @ParameterizedTest
+    @MethodSource("providersAndVersions")
+    public void testUnencapsulatedResponseHookThrows(OHttpCryptoProvider provider, OHttpVersion version)
+            throws Exception {
+        Keys keys = new Keys(provider);
+        AtomicReference<Throwable> errorCause = new AtomicReference<>();
+        AtomicReference<Boolean> errorEncapsulated = new AtomicReference<>();
+        EmbeddedChannel server = new EmbeddedChannel(new HttpServerCodec(),
+                new OHttpServerCodec(keys.serverCodecBuilder(provider)) {
                     @Override
                     protected FullHttpResponse unencapsulatedResponse(HttpRequest request,
                                                                       FullHttpResponse response) {
                         throw new IllegalStateException("hook failed");
                     }
+
+                    @Override
+                    protected HttpResponseStatus errorResponseStatus(Throwable cause, boolean encapsulated) {
+                        errorCause.set(cause);
+                        errorEncapsulated.set(encapsulated);
+                        return super.errorResponseStatus(cause, encapsulated);
+                    }
                 });
-        assertFalse(server.writeInbound(newOuterRequest()));
+
+        EmbeddedChannel client = keys.newClientChannel(provider, version);
+        assertTrue(client.writeOutbound(newRequest("/test")));
+        transfer(client, server);
+        ReferenceCountUtil.release(server.readInbound());
 
         FullHttpResponse inner = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        // The failure is propagated as an EncoderException and, as no response can be sent anymore, the
-        // connection is closed.
+        // The failure is still propagated, but the client gets a 500 (encapsulated, as the request was decrypted)
+        // and the connection is closed.
         EncoderException e = assertThrows(EncoderException.class, () -> server.writeOutbound(inner));
         assertInstanceOf(IllegalStateException.class, e.getCause());
-        assertNull(server.readOutbound());
-        assertFalse(server.isOpen());
         assertEquals(0, inner.refCnt());
-        assertFalse(server.finishAndReleaseAll());
+        assertTrue(errorEncapsulated.get());
+        assertSame(e.getCause(), errorCause.get());
+        assertFalse(server.isOpen());
+
+        transfer(server, client);
+        HttpResponse response = client.readInbound();
+        assertNotNull(response);
+        assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, response.status());
+        for (;;) {
+            HttpObject msg = client.readInbound();
+            if (msg == null) {
+                break;
+            }
+            ReferenceCountUtil.release(msg);
+        }
+        client.finishAndReleaseAll();
+        server.finishAndReleaseAll();
     }
 
     @Test
