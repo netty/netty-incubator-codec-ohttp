@@ -319,7 +319,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
     }
 
     @Override
-    protected final void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
+    protected final void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) throws Exception {
         try {
             if (msg instanceof FullHttpResponse && oHttpContext != null && !encodingErrorResponse) {
                 assert request != null;
@@ -327,8 +327,8 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 try {
                     response = unencapsulatedResponse(request, (FullHttpResponse) msg);
                 } catch (RuntimeException e) {
-                    // No response can be sent for this request anymore, don't leave the client waiting.
-                    ctx.close();
+                    // Send the error response (and close the connection) the same way as for any other failure.
+                    exceptionCaught(ctx, e);
                     throw e;
                 }
                 if (response != null) {
