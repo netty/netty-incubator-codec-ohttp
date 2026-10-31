@@ -42,6 +42,7 @@ public final class OHttpCryptoSender extends OHttpCrypto {
         private OHttpCryptoConfiguration configuration;
         private OHttpCiphersuite ciphersuite;
         private AsymmetricKeyParameter receiverPublicKey;
+        private OHttpCryptoParameters cryptoParameters = OHttpCryptoParameters.DEFAULT;
         private AsymmetricCipherKeyPair forcedEphemeralKeyPair; // for testing only!
 
         public Builder setOHttpCryptoProvider(OHttpCryptoProvider provider) {
@@ -61,6 +62,11 @@ public final class OHttpCryptoSender extends OHttpCrypto {
 
         public Builder setReceiverPublicKey(AsymmetricKeyParameter value) {
             this.receiverPublicKey = value;
+            return this;
+        }
+
+        public Builder setCryptoParameters(OHttpCryptoParameters value) {
+            this.cryptoParameters = value;
             return this;
         }
 
@@ -87,15 +93,26 @@ public final class OHttpCryptoSender extends OHttpCrypto {
     }
 
     private OHttpCryptoSender(Builder builder) {
+        super(requireNonNull(builder.cryptoParameters, "cryptoParameters").requestAad);
         this.configuration = requireNonNull(builder.configuration, "configuration");
         this.ciphersuite = requireNonNull(builder.ciphersuite, "ciphersuite");
         this.provider = requireNonNull(builder.provider, "provider");
 
         AsymmetricKeyParameter pkR = requireNonNull(builder.receiverPublicKey, "receiverPublicKey");
         AsymmetricCipherKeyPair forcedEphemeralKeyPair = builder.forcedEphemeralKeyPair;
-        this.context = this.provider.setupHPKEBaseS(ciphersuite.kem(),
-                ciphersuite.kdf(), ciphersuite.aead(), pkR,
-                createInfo(ciphersuite, configuration.requestExportContext()), forcedEphemeralKeyPair);
+        OHttpCryptoParameters cryptoParameters = builder.cryptoParameters;
+        checkRequestAad(configuration, cryptoParameters);
+        if (cryptoParameters.psk != null && forcedEphemeralKeyPair != null) {
+            throw new IllegalArgumentException("forcedEphemeralKeyPair is not supported with a psk");
+        }
+        byte[] info = createInfo(ciphersuite, configuration.requestExportContext(), cryptoParameters.infoSuffix);
+        if (cryptoParameters.psk == null) {
+            this.context = this.provider.setupHPKEBaseS(ciphersuite.kem(),
+                    ciphersuite.kdf(), ciphersuite.aead(), pkR, info, forcedEphemeralKeyPair);
+        } else {
+            this.context = this.provider.setupHPKEPskS(ciphersuite.kem(),
+                    ciphersuite.kdf(), ciphersuite.aead(), pkR, info, cryptoParameters.psk, cryptoParameters.pskId);
+        }
     }
 
     /**
@@ -144,6 +161,11 @@ public final class OHttpCryptoSender extends OHttpCrypto {
     @Override
     protected CryptoDecryptContext decryptCrypto() {
         return aead;
+    }
+
+    @Override
+    boolean encryptsRequest() {
+        return true;
     }
 
     @Override

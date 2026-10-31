@@ -42,8 +42,15 @@ public abstract class OHttpCrypto implements AutoCloseable {
     private static final ByteBuf AAD_FINAL_DIRECT = Unpooled.unreleasableBuffer(
             Unpooled.directBuffer(5).writeBytes("final".getBytes(StandardCharsets.US_ASCII)).asReadOnly());
 
+    // Read-only, null if the AAD defined by the OHttpVersion is used for the request.
+    private final ByteBuf requestAadHeap;
+    // Lazily created copy for implementations that prefer direct buffers, owned by this instance.
+    private ByteBuf requestAadDirect;
+
     // Package-private
-    OHttpCrypto() { }
+    OHttpCrypto(byte[] requestAad) {
+        requestAadHeap = requestAad == null ? null : Unpooled.wrappedBuffer(requestAad).asReadOnly();
+    }
 
     private static ByteBuf aad(boolean isFinal, boolean preferDirect) {
         // The caller might update the position of the ByteBuf, duplicate it.
@@ -75,18 +82,66 @@ public abstract class OHttpCrypto implements AutoCloseable {
     /*
      * See https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html#section-4.3
      */
-    static byte[] createInfo(OHttpCiphersuite ciphersuite, byte[] requestExportContext) {
-        byte[] ret = new byte[requestExportContext.length + 1 + OHttpCiphersuite.ENCODED_LENGTH];
+    static byte[] createInfo(OHttpCiphersuite ciphersuite, byte[] requestExportContext, byte[] infoSuffix) {
+        byte[] ret = new byte[requestExportContext.length + 1 + OHttpCiphersuite.ENCODED_LENGTH + infoSuffix.length];
         ByteBuf buf = Unpooled.wrappedBuffer(ret);
         try {
             buf.writerIndex(0)
                     .writeBytes(requestExportContext)
                     .writeByte(0);
             ciphersuite.encode(buf);
+            buf.writeBytes(infoSuffix);
             return ret;
         } finally {
             buf.release();
         }
+    }
+
+    static void checkRequestAad(OHttpCryptoConfiguration configuration, OHttpCryptoParameters parameters) {
+        if (parameters.requestAad != null && configuration.useFinalAad()) {
+            throw new IllegalArgumentException("requestAad is not supported by a configuration that uses final AAD");
+        }
+    }
+
+    /**
+     * Returns the AAD to use when encrypting a message.
+     *
+     * @param isFinal       {@code true} if this is the final message.
+     * @param preferDirect  {@code true} if a direct buffer is preferred.
+     * @return              the AAD.
+     */
+    private ByteBuf encryptAad(boolean isFinal, boolean preferDirect) {
+        if (requestAadHeap != null && encryptsRequest()) {
+            return requestAad(preferDirect);
+        }
+        return aad(isFinal && useFinalAad(), preferDirect);
+    }
+
+    /**
+     * Returns the AAD to use when decrypting a message.
+     *
+     * @param isFinal       {@code true} if this is the final message.
+     * @param preferDirect  {@code true} if a direct buffer is preferred.
+     * @return              the AAD.
+     */
+    private ByteBuf decryptAad(boolean isFinal, boolean preferDirect) {
+        if (requestAadHeap != null && !encryptsRequest()) {
+            return requestAad(preferDirect);
+        }
+        return aad(isFinal && useFinalAad(), preferDirect);
+    }
+
+    private ByteBuf requestAad(boolean preferDirect) {
+        // The caller might update the position of the ByteBuf, duplicate it.
+        if (!preferDirect) {
+            return requestAadHeap.duplicate();
+        }
+        if (requestAadDirect == null) {
+            requestAadDirect = Unpooled.directBuffer(requestAadHeap.readableBytes())
+                    .writeBytes(requestAadHeap, requestAadHeap.readerIndex(), requestAadHeap.readableBytes())
+                    .asReadOnly();
+        }
+        return requestAadDirect.duplicate();
     }
 
     protected abstract CryptoEncryptContext encryptCrypto();
@@ -94,6 +149,12 @@ public abstract class OHttpCrypto implements AutoCloseable {
     protected abstract CryptoDecryptContext decryptCrypto();
 
     protected abstract boolean useFinalAad();
+
+    /**
+     * Returns {@code true} if this instance encrypts the request (and decrypts the response), {@code false} if it
+     * decrypts the request (and encrypts the response). A custom request AAD is only used for the request.
+     */
+    abstract boolean encryptsRequest();
 
     /**
      * Encrypt a message of a given length and write the encrypted data to a buffer.
@@ -107,7 +168,7 @@ public abstract class OHttpCrypto implements AutoCloseable {
      */
     public final void encrypt(ByteBufAllocator alloc, ByteBuf message, int messageLength, boolean isFinal, ByteBuf out)
             throws CryptoException {
-        encryptCrypto().seal(alloc, aad(isFinal && useFinalAad(), encryptCrypto().isDirectBufferPreferred()),
+        encryptCrypto().seal(alloc, encryptAad(isFinal, encryptCrypto().isDirectBufferPreferred()),
                 message.slice(message.readerIndex(), messageLength), out);
         message.skipBytes(messageLength);
     }
@@ -124,13 +185,17 @@ public abstract class OHttpCrypto implements AutoCloseable {
      */
     public final void decrypt(ByteBufAllocator alloc, ByteBuf message, int messageLength, boolean isFinal, ByteBuf out)
             throws CryptoException {
-        decryptCrypto().open(alloc, aad(isFinal && useFinalAad(), decryptCrypto().isDirectBufferPreferred()),
+        decryptCrypto().open(alloc, decryptAad(isFinal, decryptCrypto().isDirectBufferPreferred()),
                 message.slice(message.readerIndex(), messageLength), out);
         message.skipBytes(messageLength);
     }
 
     @Override
     public void close()  {
+        if (requestAadDirect != null) {
+            requestAadDirect.release();
+            requestAadDirect = null;
+        }
         // Check for null as these could be null if the constructor did throw.
         CryptoEncryptContext encryptContext = encryptCrypto();
         if (encryptContext != null) {
