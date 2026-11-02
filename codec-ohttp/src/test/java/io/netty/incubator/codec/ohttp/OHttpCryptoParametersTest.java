@@ -72,6 +72,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -336,6 +337,22 @@ public class OHttpCryptoParametersTest {
         assertThrows(NullPointerException.class, () -> builder.setPsk(bytes("psk"), null));
         assertThrows(NullPointerException.class, () -> builder.setInfoSuffix(null));
         assertThrows(NullPointerException.class, () -> builder.setRequestAad(null));
+
+        assertThrows(NullPointerException.class, () -> OHttpCryptoSender.newBuilder().setCryptoParameters(null));
+        assertThrows(NullPointerException.class, () -> OHttpCryptoReceiver.newBuilder().setCryptoParameters(null));
+    }
+
+    @Test
+    public void testEncapsulationParametersCryptoParameters() {
+        OHttpCryptoProvider provider = BouncyCastleOHttpCryptoProvider.INSTANCE;
+        OHttpCiphersuite ciphersuite = new OHttpCiphersuite((byte) 1, KEM.X25519_SHA256, KDF.HKDF_SHA256,
+                AEAD.AES_GCM128);
+        AsymmetricKeyParameter publicKey = provider.newRandomPrivateKey(KEM.X25519_SHA256).publicParameters();
+        OHttpCryptoParameters parameters = OHttpCryptoParameters.newBuilder().setPsk(bytes("psk"), bytes("id")).build();
+        assertSame(parameters, OHttpClientCodec.EncapsulationParameters.newInstance(
+                OHttpVersionDraft.INSTANCE, ciphersuite, publicKey, "/", "localhost", parameters).cryptoParameters());
+        assertSame(OHttpCryptoParameters.DEFAULT, OHttpClientCodec.EncapsulationParameters.newInstance(
+                OHttpVersionDraft.INSTANCE, ciphersuite, publicKey, "/", "localhost").cryptoParameters());
     }
 
     @Test

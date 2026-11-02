@@ -139,10 +139,11 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
     /**
      * Returns the {@link OHttpCryptoParameters} to use for a request. This method is called once per request, after
-     * the {@link OHttpCiphersuite} was decoded and before the request is decrypted.
+     * the {@link OHttpCiphersuite} was decoded and before the request is decrypted. A {@link RuntimeException}
+     * thrown by this method, or parameters the {@link OHttpCryptoProvider} does not support, rejects the request.
      *
      * @param ctx           the {@link ChannelHandlerContext} of this handler.
-     * @param request       the outer {@link HttpRequest}.
+     * @param request       the outer {@link HttpRequest}, which must be treated as read-only.
      * @param ciphersuite   the {@link OHttpCiphersuite} of the request.
      * @return              the parameters to use.
      */
@@ -415,30 +416,23 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             final byte[] encapsulatedKey = new byte[encapsulatedKeyLength];
             in.readBytes(encapsulatedKey);
 
-            // Failures that are caused by the server configuration and not by the client are logged, as the client
-            // can only be told that the request could not be decrypted.
-            final OHttpCryptoParameters parameters;
-            try {
-                parameters = requireNonNull(cryptoParameters.apply(ciphersuite), "cryptoParameters");
-                OHttpCrypto.checkRequestAad(version(), parameters);
-            } catch (RuntimeException e) {
-                logger.warn("Invalid OHttpCryptoParameters, rejecting the request", e);
-                throw e;
+            // The client can only be told that the request could not be decrypted, so a failure that is caused by
+            // the server configuration is reported through the exception message only (logging it here would let a
+            // client trigger a log entry per request).
+            final OHttpCryptoParameters parameters = requireNonNull(cryptoParameters.apply(ciphersuite),
+                    "cryptoParameters");
+            OHttpCrypto.checkRequestAad(version(), parameters);
+            if (!provider.isSupported(parameters.mode())) {
+                throw new CryptoException("The OHttpCryptoProvider does not support " + parameters.mode());
             }
-            try {
-                receiver = OHttpCryptoReceiver.newBuilder()
-                        .setOHttpCryptoProvider(provider)
-                        .setConfiguration(version())
-                        .setPrivateKey(pair)
-                        .setCiphersuite(ciphersuite)
-                        .setEncapsulatedKey(encapsulatedKey)
-                        .setCryptoParameters(parameters)
-                        .build();
-            } catch (UnsupportedOperationException e) {
-                logger.warn("The OHttpCryptoProvider does not support {}, rejecting the request",
-                        parameters.mode(), e);
-                throw e;
-            }
+            receiver = OHttpCryptoReceiver.newBuilder()
+                    .setOHttpCryptoProvider(provider)
+                    .setConfiguration(version())
+                    .setPrivateKey(pair)
+                    .setCiphersuite(ciphersuite)
+                    .setEncapsulatedKey(encapsulatedKey)
+                    .setCryptoParameters(parameters)
+                    .build();
             return true;
         }
 

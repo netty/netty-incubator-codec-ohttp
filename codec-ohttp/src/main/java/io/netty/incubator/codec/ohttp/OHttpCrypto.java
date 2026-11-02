@@ -46,6 +46,7 @@ public abstract class OHttpCrypto implements AutoCloseable {
     private final ByteBuf requestAadHeap;
     // Lazily created copy for implementations that prefer direct buffers, owned by this instance.
     private ByteBuf requestAadDirect;
+    private boolean closed;
 
     // Package-private
     OHttpCrypto(byte[] requestAad) {
@@ -136,6 +137,9 @@ public abstract class OHttpCrypto implements AutoCloseable {
         if (!preferDirect) {
             return requestAadHeap.duplicate();
         }
+        if (closed) {
+            throw new IllegalStateException("closed");
+        }
         if (requestAadDirect == null) {
             requestAadDirect = Unpooled.directBuffer(requestAadHeap.readableBytes())
                     .writeBytes(requestAadHeap, requestAadHeap.readerIndex(), requestAadHeap.readableBytes())
@@ -192,6 +196,7 @@ public abstract class OHttpCrypto implements AutoCloseable {
 
     @Override
     public void close()  {
+        closed = true;
         if (requestAadDirect != null) {
             requestAadDirect.release();
             requestAadDirect = null;

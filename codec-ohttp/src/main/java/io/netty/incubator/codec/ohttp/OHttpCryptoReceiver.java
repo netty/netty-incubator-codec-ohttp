@@ -74,7 +74,7 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         }
 
         public Builder setCryptoParameters(OHttpCryptoParameters value) {
-            this.cryptoParameters = value;
+            this.cryptoParameters = requireNonNull(value, "cryptoParameters");
             return this;
         }
 
@@ -109,6 +109,10 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         AsymmetricCipherKeyPair keyPair = requireNonNull(builder.privateKey, "privateKey");
         OHttpCryptoParameters cryptoParameters = builder.cryptoParameters;
         checkRequestAad(configuration, cryptoParameters);
+        if (!provider.isSupported(cryptoParameters.mode())) {
+            throw new UnsupportedOperationException("HPKEMode not supported by the provider: "
+                    + cryptoParameters.mode());
+        }
         if (builder.forcedResponseNonce == null) {
             this.responseNonce = new byte[ciphersuite.responseNonceLength()];
             RAND.nextBytes(responseNonce);

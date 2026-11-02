@@ -132,7 +132,8 @@ public final class OHttpCryptoParameters {
         /**
          * Set the pre-shared key and its identifier, which will use {@link HPKEMode#PSK}.
          *
-         * @param psk   the pre-shared key, must not be empty.
+         * @param psk   the pre-shared key, must not be empty. It should have at least 32 bytes of entropy, which
+         *              is the caller's responsibility (see RFC 9180).
          * @param pskId the identifier of the pre-shared key, must not be empty.
          * @return      this builder.
          */
