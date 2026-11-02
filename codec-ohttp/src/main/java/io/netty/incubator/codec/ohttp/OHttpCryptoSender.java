@@ -66,7 +66,7 @@ public final class OHttpCryptoSender extends OHttpCrypto {
         }
 
         public Builder setCryptoParameters(OHttpCryptoParameters value) {
-            this.cryptoParameters = value;
+            this.cryptoParameters = requireNonNull(value, "cryptoParameters");
             return this;
         }
 
@@ -102,6 +102,10 @@ public final class OHttpCryptoSender extends OHttpCrypto {
         AsymmetricCipherKeyPair forcedEphemeralKeyPair = builder.forcedEphemeralKeyPair;
         OHttpCryptoParameters cryptoParameters = builder.cryptoParameters;
         checkRequestAad(configuration, cryptoParameters);
+        if (!provider.isSupported(cryptoParameters.mode())) {
+            throw new UnsupportedOperationException("HPKEMode not supported by the provider: "
+                    + cryptoParameters.mode());
+        }
         if (cryptoParameters.psk != null && forcedEphemeralKeyPair != null) {
             throw new IllegalArgumentException("forcedEphemeralKeyPair is not supported with a psk");
         }

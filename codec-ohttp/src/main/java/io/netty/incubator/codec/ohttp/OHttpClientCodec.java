@@ -181,6 +181,26 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
         static EncapsulationParameters newInstance(OHttpVersion version, OHttpCiphersuite ciphersuite,
                                                  AsymmetricKeyParameter serverPublicKey, String outerRequestUri,
                                                    String outerRequestAuthority) {
+            return newInstance(version, ciphersuite, serverPublicKey, outerRequestUri, outerRequestAuthority,
+                    OHttpCryptoParameters.DEFAULT);
+        }
+
+        /**
+         * Create a simple {@link EncapsulationParameters} instance with explicit {@link OHttpCryptoParameters}.
+         *
+         * @param version               the version to use.
+         * @param ciphersuite           the suite to use.
+         * @param serverPublicKey       the public key to use.
+         * @param outerRequestUri       the outer request uri.
+         * @param outerRequestAuthority the authority.
+         * @param cryptoParameters      the crypto parameters to use.
+         * @return                      created params.
+         */
+        static EncapsulationParameters newInstance(OHttpVersion version, OHttpCiphersuite ciphersuite,
+                                                   AsymmetricKeyParameter serverPublicKey, String outerRequestUri,
+                                                   String outerRequestAuthority,
+                                                   OHttpCryptoParameters cryptoParameters) {
+            requireNonNull(cryptoParameters, "cryptoParameters");
             requireNonNull(version, "version");
             requireNonNull(ciphersuite, "ciphersuite");
             requireNonNull(serverPublicKey, "serverPublicKey");
@@ -210,6 +230,11 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 @Override
                 public OHttpVersion version() {
                     return version;
+                }
+
+                @Override
+                public OHttpCryptoParameters cryptoParameters() {
+                    return cryptoParameters;
                 }
             };
         }
