@@ -91,6 +91,45 @@ public interface OHttpCryptoProvider {
                                         AsymmetricCipherKeyPair skR, byte[] info);
 
     /**
+     * Establish a {@link HPKESenderContext} that can be used for encryption, using {@link HPKEMode#PSK}.
+     * Please note that this might not be supported by all implementations, in which case an
+     * {@link UnsupportedOperationException} is thrown. Use {@link #isSupported(HPKEMode)} to check.
+     *
+     * @param kem   the {@link KEM} to use.
+     * @param kdf   the {@link KDF} to use.
+     * @param aead  the {@link AEAD} to use.
+     * @param pkR   the public key.
+     * @param info  info parameter.
+     * @param psk   the pre-shared key.
+     * @param pskId the identifier of the pre-shared key.
+     * @return      the context.
+     */
+    default HPKESenderContext setupHPKEPskS(KEM kem, KDF kdf, AEAD aead, AsymmetricKeyParameter pkR,
+                                            byte[] info, byte[] psk, byte[] pskId) {
+        throw new UnsupportedOperationException("HPKEMode not supported: " + HPKEMode.PSK);
+    }
+
+    /**
+     * Establish a {@link HPKERecipientContext} that can be used for decryption, using {@link HPKEMode#PSK}.
+     * Please note that this might not be supported by all implementations, in which case an
+     * {@link UnsupportedOperationException} is thrown. Use {@link #isSupported(HPKEMode)} to check.
+     *
+     * @param kem   the {@link KEM} to use.
+     * @param kdf   the {@link KDF} to use.
+     * @param aead  the {@link AEAD} to use.
+     * @param enc   an encapsulated KEM shared secret.
+     * @param skR   the private key.
+     * @param info  info parameter.
+     * @param psk   the pre-shared key.
+     * @param pskId the identifier of the pre-shared key.
+     * @return      the context.
+     */
+    default HPKERecipientContext setupHPKEPskR(KEM kem, KDF kdf, AEAD aead, byte[] enc,
+                                               AsymmetricCipherKeyPair skR, byte[] info, byte[] psk, byte[] pskId) {
+        throw new UnsupportedOperationException("HPKEMode not supported: " + HPKEMode.PSK);
+    }
+
+    /**
      * Deserialize the input and return the private key.
      *
      * @param kem               the {@link KEM} that is used.
@@ -141,4 +180,14 @@ public interface OHttpCryptoProvider {
      * @return      if supported.
      */
     boolean isSupported(KDF kdf);
+
+    /**
+     * Returns {@code true} if the given {@link HPKEMode} is supported by the implementation, {@code false} otherwise.
+     *
+     * @param mode  the {@link HPKEMode}.
+     * @return      if supported.
+     */
+    default boolean isSupported(HPKEMode mode) {
+        return mode == HPKEMode.BASE;
+    }
 }
