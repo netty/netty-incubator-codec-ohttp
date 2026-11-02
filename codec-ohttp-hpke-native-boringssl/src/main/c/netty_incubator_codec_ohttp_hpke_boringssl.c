@@ -605,6 +605,9 @@ done:
         if (nativeRegistered == 1) {
             netty_jni_util_unregister_natives(env, packagePrefix, BORINGSSL_CLASSNAME);
         }
+        // We did not take ownership of the packagePrefix (see staticPackagePrefix) so we need to free it.
+        // This is a no-op for static builds as the packagePrefix is NULL in this case.
+        free((void*) packagePrefix);
     }
     return ret;
 }
