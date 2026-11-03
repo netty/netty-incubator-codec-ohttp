@@ -39,13 +39,25 @@ abstract class OHttpRequestResponseContext {
     private final ContentEncoder contentEncoder;
     private final int maxInitialLineSize;
     private final int maxFieldSectionSize;
+    private final OHttpPlaintextTransformer plaintextTransformer;
     private ContentDecoder decoder;
 
-    OHttpRequestResponseContext(OHttpVersion version, int maxInitialLineSize, int maxFieldSectionSize) {
+    /**
+     * Create a new instance.
+     * @param version the {@link OHttpVersion} to use.
+     * @param maxInitialLineSize the maximum size of the initial line (in bytes).
+     * @param maxFieldSectionSize the maximum size of the field-section (in bytes).
+     * @param knownLengthBinaryHttp {@code true} if binary HTTP messages should be serialized using the known-length
+     *                              encoding.
+     * @param plaintextTransformer the {@link OHttpPlaintextTransformer} to apply or {@code null} if none.
+     */
+    OHttpRequestResponseContext(OHttpVersion version, int maxInitialLineSize, int maxFieldSectionSize,
+                                boolean knownLengthBinaryHttp, OHttpPlaintextTransformer plaintextTransformer) {
         this.version = version;
         this.maxInitialLineSize = maxInitialLineSize; // Assign before creating ContentDecoder!
         this.maxFieldSectionSize = maxFieldSectionSize; // Assign before creating ContentDecoder!
-        contentEncoder = new ContentEncoder();
+        this.plaintextTransformer = plaintextTransformer;
+        contentEncoder = new ContentEncoder(knownLengthBinaryHttp);
         decoder = new ContentDecoder();
     }
 
@@ -85,9 +97,13 @@ abstract class OHttpRequestResponseContext {
 
     private final class ContentEncoder implements OHttpChunkFramer.Encoder<HttpObject> {
 
-        private final BinaryHttpSerializer binaryHttpSerializer = new BinaryHttpSerializer();
+        private final BinaryHttpSerializer binaryHttpSerializer;
 
         private boolean encodedPrefix;
+
+        ContentEncoder(boolean knownLengthBinaryHttp) {
+            binaryHttpSerializer = new BinaryHttpSerializer(knownLengthBinaryHttp);
+        }
 
         @Override
         public boolean isPrefixNeeded() {
@@ -97,12 +113,22 @@ abstract class OHttpRequestResponseContext {
         @Override
         public void encodeChunk(ByteBufAllocator alloc, HttpObject msg, ByteBuf out) throws CryptoException {
             ByteBuf binaryHttpBytes = alloc.buffer();
+            ByteBuf transformedBytes = null;
             try {
                 boolean isFinal = msg instanceof LastHttpContent;
                 binaryHttpSerializer.serialize(msg, binaryHttpBytes);
-                encryptChunk(alloc, binaryHttpBytes, binaryHttpBytes.readableBytes(), isFinal, out);
+                ByteBuf plaintext = binaryHttpBytes;
+                if (plaintextTransformer != null) {
+                    transformedBytes = alloc.buffer();
+                    plaintextTransformer.encode(alloc, binaryHttpBytes, isFinal, transformedBytes);
+                    plaintext = transformedBytes;
+                }
+                encryptChunk(alloc, plaintext, plaintext.readableBytes(), isFinal, out);
             } finally {
                 binaryHttpBytes.release();
+                if (transformedBytes != null) {
+                    transformedBytes.release();
+                }
             }
         }
 
@@ -210,14 +236,25 @@ abstract class OHttpRequestResponseContext {
         public void decodeChunk(ByteBufAllocator alloc, ByteBuf chunk, int chunkLength,
                                 boolean completeBodyReceived, List<Object> out) throws CryptoException {
             ByteBuf decryptedChunk = alloc.buffer();
+            ByteBuf transformedChunk = null;
             try {
                 decryptChunk(alloc, chunk, chunkLength, completeBodyReceived, decryptedChunk);
+                if (plaintextTransformer != null) {
+                    transformedChunk = alloc.buffer();
+                    plaintextTransformer.decode(alloc, decryptedChunk, completeBodyReceived, transformedChunk);
+                    decryptedChunk.release();
+                    decryptedChunk = transformedChunk;
+                    transformedChunk = null;
+                }
                 binaryHttpCumulation = MERGE_CUMULATOR.cumulate(alloc, binaryHttpCumulation, decryptedChunk);
                 // Ownership transferred to binaryHttpCumulation; do not release in finally
                 decryptedChunk = null;
             } finally {
                 if (decryptedChunk != null) {
                     decryptedChunk.release();
+                }
+                if (transformedChunk != null) {
+                    transformedChunk.release();
                 }
             }
             for (;;) {

@@ -44,7 +44,28 @@ public final class BinaryHttpSerializer {
         CONTENT_DISPOSE
     }
 
+    private final boolean knownLength;
     private State state = State.INITIAL;
+
+    /**
+     * Creates a new instance that serializes messages using the indeterminate-length encoding.
+     */
+    public BinaryHttpSerializer() {
+        this(false);
+    }
+
+    /**
+     * Creates a new instance.
+     *
+     * @param knownLength   {@code true} if messages should be serialized using the
+     *                      <a href="https://www.rfc-editor.org/rfc/rfc9292.html#section-3.3">known-length encoding</a>,
+     *                      {@code false} if the indeterminate-length encoding should be used. When the known-length
+     *                      encoding is used only {@link FullBinaryHttpRequest}s and {@link FullBinaryHttpResponse}s
+     *                      can be serialized.
+     */
+    public BinaryHttpSerializer(boolean knownLength) {
+        this.knownLength = knownLength;
+    }
 
     /**
      * Serialize binary {@link HttpObject}s into a {@link ByteBuf}.
@@ -54,12 +75,17 @@ public final class BinaryHttpSerializer {
      * </pre>
      *
      * {@link FullBinaryHttpResponse} or {@link FullBinaryHttpRequest} can be used as a shortcut for such a valid
-     * sequence.
+     * sequence. If this serializer uses the known-length encoding only {@link FullBinaryHttpResponse} and
+     * {@link FullBinaryHttpRequest} are supported.
      *
      * @param msg the {@link HttpObject} to serialize
      * @param out the {@link ByteBuf} into which to write.
      */
     public void serialize(HttpObject msg, ByteBuf out) {
+        if (knownLength) {
+            serializeKnownLength(msg, out);
+            return;
+        }
         for (;;) {
             switch (state) {
                 case INITIAL:
@@ -118,6 +144,32 @@ public final class BinaryHttpSerializer {
         }
     }
 
+    private void serializeKnownLength(HttpObject msg, ByteBuf out) {
+        if (!(msg instanceof LastHttpContent)) {
+            throwUnsupportedMessageTypeException(msg);
+        }
+        if (msg instanceof BinaryHttpRequest) {
+            BinaryHttpRequest request = (BinaryHttpRequest) msg;
+            writeVariableLengthInteger(out, 0);
+            encodeRequestControlData(out, request);
+            encodeKnownLengthFieldSection(out.alloc(), out, request.headers());
+        } else if (msg instanceof BinaryHttpResponse) {
+            BinaryHttpResponse response = (BinaryHttpResponse) msg;
+            if (response.status().codeClass() == HttpStatusClass.INFORMATIONAL) {
+                throw new IllegalArgumentException(
+                        "INFORMATIONAL responses are not supported by the known-length encoding");
+            }
+            writeVariableLengthInteger(out, 1);
+            encodeResponseControlData(out, response);
+            encodeKnownLengthFieldSection(out.alloc(), out, response.headers());
+        } else {
+            throwUnsupportedMessageTypeException(msg);
+        }
+        LastHttpContent content = (LastHttpContent) msg;
+        writeVariableLengthBuffer(out, content.content());
+        encodeKnownLengthFieldSection(out.alloc(), out, content.trailingHeaders());
+    }
+
     private void throwUnsupportedMessageTypeException(Object msg) {
         throw new UnsupportedMessageTypeException("Unexpected message type: " + StringUtil.simpleClassName(msg) +
                 ", state: " + state);
@@ -161,6 +213,28 @@ public final class BinaryHttpSerializer {
 
     private static void encodeIndeterminateLengthFieldSection(
             ByteBufAllocator allocator, ByteBuf out, HttpHeaders headers) {
+        encodeFieldLines(allocator, out, headers);
+
+        // Terminate with 0.
+        writeVariableLengthInteger(out, 0);
+    }
+
+    private static void encodeKnownLengthFieldSection(
+            ByteBufAllocator allocator, ByteBuf out, HttpHeaders headers) {
+        if (headers.isEmpty()) {
+            writeVariableLengthInteger(out, 0);
+            return;
+        }
+        ByteBuf fieldLines = allocator.buffer();
+        try {
+            encodeFieldLines(allocator, fieldLines, headers);
+            writeVariableLengthBuffer(out, fieldLines);
+        } finally {
+            fieldLines.release();
+        }
+    }
+
+    private static void encodeFieldLines(ByteBufAllocator allocator, ByteBuf out, HttpHeaders headers) {
         int writerIndex = out.writerIndex();
         ByteBuf nonPseudoHeaderBuffer = null;
         for (Iterator<Map.Entry<CharSequence, CharSequence>> it = headers.iteratorCharSequence(); it.hasNext();) {
@@ -191,9 +265,6 @@ public final class BinaryHttpSerializer {
             out.writeBytes(nonPseudoHeaderBuffer);
             nonPseudoHeaderBuffer.release();
         }
-
-        // Terminate with 0.
-        writeVariableLengthInteger(out, 0);
     }
 
     private static void writeVariableLengthBuffer(ByteBuf out, ByteBuf buffer) {
