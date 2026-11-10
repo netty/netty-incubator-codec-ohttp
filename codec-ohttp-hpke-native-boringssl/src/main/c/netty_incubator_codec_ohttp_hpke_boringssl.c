@@ -117,7 +117,7 @@ static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_setup_
         JNIEnv* env, jclass clazz, jlong ctx, jlong kem, jlong kdf, jlong aead,
         jbyteArray peer_public_key_bytes, jbyteArray info_bytes) {
     uint8_t out_enc[EVP_HPKE_MAX_ENC_LENGTH];
-    size_t out_enc_len;
+    size_t out_enc_len = 0;
     const uint8_t *peer_public_key = NULL;
     const uint8_t *info = NULL;
     jbyteArray result = NULL;
@@ -151,7 +151,7 @@ static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_CTX_setup_
         JNIEnv* env, jclass clazz, jlong ctx, jlong kem, jlong kdf, jlong aead,
         jbyteArray peer_public_key_bytes, jbyteArray info_bytes, jbyteArray seed_bytes) {
     uint8_t out_enc[EVP_HPKE_MAX_ENC_LENGTH];
-    size_t out_enc_len;
+    size_t out_enc_len = 0;
     const uint8_t *peer_public_key = NULL;
     const uint8_t *info = NULL;
     const uint8_t *seed = NULL;
@@ -333,7 +333,7 @@ cleanup:
 
 static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_public_key(JNIEnv* env, jclass clazz, jlong key) {
     uint8_t out[EVP_HPKE_MAX_PUBLIC_KEY_LENGTH];
-    size_t out_len;
+    size_t out_len = 0;
 
     int result = EVP_HPKE_KEY_public_key((const EVP_HPKE_KEY *) key,  (uint8_t *) out, &out_len, EVP_HPKE_MAX_PUBLIC_KEY_LENGTH);
     return to_byte_array(env, result, (const uint8_t *) out, out_len);
@@ -341,7 +341,7 @@ static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_public
 
 static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KEY_private_key(JNIEnv* env, jclass clazz, jlong key) {
     uint8_t out[EVP_HPKE_MAX_PRIVATE_KEY_LENGTH];
-    size_t out_len;
+    size_t out_len = 0;
 
     int result = EVP_HPKE_KEY_private_key((const EVP_HPKE_KEY *) key, (uint8_t *) out, &out_len, EVP_HPKE_MAX_PRIVATE_KEY_LENGTH);
     return to_byte_array(env, result, (const uint8_t *) out, out_len);
@@ -428,7 +428,7 @@ static jlong netty_incubator_codec_ohttp_hpke_boringssl_EVP_HPKE_KDF_hkdf_md(JNI
 
 static jbyteArray netty_incubator_codec_ohttp_hpke_boringssl_HKDF_extract(JNIEnv* env, jclass clazz, jlong digest, jbyteArray secret_array, jbyteArray salt_array) {
     uint8_t out_key[EVP_MAX_MD_SIZE];
-    size_t out_len;
+    size_t out_len = 0;
     const uint8_t *secret = NULL;
     const uint8_t *salt = NULL;
     jbyteArray result = NULL;
