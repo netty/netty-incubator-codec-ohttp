@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 centos:7.6.1810
+FROM --platform=linux/amd64 centos:7.9.2009
 
 ARG GCC_VERSION=10.2-2020.11
 ENV MAVEN_VERSION 3.9.1
@@ -8,7 +8,7 @@ ENV SOURCE_DIR /root/source
 ENV WORKSPACE_DIR /root/workspace
 ENV PROJECT_DIR /root/workspace/project
 
-RUN sed -i -e 's/^mirrorlist/#mirrorlist/g' -e 's/^#baseurl=http:\/\/mirror.centos.org\/centos\/$releasever\//baseurl=https:\/\/vault.centos.org\/\/7.6.1810\//g' /etc/yum.repos.d/CentOS-Base.repo
+RUN sed -i -e 's/^mirrorlist/#mirrorlist/g' -e 's/^#baseurl=http:\/\/mirror.centos.org\/centos\/$releasever\//baseurl=https:\/\/linuxsoft.cern.ch\/centos-vault\/\/7.9.2009\//g' /etc/yum.repos.d/CentOS-Base.repo
 
 RUN yum -y install epel-release
 
@@ -39,6 +39,9 @@ WORKDIR $SOURCE_DIR
 # Install Java
 RUN yum install -y java-1.8.0-openjdk-devel golang
 ENV JAVA_HOME="/usr/lib/jvm/java-1.8.0-openjdk/"
+
+# Refresh the CA bundle so wget can verify the TLS chain of the download hosts.
+RUN yum update -y ca-certificates
 
 # Install aarch64 gcc 10.2 toolchain
 RUN wget -q https://developer.arm.com/-/media/Files/downloads/gnu-a/$GCC_VERSION/binrel/gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu.tar.xz && \
