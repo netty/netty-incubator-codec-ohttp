@@ -45,6 +45,7 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
         private AsymmetricCipherKeyPair privateKey;
         private OHttpCiphersuite ciphersuite;
         private byte[] encapsulatedKey;
+        private OHttpCryptoParameters cryptoParameters = OHttpCryptoParameters.DEFAULT;
         private byte[] forcedResponseNonce; // for testing only!
 
         public Builder setOHttpCryptoProvider(OHttpCryptoProvider provider) {
@@ -72,6 +73,20 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
             return this;
         }
 
+        /**
+         * Set the {@link OHttpCryptoParameters} to use. By default {@link OHttpCryptoParameters#DEFAULT} is used.
+         * Building fails with an {@link IllegalArgumentException} if a request AAD is set for a configuration that
+         * uses final AAD, and with an {@link UnsupportedOperationException} if the {@link OHttpCryptoProvider} does
+         * not support the {@link OHttpCryptoParameters#mode()}.
+         *
+         * @param value the parameters.
+         * @return      this builder.
+         */
+        public Builder setCryptoParameters(OHttpCryptoParameters value) {
+            this.cryptoParameters = requireNonNull(value, "cryptoParameters");
+            return this;
+        }
+
         public Builder setForcedResponseNonce(byte[] value) {
             this.forcedResponseNonce = value;
             return this;
@@ -95,19 +110,32 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
     }
 
     private OHttpCryptoReceiver(Builder builder) {
+        super(requireNonNull(builder.cryptoParameters, "cryptoParameters").requestAad);
         this.configuration = requireNonNull(builder.configuration, "configuration");
         OHttpCiphersuite ciphersuite = requireNonNull(builder.ciphersuite, "ciphersuite");
         byte[] encapsulatedKey = requireNonNull(builder.encapsulatedKey, "encapsulatedKey");
         OHttpCryptoProvider provider = requireNonNull(builder.provider, "provider");
         AsymmetricCipherKeyPair keyPair = requireNonNull(builder.privateKey, "privateKey");
+        OHttpCryptoParameters cryptoParameters = builder.cryptoParameters;
+        checkRequestAad(configuration, cryptoParameters);
+        if (!provider.isSupported(cryptoParameters.mode())) {
+            throw new UnsupportedOperationException("HPKEMode not supported by the provider: "
+                    + cryptoParameters.mode());
+        }
         if (builder.forcedResponseNonce == null) {
             this.responseNonce = new byte[ciphersuite.responseNonceLength()];
             RAND.nextBytes(responseNonce);
         } else {
             this.responseNonce = builder.forcedResponseNonce;
         }
-        this.context = provider.setupHPKEBaseR(ciphersuite.kem(), ciphersuite.kdf(), ciphersuite.aead(),
-                encapsulatedKey, keyPair, createInfo(ciphersuite, configuration.requestExportContext()));
+        byte[] info = createInfo(ciphersuite, configuration.requestExportContext(), cryptoParameters.infoSuffix);
+        if (cryptoParameters.psk == null) {
+            this.context = provider.setupHPKEBaseR(ciphersuite.kem(), ciphersuite.kdf(), ciphersuite.aead(),
+                    encapsulatedKey, keyPair, info);
+        } else {
+            this.context = provider.setupHPKEPskR(ciphersuite.kem(), ciphersuite.kdf(), ciphersuite.aead(),
+                    encapsulatedKey, keyPair, info, cryptoParameters.psk, cryptoParameters.pskId);
+        }
         try {
             this.aead = createResponseAEAD(provider, context, ciphersuite.aead(), encapsulatedKey,
                     this.responseNonce, configuration.responseExportContext());
@@ -139,6 +167,11 @@ public final class OHttpCryptoReceiver extends OHttpCrypto {
     @Override
     protected CryptoDecryptContext decryptCrypto() {
         return context;
+    }
+
+    @Override
+    boolean encryptsRequest() {
+        return false;
     }
 
     @Override
