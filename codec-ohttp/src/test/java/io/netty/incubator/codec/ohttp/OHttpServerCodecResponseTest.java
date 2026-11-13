@@ -18,6 +18,8 @@ package io.netty.incubator.codec.ohttp;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.UnpooledByteBufAllocator;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.EncoderException;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -62,6 +64,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -653,6 +656,174 @@ public class OHttpServerCodecResponseTest {
         assertEquals(2, codec.outerResponses.size());
         assertFalse(server.isOpen());
 
+        assertFalse(server.finishAndReleaseAll());
+    }
+
+    /**
+     * Replies (once) to the first inner request from within {@code channelRead(...)}, so the response is written
+     * re-entrantly while the {@link OHttpServerCodec} is still firing the messages of the current decode call.
+     */
+    private static final class ReplyOnRequestHandler extends ChannelInboundHandlerAdapter {
+        private boolean replied;
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            if (!replied && msg instanceof HttpRequest) {
+                replied = true;
+                ctx.writeAndFlush(new DefaultFullBinaryHttpResponse(
+                        HttpVersion.HTTP_1_1, HttpResponseStatus.NO_CONTENT));
+            }
+            ctx.fireChannelRead(msg);
+        }
+    }
+
+    private static void releaseInbound(EmbeddedChannel channel) {
+        for (;;) {
+            Object msg = channel.readInbound();
+            if (msg == null) {
+                return;
+            }
+            ReferenceCountUtil.release(msg);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("providers")
+    public void testUnencapsulatedResponseWrittenFromChannelRead(OHttpCryptoProvider provider) throws Exception {
+        Keys keys = new Keys(provider);
+        OHttpVersion version = OHttpVersionChunkDraft.INSTANCE;
+        EmbeddedChannel server = new EmbeddedChannel(new HttpServerCodec(),
+                new EmptyResponseUnencapsulatingServerCodec(keys.serverCodecBuilder(provider)),
+                new ReplyOnRequestHandler());
+
+        EmbeddedChannel client = keys.newClientChannel(provider, version);
+        assertTrue(client.writeOutbound(newRequest("/first")));
+        // The reply is written while the last outer content is still being processed, so the response is written
+        // re-entrantly while the codec is firing the messages that were produced by the same decode call.
+        transfer(client, server);
+        assertUnencapsulatedNoContentResponse(server);
+        // The inner request is still delivered to the remaining handlers after the reply was written.
+        HttpRequest innerRequest = server.readInbound();
+        assertNotNull(innerRequest);
+        assertEquals("/first", innerRequest.uri());
+        releaseInbound(server);
+
+        // The per-request state is cleaned up, so the following request on the same connection is handled.
+        assertEncapsulatedRoundTrip(keys, provider, version, server);
+        assertTrue(server.isOpen());
+
+        assertFalse(client.finishAndReleaseAll());
+        assertFalse(server.finishAndReleaseAll());
+    }
+
+    @Test
+    public void testRemainingRequestContentIsDroppedAfterUnencapsulatedResponse() throws Exception {
+        Keys keys = new Keys(BouncyCastleOHttpCryptoProvider.INSTANCE);
+        EmbeddedChannel server = new EmbeddedChannel(new EmptyResponseUnencapsulatingServerCodec(
+                keys.serverCodecBuilder(BouncyCastleOHttpCryptoProvider.INSTANCE)));
+
+        assertFalse(server.writeInbound(newOuterRequest()));
+        assertTrue(server.writeOutbound(
+                new DefaultFullBinaryHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NO_CONTENT)));
+        ReferenceCountUtil.release(server.readOutbound());
+
+        // Many pieces of the outer request arrive after the reply, none of them must be retained or forwarded.
+        List<ByteBuf> pieces = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            ByteBuf piece = Unpooled.copiedBuffer("ignored", StandardCharsets.US_ASCII);
+            pieces.add(piece);
+            assertFalse(server.writeInbound(new DefaultHttpContent(piece)));
+        }
+        ByteBuf lastPiece = Unpooled.copiedBuffer("last", StandardCharsets.US_ASCII);
+        pieces.add(lastPiece);
+        assertFalse(server.writeInbound(new DefaultLastHttpContent(lastPiece)));
+        assertNull(server.readInbound());
+        for (ByteBuf piece : pieces) {
+            assertEquals(0, piece.refCnt());
+        }
+
+        // The outer request is complete now, so the next one is not treated as pipelining.
+        assertFalse(server.writeInbound(newOuterRequest()));
+        assertNull(server.readOutbound());
+        assertTrue(server.isOpen());
+
+        assertFalse(server.finishAndReleaseAll());
+    }
+
+    @Test
+    public void testHandlerRemovedWhileDiscardingRequest() throws Exception {
+        Keys keys = new Keys(BouncyCastleOHttpCryptoProvider.INSTANCE);
+        EmptyResponseUnencapsulatingServerCodec codec = new EmptyResponseUnencapsulatingServerCodec(
+                keys.serverCodecBuilder(BouncyCastleOHttpCryptoProvider.INSTANCE));
+        EmbeddedChannel server = new EmbeddedChannel(codec);
+
+        assertFalse(server.writeInbound(newOuterRequest()));
+        assertTrue(server.writeOutbound(
+                new DefaultFullBinaryHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NO_CONTENT)));
+        ReferenceCountUtil.release(server.readOutbound());
+
+        // The outer request is still incomplete, removing the codec must clean up without failing.
+        server.pipeline().remove(codec);
+        ByteBuf content = Unpooled.copiedBuffer("passed through", StandardCharsets.US_ASCII);
+        assertTrue(server.writeInbound(new DefaultHttpContent(content)));
+        ReferenceCountUtil.release(server.readInbound());
+        assertEquals(0, content.refCnt());
+        assertTrue(server.isOpen());
+
+        assertFalse(server.finishAndReleaseAll());
+    }
+
+    @Test
+    public void testFailureToSendErrorResponseAfterHookThrowsClosesConnection() throws Exception {
+        Keys keys = new Keys(BouncyCastleOHttpCryptoProvider.INSTANCE);
+        IllegalStateException hookFailure = new IllegalStateException("hook failed");
+        IllegalArgumentException onResponseFailure = new IllegalArgumentException("onResponse failed");
+        EmbeddedChannel server = new EmbeddedChannel(
+                new OHttpServerCodec(keys.serverCodecBuilder(BouncyCastleOHttpCryptoProvider.INSTANCE)) {
+                    @Override
+                    protected FullHttpResponse unencapsulatedResponse(HttpRequest request,
+                                                                      FullHttpResponse response) {
+                        throw hookFailure;
+                    }
+
+                    @Override
+                    protected void onResponse(HttpRequest request, HttpResponse response) {
+                        // Fails the sending of the error response that is generated by the codec.
+                        throw onResponseFailure;
+                    }
+                });
+        assertFalse(server.writeInbound(newOuterRequest()));
+
+        FullHttpResponse inner = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        EncoderException e = assertThrows(EncoderException.class, () -> server.writeOutbound(inner));
+        // The original failure must not be lost and the failure to send the error response must be attached.
+        assertSame(hookFailure, e.getCause());
+        assertEquals(Collections.singletonList(onResponseFailure), Arrays.asList(hookFailure.getSuppressed()));
+        assertEquals(0, inner.refCnt());
+        // No error response could be sent, so the connection must be closed to not leave the client hanging.
+        assertFalse(server.isOpen());
+        assertNull(server.readOutbound());
+
+        assertFalse(server.finishAndReleaseAll());
+    }
+
+    @Test
+    public void testErrorResponseStatusRethrowingCauseStillSendsResponse() throws Exception {
+        Keys keys = new Keys(BouncyCastleOHttpCryptoProvider.INSTANCE);
+        EmbeddedChannel server = new EmbeddedChannel(
+                new OHttpServerCodec(keys.serverCodecBuilder(BouncyCastleOHttpCryptoProvider.INSTANCE)) {
+                    @Override
+                    protected HttpResponseStatus errorResponseStatus(Throwable cause, boolean encapsulated) {
+                        // Would fail with "Self-suppression not permitted" if used as suppressed exception.
+                        throw (RuntimeException) cause;
+                    }
+                });
+        assertFalse(server.writeInbound(newOuterRequest()));
+        server.pipeline().fireExceptionCaught(new IllegalStateException("boom"));
+        FullHttpResponse response = server.readOutbound();
+        assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, response.status());
+        assertTrue(response.release());
+        assertFalse(server.isOpen());
         assertFalse(server.finishAndReleaseAll());
     }
 }

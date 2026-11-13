@@ -152,6 +152,18 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
      * instead of encapsulating the inner response. It should therefore include all headers that are needed to
      * frame the response, like {@link HttpHeaderNames#CONTENT_LENGTH}. If the outer request was not fully
      * received yet when this happens, the remaining part of it is dropped.
+     * <br><br>
+     * <strong>Privacy:</strong> the returned response is sent <em>without</em> protection, so it is visible to the
+     * Oblivious Relay Resource and to any other party on the path between the gateway and the client, and the
+     * client can not authenticate it. It must therefore not depend on, or reveal anything about, the decrypted
+     * request or the inner {@code response} (for example by copying its status, headers or content), as this
+     * would defeat the confidentiality that OHTTP provides. Use it only for responses that are safe to expose
+     * publicly. See
+     * <a href="https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-10.html#section-5.2">section 5.2</a>
+     * of the OHTTP draft.
+     * <br><br>
+     * If this method throws, an error response (see {@link #errorResponseStatus(Throwable, boolean)}) is sent,
+     * the connection is closed and the failure of the write is reported to the caller of the write.
      *
      * @param request   Incoming outer {@link HttpRequest}.
      * @param response  Outgoing inner {@link FullHttpResponse}.
@@ -304,39 +316,55 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         }
     }
 
+    /**
+     * Sends the error response and closes the connection afterwards. If sending the response fails, the connection
+     * is closed anyway (as the write promise that would close it is never completed in this case) and the failure
+     * is rethrown.
+     */
     private void sendErrorResponse(ChannelHandlerContext ctx, Throwable cause, boolean encapsulate) throws Exception {
         sentResponse = true;
-
-        // Respond with 4xx status code in case of unable to decode message:
-        // See https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-10.html#section-5.2
-        // The response must be binary, because we send it through the BinaryHttpSerializer.
-        HttpResponseStatus status;
         try {
-            status = requireNonNull(errorResponseStatus(cause, encapsulate), "errorResponseStatus(...)");
-        } catch (Throwable t) {
-            // Never fail to send a response and close the connection because of a faulty override.
-            cause.addSuppressed(t);
-            status = defaultErrorResponseStatus(cause);
-        }
-        FullHttpResponse response = new DefaultFullBinaryHttpResponse(
-                HttpVersion.HTTP_1_1, status, Unpooled.buffer(0));
-        HttpUtil.setKeepAlive(response, false);
-        onResponse(request, response);
+            // Respond with 4xx status code in case of unable to decode message:
+            // See https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-10.html#section-5.2
+            // The response must be binary, because we send it through the BinaryHttpSerializer.
+            HttpResponseStatus status;
+            try {
+                status = requireNonNull(errorResponseStatus(cause, encapsulate), "errorResponseStatus(...)");
+            } catch (Throwable t) {
+                // Never fail to send a response and close the connection because of a faulty override.
+                addSuppressed(cause, t);
+                status = defaultErrorResponseStatus(cause);
+            }
+            FullHttpResponse response = new DefaultFullBinaryHttpResponse(
+                    HttpVersion.HTTP_1_1, status, Unpooled.buffer(0));
+            HttpUtil.setKeepAlive(response, false);
+            onResponse(request, response);
 
-        ChannelPromise promise = ctx.newPromise().addListener(ChannelFutureListener.CLOSE);
-        if (encapsulate) {
-            // Encapsulate and sent with protection. As sentResponse is already true unencapsulatedResponse(...)
-            // will not be consulted.
-            write(ctx, response, promise);
-            flush(ctx);
-        } else {
-            // Not able to remove protection, sent without protection.
-            ctx.writeAndFlush(response, promise);
+            ChannelPromise promise = ctx.newPromise().addListener(ChannelFutureListener.CLOSE);
+            if (encapsulate) {
+                // Encapsulate and sent with protection. As sentResponse is already true
+                // unencapsulatedResponse(...) will not be consulted.
+                write(ctx, response, promise);
+                flush(ctx);
+            } else {
+                // Not able to remove protection, sent without protection.
+                ctx.writeAndFlush(response, promise);
+            }
+        } catch (Throwable t) {
+            // The write failed synchronously, so the promise with the CLOSE listener will never be notified.
+            ctx.close();
+            throw t;
+        }
+    }
+
+    private static void addSuppressed(Throwable cause, Throwable suppressed) {
+        if (cause != suppressed) {
+            cause.addSuppressed(suppressed);
         }
     }
 
     @Override
-    protected final void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) throws Exception {
+    protected final void encode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) {
         try {
             // Only consult the hook if no response was started yet, otherwise we would corrupt the framing.
             if (msg instanceof FullHttpResponse && oHttpContext != null && !sentResponse) {
@@ -347,7 +375,12 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 } catch (Throwable t) {
                     // Send the error response (and close the connection) the same way as for any other failure.
                     // The request was decrypted already if the prefix was decoded, so encapsulate the response.
-                    sendErrorResponse(ctx, t, oHttpContext.isPrefixDecoded());
+                    try {
+                        sendErrorResponse(ctx, t, oHttpContext.isPrefixDecoded());
+                    } catch (Throwable e) {
+                        // Do not lose the original failure, the connection was closed by sendErrorResponse(...).
+                        addSuppressed(t, e);
+                    }
                     throw t;
                 }
                 if (response != null) {
