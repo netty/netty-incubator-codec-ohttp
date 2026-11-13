@@ -133,12 +133,12 @@ public abstract class OHttpCrypto implements AutoCloseable {
     }
 
     private ByteBuf requestAad(boolean preferDirect) {
+        if (closed) {
+            throw new IllegalStateException("closed");
+        }
         // The caller might update the position of the ByteBuf, duplicate it.
         if (!preferDirect) {
             return requestAadHeap.duplicate();
-        }
-        if (closed) {
-            throw new IllegalStateException("closed");
         }
         if (requestAadDirect == null) {
             requestAadDirect = Unpooled.directBuffer(requestAadHeap.readableBytes())

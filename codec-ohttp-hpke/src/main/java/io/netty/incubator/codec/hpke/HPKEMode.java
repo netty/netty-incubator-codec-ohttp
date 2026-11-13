@@ -19,11 +19,31 @@ package io.netty.incubator.codec.hpke;
  * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#section-5">HPKE Modes</a>
  */
 public enum HPKEMode {
+    /**
+     * {@code mode_base}, see <a href="https://www.rfc-editor.org/rfc/rfc9180.html#section-5.1.1">RFC 9180 5.1.1</a>.
+     */
     BASE((byte) 0x00),
+    /**
+     * {@code mode_psk}, see <a href="https://www.rfc-editor.org/rfc/rfc9180.html#section-5.1.2">RFC 9180 5.1.2</a>.
+     */
     PSK((byte) 0x01),
+    /**
+     * {@code mode_auth}, see <a href="https://www.rfc-editor.org/rfc/rfc9180.html#section-5.1.3">RFC 9180 5.1.3</a>.
+     */
     AUTH((byte) 0x02),
+    /**
+     * {@code mode_auth_psk}, see
+     * <a href="https://www.rfc-editor.org/rfc/rfc9180.html#section-5.1.4">RFC 9180 5.1.4</a>.
+     */
     AUTH_PSK((byte) 0x03);
 
+    /**
+     * Returns the {@link HPKEMode} for the given identifier.
+     *
+     * @param id    the identifier of the mode.
+     * @return      the mode.
+     * @throws IllegalArgumentException if the identifier is unknown.
+     */
     public static HPKEMode forId(byte id) {
         for (HPKEMode val : values()) {
             if (val.id == id) {
@@ -39,6 +59,11 @@ public enum HPKEMode {
         this.id = id;
     }
 
+    /**
+     * Returns the identifier of the mode as defined by RFC 9180.
+     *
+     * @return the identifier.
+     */
     public byte id() {
         return id;
     }

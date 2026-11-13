@@ -152,6 +152,11 @@ public final class OHttpCryptoParameters {
             return this;
         }
 
+        /**
+         * Build the {@link OHttpCryptoParameters}.
+         *
+         * @return the parameters.
+         */
         public OHttpCryptoParameters build() {
             return new OHttpCryptoParameters(this);
         }

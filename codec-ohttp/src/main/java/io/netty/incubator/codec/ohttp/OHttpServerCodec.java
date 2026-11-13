@@ -66,6 +66,10 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(OHttpServerCodec.class);
 
+    // The first unusable OHttpCryptoParameters is logged at WARN so the problem is visible to the operator, all
+    // further ones only at DEBUG. A client can trigger this for every request, so it must not flood the log.
+    private static volatile boolean unusableParametersWarned;
+
     private final OHttpCryptoProvider provider;
     private final OHttpServerKeys serverKeys;
     private final int maxInitialLineSize;
@@ -384,6 +388,18 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             this.cryptoParameters = cryptoParameters;
         }
 
+        private static void logUnusableParameters(Exception cause) {
+            // Only log the message (no stack trace), the cause is a (constant) server configuration problem.
+            // Best effort: a race between event loops may result in more than one WARN, which is harmless.
+            if (!unusableParametersWarned) {
+                unusableParametersWarned = true;
+                logger.warn("Unable to use the OHttpCryptoParameters for a request, responding with 400. " +
+                        "Further occurrences are only logged at DEBUG level: {}", String.valueOf(cause));
+            } else if (logger.isDebugEnabled()) {
+                logger.debug("Unable to use the OHttpCryptoParameters for a request: {}", String.valueOf(cause));
+            }
+        }
+
         private void checkPrefixDecoded()throws CryptoException {
             if (!isPrefixDecoded()) {
                 throw new CryptoException("Prefix was not decoded yet");
@@ -416,14 +432,18 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             final byte[] encapsulatedKey = new byte[encapsulatedKeyLength];
             in.readBytes(encapsulatedKey);
 
-            // The client can only be told that the request could not be decrypted, so a failure that is caused by
-            // the server configuration is reported through the exception message only (logging it here would let a
-            // client trigger a log entry per request).
-            final OHttpCryptoParameters parameters = requireNonNull(cryptoParameters.apply(ciphersuite),
-                    "cryptoParameters");
-            OHttpCrypto.checkRequestAad(version(), parameters);
-            if (!provider.isSupported(parameters.mode())) {
-                throw new CryptoException("The OHttpCryptoProvider does not support " + parameters.mode());
+            // The client can only be told that the request could not be decrypted (400), so a failure that is caused
+            // by the server configuration is made visible to the operator via the log.
+            final OHttpCryptoParameters parameters;
+            try {
+                parameters = requireNonNull(cryptoParameters.apply(ciphersuite), "cryptoParameters");
+                OHttpCrypto.checkRequestAad(version(), parameters);
+                if (!provider.isSupported(parameters.mode())) {
+                    throw new CryptoException("The OHttpCryptoProvider does not support " + parameters.mode());
+                }
+            } catch (CryptoException | RuntimeException e) {
+                logUnusableParameters(e);
+                throw e;
             }
             receiver = OHttpCryptoReceiver.newBuilder()
                     .setOHttpCryptoProvider(provider)

@@ -65,6 +65,15 @@ public final class OHttpCryptoSender extends OHttpCrypto {
             return this;
         }
 
+        /**
+         * Set the {@link OHttpCryptoParameters} to use. By default {@link OHttpCryptoParameters#DEFAULT} is used.
+         * Building fails with an {@link IllegalArgumentException} if a request AAD is set for a configuration that
+         * uses final AAD, and with an {@link UnsupportedOperationException} if the {@link OHttpCryptoProvider} does
+         * not support the {@link OHttpCryptoParameters#mode()}.
+         *
+         * @param value the parameters.
+         * @return      this builder.
+         */
         public Builder setCryptoParameters(OHttpCryptoParameters value) {
             this.cryptoParameters = requireNonNull(value, "cryptoParameters");
             return this;
