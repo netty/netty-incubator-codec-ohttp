@@ -17,6 +17,7 @@ package io.netty.incubator.codec.ohttp;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.CorruptedFrameException;
@@ -65,7 +66,10 @@ import static io.netty.incubator.codec.ohttp.OHttpCodecsTest.strToBuf;
 import static io.netty.incubator.codec.ohttp.OHttpCodecsTest.testRequestResponseFlow;
 import static io.netty.incubator.codec.ohttp.OHttpCodecsTest.testTransferFlow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class OHttpPlaintextTransformerTest {
 
@@ -248,6 +252,37 @@ public class OHttpPlaintextTransformerTest {
         channels.finish();
 
         serverTransformer.assertAllReleased(true, true);
+    }
+
+    @ParameterizedTest
+    @MethodSource("versionsAndProviders")
+    void testServerTransformerFailureOnResponseClosesChannel(OHttpVersion version, OHttpCryptoProvider provider)
+            throws Exception {
+        Channels channels = new Channels(version, provider, false, new MarkerXorTransformer(),
+                (ctx, request) -> new MarkerXorTransformer() {
+                    @Override
+                    public void encode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception {
+                        throw new IOException("Unable to transform");
+                    }
+                });
+        channels.client.writeOutbound(newFullRequest());
+        transfer(channels.client, channels.server);
+        HttpRequest received = channels.server.readInbound();
+        assertEquals("/test", received.uri());
+
+        ChannelFuture future = channels.server.writeAndFlush(new DefaultFullBinaryHttpResponse(
+                HttpVersion.HTTP_1_1, HttpResponseStatus.OK, strToBuf("response body")));
+        assertTrue(future.isDone());
+        assertFalse(future.isSuccess());
+        // The response can't be completed, so the channel must be closed and the client must not see a partial
+        // response.
+        assertFalse(channels.server.isOpen());
+        assertNull(channels.server.readOutbound());
+        try {
+            channels.finish();
+        } catch (RuntimeException ignore) {
+            // The write failure might be re-thrown as it was recorded by the EmbeddedChannel.
+        }
     }
 
     private static FullBinaryHttpRequest newFullRequest() {
