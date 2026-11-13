@@ -81,6 +81,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
     private final Function<HttpRequest, EncapsulationParameters> encapsulationFunc;
     private final int maxInitialLineSize;
     private final int maxFieldSectionSize;
+    private final boolean knownLengthBinaryHttp;
 
     private ByteBuf cumulationBuffer = Unpooled.EMPTY_BUFFER;
     private boolean destroyed;
@@ -113,6 +114,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 "builder.getEncapsulationFunction()");
         maxInitialLineSize = builder.getMaxInitialLineSize();
         maxFieldSectionSize = builder.getMaxFieldSectionSize();
+        knownLengthBinaryHttp = builder.isKnownLengthBinaryHttp();
     }
 
     /**
@@ -158,6 +160,15 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
          * @return the version.
          */
         OHttpVersion version();
+
+        /**
+         * The {@link OHttpPlaintextTransformer} that is applied to the plaintext of the request and its response.
+         *
+         * @return the transformer or {@code null} if the plaintext should not be transformed.
+         */
+        default OHttpPlaintextTransformer plaintextTransformer() {
+            return null;
+        }
 
         /**
          * The {@link OHttpCryptoParameters} to use.
@@ -317,7 +328,7 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 if (encapsulation != null) {
                     OHttpClientRequestResponseContext oHttpContext =
                             new OHttpClientRequestResponseContext(encapsulation, provider,
-                                    maxInitialLineSize, maxFieldSectionSize);
+                                    maxInitialLineSize, maxFieldSectionSize, knownLengthBinaryHttp);
                     HttpHeaders outerHeaders = encapsulation.outerRequestHeaders();
                     DefaultHttpRequest outerRequest = new DefaultHttpRequest(
                             innerRequest.protocolVersion(),
@@ -358,8 +369,21 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 out.add(ReferenceCountUtil.retain(msg));
             }
         } catch (CryptoException e) {
+            closeOnEncodeFailure(ctx);
             throw new OHttpEncoderException("failed to encrypt bytes", e);
+        } catch (RuntimeException e) {
+            closeOnEncodeFailure(ctx);
+            throw e;
         }
+    }
+
+    /**
+     * The outer request headers might already have been queued while the (rest of the) encapsulated request can't be
+     * produced anymore, for example because the {@link OHttpPlaintextTransformer} failed. Close the channel so the
+     * server doesn't wait for a request that will never be completed.
+     */
+    private static void closeOnEncodeFailure(ChannelHandlerContext ctx) {
+        ctx.close();
     }
 
     @Override
@@ -386,8 +410,9 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
 
         OHttpClientRequestResponseContext(
                 EncapsulationParameters parameters, OHttpCryptoProvider provider, int maxInitialLineSize,
-                int maxFieldSectionSize) {
-            super(parameters.version(), maxInitialLineSize, maxFieldSectionSize);
+                int maxFieldSectionSize, boolean knownLengthBinaryHttp) {
+            super(parameters.version(), maxInitialLineSize, maxFieldSectionSize, knownLengthBinaryHttp,
+                    parameters.plaintextTransformer());
             this.sender = OHttpCryptoSender.newBuilder()
                     .setOHttpCryptoProvider(provider)
                     .setConfiguration(parameters.version())
