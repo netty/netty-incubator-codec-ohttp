@@ -212,9 +212,11 @@ abstract class OHttpRequestResponseContext {
             ByteBuf decryptedChunk = alloc.buffer();
             try {
                 decryptChunk(alloc, chunk, chunkLength, completeBodyReceived, decryptedChunk);
-                binaryHttpCumulation = MERGE_CUMULATOR.cumulate(alloc, binaryHttpCumulation, decryptedChunk);
-                // Ownership transferred to binaryHttpCumulation; do not release in finally
+                ByteBuf toCumulate = decryptedChunk;
+                // MERGE_CUMULATOR takes ownership of the buffer and releases it even if cumulate(...) fails, so
+                // do not release it in finally.
                 decryptedChunk = null;
+                binaryHttpCumulation = MERGE_CUMULATOR.cumulate(alloc, binaryHttpCumulation, toCumulate);
             } finally {
                 if (decryptedChunk != null) {
                     decryptedChunk.release();
