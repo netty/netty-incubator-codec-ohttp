@@ -16,7 +16,6 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 
 /**
  * Transforms the plaintext of an OHTTP message, which is the binary HTTP encoding of the encapsulated HTTP message.
@@ -29,20 +28,20 @@ public interface OHttpPlaintextTransformer {
     /**
      * Transform a decrypted chunk before it is parsed as binary HTTP.
      *
-     * @param alloc     {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param in        the decrypted bytes.
      * @param isFinal   {@code true} if this is the final chunk of the message.
      * @param out       the {@link ByteBuf} into which the bytes that should be parsed as binary HTTP are written.
+     * @throws Exception if the chunk cannot be transformed.
      */
-    void decode(ByteBufAllocator alloc, ByteBuf in, boolean isFinal, ByteBuf out);
+    void decode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception;
 
     /**
      * Transform a serialized binary HTTP chunk before it is encrypted.
      *
-     * @param alloc     {@link ByteBufAllocator} which might be used to do extra allocations.
      * @param in        the serialized binary HTTP bytes.
      * @param isFinal   {@code true} if this is the final chunk of the message.
      * @param out       the {@link ByteBuf} into which the bytes that should be encrypted are written.
+     * @throws Exception if the chunk cannot be transformed.
      */
-    void encode(ByteBufAllocator alloc, ByteBuf in, boolean isFinal, ByteBuf out);
+    void encode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception;
 }

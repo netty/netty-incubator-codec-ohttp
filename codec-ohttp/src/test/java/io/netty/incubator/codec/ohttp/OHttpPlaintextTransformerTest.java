@@ -16,7 +16,6 @@
 package io.netty.incubator.codec.ohttp;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -54,6 +53,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -156,8 +156,26 @@ public class OHttpPlaintextTransformerTest {
         Channels channels = new Channels(version, provider, false, new MarkerXorTransformer(),
                 (ctx, request) -> new MarkerXorTransformer() {
                     @Override
-                    public void decode(ByteBufAllocator alloc, ByteBuf in, boolean isFinal, ByteBuf out) {
+                    public void decode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception {
                         throw new CorruptedFrameException("Unable to transform");
+                    }
+                });
+
+        testRequestResponseFlow(channels.client, channels.server,
+                Collections.singletonList(newFullRequest()),
+                Collections.singletonList(newBadRequestResponse()));
+        channels.finish();
+    }
+
+    @ParameterizedTest
+    @MethodSource("versionsAndProviders")
+    void testServerTransformerCheckedExceptionProducesBadRequest(OHttpVersion version, OHttpCryptoProvider provider)
+            throws Exception {
+        Channels channels = new Channels(version, provider, false, new MarkerXorTransformer(),
+                (ctx, request) -> new MarkerXorTransformer() {
+                    @Override
+                    public void decode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception {
+                        throw new IOException("Unable to transform");
                     }
                 });
 
@@ -354,7 +372,7 @@ public class OHttpPlaintextTransformerTest {
         Integer firstEncodedByte;
 
         @Override
-        public void decode(ByteBufAllocator alloc, ByteBuf in, boolean isFinal, ByteBuf out) {
+        public void decode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception {
             if (in.readByte() != MARKER) {
                 throw new CorruptedFrameException("Missing marker");
             }
@@ -363,7 +381,7 @@ public class OHttpPlaintextTransformerTest {
         }
 
         @Override
-        public void encode(ByteBufAllocator alloc, ByteBuf in, boolean isFinal, ByteBuf out) {
+        public void encode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception {
             if (firstEncodedByte == null && in.isReadable()) {
                 firstEncodedByte = (int) in.getByte(in.readerIndex());
             }
@@ -384,9 +402,9 @@ public class OHttpPlaintextTransformerTest {
      */
     private static final class KnownLengthOnlyTransformer extends MarkerXorTransformer {
         @Override
-        public void decode(ByteBufAllocator alloc, ByteBuf in, boolean isFinal, ByteBuf out) {
+        public void decode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception {
             int writerIndex = out.writerIndex();
-            super.decode(alloc, in, isFinal, out);
+            super.decode(in, isFinal, out);
             if (decoded == 1 && out.writerIndex() > writerIndex && out.getByte(writerIndex) == 0x02) {
                 throw new CorruptedFrameException("Indeterminate-length binary HTTP is not supported");
             }
@@ -406,20 +424,20 @@ public class OHttpPlaintextTransformerTest {
         }
 
         @Override
-        public void decode(ByteBufAllocator alloc, ByteBuf in, boolean isFinal, ByteBuf out) {
+        public void decode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception {
             decodeBuffers.add(in);
             decodeBuffers.add(out);
-            super.decode(alloc, in, isFinal, out);
+            super.decode(in, isFinal, out);
             if (failDecode) {
                 throw new CorruptedFrameException("Unable to transform");
             }
         }
 
         @Override
-        public void encode(ByteBufAllocator alloc, ByteBuf in, boolean isFinal, ByteBuf out) {
+        public void encode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception {
             encodeBuffers.add(in);
             encodeBuffers.add(out);
-            super.encode(alloc, in, isFinal, out);
+            super.encode(in, isFinal, out);
         }
 
         void assertAllReleased(boolean expectEncode, boolean expectDecode) {

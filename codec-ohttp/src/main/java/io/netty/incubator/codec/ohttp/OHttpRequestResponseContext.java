@@ -18,6 +18,8 @@ package io.netty.incubator.codec.ohttp;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.CorruptedFrameException;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.EncoderException;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.incubator.codec.bhttp.BinaryHttpParser;
 import io.netty.incubator.codec.bhttp.BinaryHttpSerializer;
@@ -120,7 +122,13 @@ abstract class OHttpRequestResponseContext {
                 ByteBuf plaintext = binaryHttpBytes;
                 if (plaintextTransformer != null) {
                     transformedBytes = alloc.buffer();
-                    plaintextTransformer.encode(alloc, binaryHttpBytes, isFinal, transformedBytes);
+                    try {
+                        plaintextTransformer.encode(binaryHttpBytes, isFinal, transformedBytes);
+                    } catch (RuntimeException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        throw new EncoderException("Unable to transform plaintext", e);
+                    }
                     plaintext = transformedBytes;
                 }
                 encryptChunk(alloc, plaintext, plaintext.readableBytes(), isFinal, out);
@@ -241,7 +249,13 @@ abstract class OHttpRequestResponseContext {
                 decryptChunk(alloc, chunk, chunkLength, completeBodyReceived, decryptedChunk);
                 if (plaintextTransformer != null) {
                     transformedChunk = alloc.buffer();
-                    plaintextTransformer.decode(alloc, decryptedChunk, completeBodyReceived, transformedChunk);
+                    try {
+                        plaintextTransformer.decode(decryptedChunk, completeBodyReceived, transformedChunk);
+                    } catch (RuntimeException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        throw new DecoderException("Unable to transform plaintext", e);
+                    }
                     decryptedChunk.release();
                     decryptedChunk = transformedChunk;
                     transformedChunk = null;
