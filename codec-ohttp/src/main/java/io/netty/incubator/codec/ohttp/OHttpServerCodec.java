@@ -45,8 +45,11 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.incubator.codec.hpke.OHttpCryptoProvider;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.ObjectUtil;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.util.List;
+import java.util.function.Function;
 
 import static io.netty.handler.codec.ByteToMessageDecoder.MERGE_CUMULATOR;
 import static io.netty.incubator.codec.ohttp.OHttpConstants.MAX_BUFFER_LENGTH;
@@ -60,6 +63,12 @@ import static java.util.Objects.requireNonNull;
  * Both incoming and outgoing messages are {@link HttpObject}s.
  */
 public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObject> {
+
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(OHttpServerCodec.class);
+
+    // The first unusable OHttpCryptoParameters is logged at WARN so the problem is visible to the operator, all
+    // further ones only at DEBUG. A client can trigger this for every request, so it must not flood the log.
+    private static volatile boolean unusableParametersWarned;
 
     private final OHttpCryptoProvider provider;
     private final OHttpServerKeys serverKeys;
@@ -156,6 +165,22 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
     }
 
     /**
+     * Returns the {@link OHttpCryptoParameters} to use for a request. This method is called once per request, after
+     * the {@link OHttpCiphersuite} was decoded and before the request is decrypted. A {@link RuntimeException}
+     * thrown by this method, or parameters the {@link OHttpCryptoProvider} does not support, rejects the request.
+     *
+     * @param ctx           the {@link ChannelHandlerContext} of this handler.
+     * @param request       the outer {@link HttpRequest}, which must be treated as read-only.
+     * @param ciphersuite   the {@link OHttpCiphersuite} of the request.
+     * @return              the parameters to use.
+     */
+    protected OHttpCryptoParameters cryptoParameters(
+            @SuppressWarnings("unused") ChannelHandlerContext ctx, @SuppressWarnings("unused") HttpRequest request,
+            @SuppressWarnings("unused") OHttpCiphersuite ciphersuite) {
+        return OHttpCryptoParameters.DEFAULT;
+    }
+
+    /**
      * Optional callback to report the outer HTTP request and response.
      * @param request Incoming {@link HttpRequest}.
      * @param response Outgoing {@link HttpResponse}.
@@ -199,10 +224,13 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
                 }
                 if (version != null) {
                     // Keep a copy of the request, which will be used to generate the response.
-                    request = new DefaultHttpRequest(req.protocolVersion(), req.method(), req.uri(), req.headers());
+                    HttpRequest outerRequest = new DefaultHttpRequest(
+                            req.protocolVersion(), req.method(), req.uri(), req.headers());
+                    request = outerRequest;
                     oHttpContext = new OHttpServerRequestResponseContext(
                             version, provider, serverKeys, maxInitialLineSize, maxFieldSectionSize,
-                            knownLengthBinaryHttp, plaintextTransformer(ctx, request));
+                            knownLengthBinaryHttp, plaintextTransformer(ctx, outerRequest),
+                            ciphersuite -> cryptoParameters(ctx, outerRequest, ciphersuite));
                 } else {
                     sentResponse = true;
                     FullHttpResponse response = new DefaultFullHttpResponse(
@@ -370,6 +398,7 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
 
         private final OHttpCryptoProvider provider;
         private final OHttpServerKeys keys;
+        private final Function<OHttpCiphersuite, OHttpCryptoParameters> cryptoParameters;
         private OHttpCryptoReceiver receiver;
         private boolean receivedLastHttpContent;
         private boolean sendLastHttpContent;
@@ -377,10 +406,24 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
         OHttpServerRequestResponseContext(
                 OHttpVersion version, OHttpCryptoProvider provider, OHttpServerKeys keys, int maxInitialLineSize,
                 int maxFieldSectionSize, boolean knownLengthBinaryHttp,
-                OHttpPlaintextTransformer plaintextTransformer) {
+                OHttpPlaintextTransformer plaintextTransformer,
+                Function<OHttpCiphersuite, OHttpCryptoParameters> cryptoParameters) {
             super(version, maxInitialLineSize, maxFieldSectionSize, knownLengthBinaryHttp, plaintextTransformer);
             this.provider = provider;
             this.keys = keys;
+            this.cryptoParameters = cryptoParameters;
+        }
+
+        private static void logUnusableParameters(Exception cause) {
+            // Only log the message (no stack trace), the cause is a (constant) server configuration problem.
+            // Best effort: a race between event loops may result in more than one WARN, which is harmless.
+            if (!unusableParametersWarned) {
+                unusableParametersWarned = true;
+                logger.warn("Unable to use the OHttpCryptoParameters for a request, responding with 400. " +
+                        "Further occurrences are only logged at DEBUG level: {}", String.valueOf(cause));
+            } else if (logger.isDebugEnabled()) {
+                logger.debug("Unable to use the OHttpCryptoParameters for a request: {}", String.valueOf(cause));
+            }
         }
 
         private void checkPrefixDecoded()throws CryptoException {
@@ -415,12 +458,26 @@ public class OHttpServerCodec extends MessageToMessageCodec<HttpObject, HttpObje
             final byte[] encapsulatedKey = new byte[encapsulatedKeyLength];
             in.readBytes(encapsulatedKey);
 
+            // The client can only be told that the request could not be decrypted (400), so a failure that is caused
+            // by the server configuration is made visible to the operator via the log.
+            final OHttpCryptoParameters parameters;
+            try {
+                parameters = requireNonNull(cryptoParameters.apply(ciphersuite), "cryptoParameters");
+                OHttpCrypto.checkRequestAad(version(), parameters);
+                if (!provider.isSupported(parameters.mode())) {
+                    throw new CryptoException("The OHttpCryptoProvider does not support " + parameters.mode());
+                }
+            } catch (CryptoException | RuntimeException e) {
+                logUnusableParameters(e);
+                throw e;
+            }
             receiver = OHttpCryptoReceiver.newBuilder()
                     .setOHttpCryptoProvider(provider)
                     .setConfiguration(version())
                     .setPrivateKey(pair)
                     .setCiphersuite(ciphersuite)
                     .setEncapsulatedKey(encapsulatedKey)
+                    .setCryptoParameters(parameters)
                     .build();
             return true;
         }
