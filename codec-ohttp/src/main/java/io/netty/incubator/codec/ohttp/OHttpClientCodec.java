@@ -369,8 +369,21 @@ public final class OHttpClientCodec extends MessageToMessageCodec<HttpObject, Ht
                 out.add(ReferenceCountUtil.retain(msg));
             }
         } catch (CryptoException e) {
+            closeOnEncodeFailure(ctx);
             throw new OHttpEncoderException("failed to encrypt bytes", e);
+        } catch (RuntimeException e) {
+            closeOnEncodeFailure(ctx);
+            throw e;
         }
+    }
+
+    /**
+     * The outer request headers might already have been queued while the (rest of the) encapsulated request can't be
+     * produced anymore, for example because the {@link OHttpPlaintextTransformer} failed. Close the channel so the
+     * server doesn't wait for a request that will never be completed.
+     */
+    private static void closeOnEncodeFailure(ChannelHandlerContext ctx) {
+        ctx.close();
     }
 
     @Override

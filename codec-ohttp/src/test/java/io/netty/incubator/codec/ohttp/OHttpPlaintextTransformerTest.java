@@ -259,12 +259,7 @@ public class OHttpPlaintextTransformerTest {
     void testServerTransformerFailureOnResponseClosesChannel(OHttpVersion version, OHttpCryptoProvider provider)
             throws Exception {
         Channels channels = new Channels(version, provider, false, new MarkerXorTransformer(),
-                (ctx, request) -> new MarkerXorTransformer() {
-                    @Override
-                    public void encode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception {
-                        throw new IOException("Unable to transform");
-                    }
-                });
+                (ctx, request) -> new FailingEncodeTransformer());
         channels.client.writeOutbound(newFullRequest());
         transfer(channels.client, channels.server);
         HttpRequest received = channels.server.readInbound();
@@ -278,6 +273,27 @@ public class OHttpPlaintextTransformerTest {
         // response.
         assertFalse(channels.server.isOpen());
         assertNull(channels.server.readOutbound());
+        try {
+            channels.finish();
+        } catch (RuntimeException ignore) {
+            // The write failure might be re-thrown as it was recorded by the EmbeddedChannel.
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("versionsAndProviders")
+    void testClientTransformerFailureOnRequestClosesChannel(OHttpVersion version, OHttpCryptoProvider provider)
+            throws Exception {
+        Channels channels = new Channels(version, provider, false, new FailingEncodeTransformer(),
+                (ctx, request) -> new MarkerXorTransformer());
+
+        ChannelFuture future = channels.client.writeAndFlush(newFullRequest());
+        assertTrue(future.isDone());
+        assertFalse(future.isSuccess());
+        // The request can't be completed, so the channel must be closed and the server must not see a partial
+        // request.
+        assertFalse(channels.client.isOpen());
+        assertNull(channels.client.readOutbound());
         try {
             channels.finish();
         } catch (RuntimeException ignore) {
@@ -429,6 +445,16 @@ public class OHttpPlaintextTransformerTest {
             while (in.isReadable()) {
                 out.writeByte(in.readByte() ^ MASK);
             }
+        }
+    }
+
+    /**
+     * Fails every attempt to encode.
+     */
+    private static final class FailingEncodeTransformer extends MarkerXorTransformer {
+        @Override
+        public void encode(ByteBuf in, boolean isFinal, ByteBuf out) throws Exception {
+            throw new IOException("Unable to transform");
         }
     }
 
