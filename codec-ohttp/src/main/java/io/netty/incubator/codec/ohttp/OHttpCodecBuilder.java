@@ -32,6 +32,7 @@ public abstract class OHttpCodecBuilder<B extends OHttpCodecBuilder<B>> implemen
     private OHttpCryptoProvider provider;
     private int maxFieldSectionSize = DEFAULT_MAX_FIELD_SECTION_SIZE;
     private int maxInitialLineSize = DEFAULT_MAX_INITIAL_LINE_SIZE;
+    private boolean knownLengthBinaryHttp;
 
     /**
      * Package-private constructor, to prevent integrators from extending this class.
@@ -102,6 +103,29 @@ public abstract class OHttpCodecBuilder<B extends OHttpCodecBuilder<B>> implemen
                     (Integer.MAX_VALUE >> 1));
         }
         this.maxFieldSectionSize = maxFieldSectionSize;
+        return self();
+    }
+
+    /**
+     * Returns {@code true} if binary HTTP messages are serialized using the
+     * <a href="https://www.rfc-editor.org/rfc/rfc9292.html#section-3.3">known-length encoding</a>.
+     * @return {@code true} if the known-length encoding is used, {@code false} if the indeterminate-length encoding
+     * is used.
+     */
+    public final boolean isKnownLengthBinaryHttp() {
+        return knownLengthBinaryHttp;
+    }
+
+    /**
+     * Set if binary HTTP messages should be serialized using the
+     * <a href="https://www.rfc-editor.org/rfc/rfc9292.html#section-3.3">known-length encoding</a> instead of the
+     * indeterminate-length encoding. When enabled, the encapsulated HTTP messages must be written as full messages.
+     * @param knownLengthBinaryHttp {@code true} if the known-length encoding should be used. Defaults to
+     *                              {@code false}.
+     * @return this builder.
+     */
+    public final B setKnownLengthBinaryHttp(boolean knownLengthBinaryHttp) {
+        this.knownLengthBinaryHttp = knownLengthBinaryHttp;
         return self();
     }
 
